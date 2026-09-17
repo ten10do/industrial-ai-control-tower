@@ -77,7 +77,7 @@ def analyze_errors(
     false_positive = np.where((truth == "NORMAL") & anomaly_predicted)[0]
     false_negative = np.where((truth != "NORMAL") & ~anomaly_predicted)[0]
     fault_rows = np.where(truth != "NORMAL")[0]
-    confusions = fault_rows[classifier_predicted != truth[fault_rows]]
+    confusions = fault_rows[classifier_predicted[fault_rows] != truth[fault_rows]]
     low_severity = false_negative[severity[false_negative] < 0.70]
     scenario_meta = {item["scenario_id"]: item for item in manifest["scenarios"]}
     recovery_false_positive: list[int] = []

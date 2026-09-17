@@ -20,6 +20,7 @@ from app.ml.features import (
 from app.ml.runtime import MODEL_VERSION, ModelCompatibilityError, ModelRuntime
 
 from industrial_ml.dataset import CLASSES, build_manifest, build_scenarios, generate_dataset
+from industrial_ml.evaluation import evaluate
 from industrial_ml.training import train
 
 
@@ -165,3 +166,15 @@ def test_low_confidence_prediction_is_uncertain() -> None:
     prediction = ModelRuntime(bundle, {}).predict(normal_window())
     assert prediction.status == "UNCERTAIN"
     assert prediction.fault_type is None
+
+
+def test_tiny_frozen_evaluation_smoke(
+    trained_bundle: tuple[dict[str, Any], dict[str, Any]],
+) -> None:
+    bundle, manifest = trained_bundle
+    scenarios = build_scenarios(dict.fromkeys(CLASSES, 5), ticks=100)
+    dataset = generate_dataset(scenarios)
+    results = evaluate(dataset, bundle, manifest)
+    assert results["test_scenarios"] == 6
+    assert set(results["per_class_recall"]) == set(CLASSES) - {"NORMAL"}
+    assert "fault_confusion_pairs" in results["error_analysis"]
