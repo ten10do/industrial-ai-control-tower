@@ -107,6 +107,10 @@ graph TB
 - OPC UA: structured industrial data access
 - Equipment Simulator: offline validation and synthetic data generation
 
+#### Equipment Simulator (Phase 1)
+
+The simulator generates synthetic telemetry for an `IndustrialMotor` and publishes it to the MQTT broker. It is decoupled from transport via the `TelemetryPublisher` interface and supports deterministic seeds, configurable fault injection, and structured logging. See [`docs/SIMULATOR.md`](../SIMULATOR.md) for details.
+
 ### Observability
 
 - Structured logging

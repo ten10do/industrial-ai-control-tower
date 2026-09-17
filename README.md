@@ -45,7 +45,7 @@ The target architecture is documented in [`docs/architecture/SYSTEM_ARCHITECTURE
 industrial-ai-control-tower/
 ├── backend/              # FastAPI application
 ├── frontend/             # React + TypeScript + Vite application
-├── simulator/            # Industrial equipment simulator (Phase 1+)
+├── simulator/            # Industrial equipment simulator (Phase 1)
 ├── docs/                 # Architecture, ADRs, contracts
 │   ├── architecture/
 │   ├── adr/
@@ -54,6 +54,7 @@ industrial-ai-control-tower/
 │   ├── AGENT_CONTRACTS.md
 │   ├── API_CONTRACT.md
 │   ├── TESTING_STRATEGY.md
+│   ├── SIMULATOR.md
 │   └── ROADMAP.md
 ├── tests/                # Cross-service tests
 ├── scripts/              # Utility scripts
@@ -99,6 +100,7 @@ See [`docs/architecture/SYSTEM_ARCHITECTURE.md`](docs/architecture/SYSTEM_ARCHIT
 | [`docs/AGENT_CONTRACTS.md`](docs/AGENT_CONTRACTS.md) | Input/output schemas and failure semantics for agents |
 | [`docs/API_CONTRACT.md`](docs/API_CONTRACT.md) | API namespaces, error contract, status values |
 | [`docs/TESTING_STRATEGY.md`](docs/TESTING_STRATEGY.md) | Test levels and CI requirements |
+| [`docs/SIMULATOR.md`](docs/SIMULATOR.md) | Simulator model, telemetry schema, MQTT topics |
 | [`docs/ROADMAP.md`](docs/ROADMAP.md) | Phase-by-phase roadmap |
 
 ## Testing
@@ -130,6 +132,6 @@ See [`docs/architecture/SYSTEM_ARCHITECTURE.md`](docs/architecture/SYSTEM_ARCHIT
 
 ## Current Project Status
 
-**Current Phase: Phase 0**
+**Current Phase: Phase 1**
 
-Phase 0 establishes the repository foundation, architecture documentation, and minimal skeletons. No production business logic is implemented yet.
+Phase 1 implements the industrial equipment simulator. It produces correlated motor telemetry, supports fault injection with a defined lifecycle, and publishes validated JSON payloads over MQTT. No AI diagnosis, RAG, multi-agent, or LLM integration is present yet.
