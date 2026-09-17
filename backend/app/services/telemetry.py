@@ -18,6 +18,7 @@ from app.repositories.audit import AuditRepository
 from app.repositories.device import DeviceRepository
 from app.repositories.telemetry import TelemetryRepository
 from app.schemas.telemetry import TelemetryIn, TelemetryRead
+from app.services.diagnosis import OnlineDiagnosisCoordinator
 from app.websocket.manager import WebSocketManager
 
 logger = logging.getLogger(__name__)
@@ -44,6 +45,7 @@ class TelemetryService:
         redis: Redis,
         websocket_manager: WebSocketManager,
         counters: IngestionCounters,
+        diagnosis: OnlineDiagnosisCoordinator | None = None,
     ) -> None:
         self.session = session
         self.telemetry = TelemetryRepository(session)
@@ -53,6 +55,7 @@ class TelemetryService:
         self.cache = LatestTelemetryCache(redis)
         self.websocket_manager = websocket_manager
         self.counters = counters
+        self.diagnosis = diagnosis
 
     async def ingest_payload(self, topic: str, payload: bytes) -> IngestionResult:
         self.counters.consumed += 1
@@ -86,7 +89,9 @@ class TelemetryService:
             await self.session.commit()
             response = TelemetryRead.model_validate(model)
             self.counters.persisted += 1
-            await self._publish_latest(response)
+            is_latest = await self._publish_latest(response)
+            if is_latest and self.diagnosis is not None:
+                await self.diagnosis.handle(response)
             logger.info(
                 "telemetry_persisted",
                 extra={"device_id": data.device_id, "alarm_count": alarm_count},
@@ -114,7 +119,7 @@ class TelemetryService:
             logger.exception("redis_latest_rebuild_failed", extra={"device_id": device_id})
         return response
 
-    async def _publish_latest(self, telemetry: TelemetryRead) -> None:
+    async def _publish_latest(self, telemetry: TelemetryRead) -> bool:
         try:
             is_latest = await self.cache.set_if_newer(telemetry)
         except Exception:
@@ -123,6 +128,7 @@ class TelemetryService:
             is_latest = latest is not None and latest.id == telemetry.id
         if is_latest:
             await self.websocket_manager.broadcast(telemetry.device_id, telemetry.model_dump_json())
+        return is_latest
 
     async def _apply_alarm_rules(self, telemetry_id: UUID, data: TelemetryIn) -> int:
         rules: list[tuple[str, str, str]] = []

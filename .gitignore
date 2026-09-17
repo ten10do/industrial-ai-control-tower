@@ -78,6 +78,11 @@ logs/
 simulator/output/
 simulator/data/
 
+# Reproducible ML outputs (selected deployment artifact lives under backend/artifacts)
+ml/data/
+ml/output/
+ml/artifacts/
+
 # Docker
 .dockerignore is tracked; ignore local Docker artifacts if any
 docker-volumes/

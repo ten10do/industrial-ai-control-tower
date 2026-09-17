@@ -90,6 +90,19 @@ graph TB
 - Repositories isolate PostgreSQL queries; Pydantic schemas remain separate from ORM models
 - The API boundary is ready for later RBAC dependencies, but Phase 2 deliberately has no OAuth/SSO
 
+#### ML Diagnosis Engine (Phase 3)
+
+Persisted telemetry feeds a bounded per-device window. Every configured stride, a versioned
+feature extractor validates 20 samples and computes 76 numeric features without label fields. A
+validation-selected robust anomaly detector gates a calibrated Random Forest classifier. Low
+confidence becomes `UNCERTAIN`; extraction or inference exceptions become persisted `FAILED`
+records. Severity and the three strongest sensor deviations accompany each result.
+
+Training lives under `ml/` and never runs in the backend. Serving loads only a frozen joblib
+artifact after SHA-256, model, feature, telemetry-schema, and library-version checks. On restart,
+the buffer is warmed from recent PostgreSQL telemetry. See
+[`ML_PIPELINE.md`](../ML_PIPELINE.md).
+
 ### Agent Orchestrator
 
 - LangGraph workflow engine
@@ -103,7 +116,7 @@ graph TB
 - Vector Store: industrial knowledge embeddings (Phase 4+)
 - Audit/Event Storage: immutable log of agent actions and human decisions
 
-In Phase 2, PostgreSQL is authoritative and Alembic owns the schema. Redis contains only
+In Phases 2–3, PostgreSQL is authoritative and Alembic owns the schema. Redis contains only
 rebuildable latest telemetry. See [`DATA_PLATFORM.md`](../DATA_PLATFORM.md) and
 [`INGESTION_PIPELINE.md`](../INGESTION_PIPELINE.md).
 

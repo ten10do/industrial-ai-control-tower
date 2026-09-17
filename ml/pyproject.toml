@@ -1,18 +1,9 @@
 [project]
-name = "industrial-ai-control-tower-backend"
+name = "industrial-ai-control-tower-ml"
 version = "0.1.0"
-description = "Backend API for the Industrial AI Control Tower."
+description = "Reproducible synthetic motor diagnosis training and evaluation pipeline."
 requires-python = ">=3.11"
 dependencies = [
-    "fastapi>=0.111.0",
-    "uvicorn[standard]>=0.30.0",
-    "pydantic>=2.7.0",
-    "pydantic-settings>=2.2.0",
-    "SQLAlchemy[asyncio]>=2.0.30",
-    "asyncpg>=0.29.0",
-    "alembic>=1.13.1",
-    "redis>=5.0.4",
-    "aiomqtt>=2.3.0",
     "numpy==2.2.6",
     "scikit-learn==1.6.1",
     "joblib==1.4.2",
@@ -21,10 +12,8 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     "pytest>=8.2.0",
-    "httpx>=0.27.0",
     "ruff>=0.5.0",
     "mypy>=1.10.0",
-    "pytest-asyncio>=0.23.7",
 ]
 
 [build-system]
@@ -33,7 +22,7 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["app*", "tests*"]
+include = ["industrial_ml*", "tests*"]
 
 [tool.ruff]
 target-version = "py311"
@@ -41,23 +30,20 @@ line-length = 100
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "W", "UP", "B", "C4", "SIM"]
-ignore = []
-
-[tool.ruff.lint.pydocstyle]
-convention = "google"
 
 [tool.mypy]
 python_version = "3.11"
 strict = true
+disallow_any_generics = false
 warn_return_any = true
 warn_unused_configs = true
-exclude = ['\.venv', 'build', 'dist']
+exclude = ['\.venv', 'data', 'output', 'artifacts']
+mypy_path = ["../backend", "../simulator"]
 
 [[tool.mypy.overrides]]
-module = ["joblib", "sklearn"]
+module = ["joblib", "sklearn.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = "test_*.py"
-asyncio_mode = "auto"

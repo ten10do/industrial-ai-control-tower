@@ -51,6 +51,9 @@ services:
       - MQTT_USERNAME=${MQTT_USERNAME:-}
       - MQTT_PASSWORD=${MQTT_PASSWORD:-}
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - DIAGNOSIS_ENABLED=${DIAGNOSIS_ENABLED:-true}
+      - DIAGNOSIS_ARTIFACT_PATH=${DIAGNOSIS_ARTIFACT_PATH:-artifacts/diagnosis-v1.joblib}
+      - DIAGNOSIS_MANIFEST_PATH=${DIAGNOSIS_MANIFEST_PATH:-artifacts/model_manifest.json}
     command: ["sh", "-c", "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000"]
     depends_on:
       postgres:

@@ -95,6 +95,36 @@ jobs:
       - name: Test
         run: pytest
 
+  ml:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ml
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+
+      - name: Lint
+        run: |
+          ruff check .
+          ruff format --check .
+
+      - name: Type check
+        run: mypy industrial_ml tests
+
+      - name: Unit and tiny-training smoke tests
+        run: pytest
+
   docs:
     runs-on: ubuntu-latest
 
@@ -111,6 +141,7 @@ jobs:
           test -f docs/TESTING_STRATEGY.md
           test -f docs/ROADMAP.md
           test -f docs/SIMULATOR.md
+          test -f docs/ML_PIPELINE.md
           adr_count=$(ls docs/adr/ADR-*.md 2>/dev/null | wc -l)
           if [ "$adr_count" -ne 10 ]; then
             echo "Expected 10 ADRs, found $adr_count"

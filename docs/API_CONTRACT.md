@@ -36,8 +36,10 @@ Host: localhost:8000
 
 ### GET /ready
 
-Returns `200` only when PostgreSQL and Redis are reachable. MQTT is reported as `connected` or
-`degraded` but does not by itself fail HTTP readiness.
+Returns `200` only when PostgreSQL and Redis are reachable and, when diagnosis is enabled, the
+artifact is integrity-checked and loaded. MQTT is reported as `connected` or `degraded` but does
+not by itself fail HTTP readiness. A missing, corrupt, or incompatible model reports diagnosis as
+`unavailable`; telemetry ingestion remains isolated from that capability.
 
 ## Phase 2 Endpoints
 
@@ -51,6 +53,17 @@ Returns `200` only when PostgreSQL and Redis are reachable. MQTT is reported as 
 | GET | `/api/v1/devices/{device_id}/telemetry/latest` | Redis-first latest state |
 | GET | `/api/v1/alarms` | List deterministic alarms |
 | WS | `/ws/devices/{device_id}/telemetry` | Latest-value live telemetry |
+
+## Phase 3 Diagnosis Endpoints
+
+| Method | Path | Purpose |
+|---|---|---|
+| GET | `/api/v1/devices/{device_id}/diagnoses?limit=100&cursor=...` | Cursor-paginated diagnosis history |
+| GET | `/api/v1/devices/{device_id}/diagnoses/latest` | Latest persisted diagnosis |
+
+Diagnosis statuses are `NORMAL`, `FAULT`, `UNCERTAIN`, and `FAILED`. Results include the telemetry
+window, anomaly score, calibrated classifier confidence, severity, sensor evidence, model version,
+feature version, trace ID, and creation time. `FAILED` is explicit and never converted to NORMAL.
 
 Telemetry history accepts timezone-aware `start`, `end`, and exclusive `cursor` timestamps plus
 `limit` from 1 to 500. It returns `{"items": [...], "next_cursor": ...}`. Device deletion is not

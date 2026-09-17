@@ -13,13 +13,15 @@ from redis.asyncio import Redis
 from sqlalchemy import text
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from app.api import alarms, devices, telemetry, websockets
+from app.api import alarms, devices, diagnoses, telemetry, websockets
 from app.config import get_settings
 from app.core.context import trace_id_context
 from app.core.errors import AppError
 from app.core.logging import configure_logging
 from app.infrastructure.database.session import Database
 from app.infrastructure.mqtt.consumer import MqttTelemetryConsumer
+from app.ml.runtime import ModelCompatibilityError, ModelRuntime
+from app.services.diagnosis import OnlineDiagnosisCoordinator
 from app.services.telemetry import IngestionCounters
 from app.websocket.manager import WebSocketManager
 
@@ -41,12 +43,28 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     redis = Redis.from_url(settings.redis_url, decode_responses=False)
     websocket_manager = WebSocketManager(settings.websocket_queue_size)
     counters = IngestionCounters()
-    mqtt = MqttTelemetryConsumer(settings, database.sessions, redis, websocket_manager, counters)
+    diagnosis: OnlineDiagnosisCoordinator | None = None
+    diagnosis_error: str | None = None
+    if settings.diagnosis_enabled:
+        try:
+            runtime = ModelRuntime.load(
+                settings.diagnosis_artifact_path, settings.diagnosis_manifest_path
+            )
+            diagnosis = OnlineDiagnosisCoordinator(runtime, database.sessions)
+            await diagnosis.warmup()
+        except ModelCompatibilityError as exc:
+            diagnosis_error = str(exc)
+            logger.error("diagnosis_model_unavailable", extra={"error": diagnosis_error})
+    mqtt = MqttTelemetryConsumer(
+        settings, database.sessions, redis, websocket_manager, counters, diagnosis
+    )
     app.state.database = database
     app.state.redis = redis
     app.state.websocket_manager = websocket_manager
     app.state.ingestion_counters = counters
     app.state.mqtt = mqtt
+    app.state.diagnosis = diagnosis
+    app.state.diagnosis_error = diagnosis_error
     if settings.mqtt_enabled:
         mqtt.start()
     try:
@@ -59,13 +77,14 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
 app = FastAPI(
     title="Industrial AI Control Tower",
-    version="0.2.0",
-    description="Phase 2 backend and industrial telemetry data platform.",
+    version="0.3.0",
+    description="Industrial telemetry platform with synthetic-benchmark ML diagnosis.",
     lifespan=lifespan,
 )
 app.include_router(devices.router)
 app.include_router(telemetry.router)
 app.include_router(alarms.router)
+app.include_router(diagnoses.router)
 app.include_router(websockets.router)
 
 
@@ -126,7 +145,15 @@ async def ready(request: Request) -> JSONResponse:
     except Exception:
         dependencies["redis"] = "unavailable"
     dependencies["mqtt"] = "connected" if request.app.state.mqtt.connected else "degraded"
+    if settings.diagnosis_enabled:
+        dependencies["diagnosis"] = (
+            "loaded" if request.app.state.diagnosis is not None else "unavailable"
+        )
+    else:
+        dependencies["diagnosis"] = "disabled"
     ready_state = all(dependencies[name] == "ok" for name in ("postgres", "redis"))
+    if settings.diagnosis_enabled:
+        ready_state = ready_state and dependencies["diagnosis"] == "loaded"
     return JSONResponse(
         status_code=200 if ready_state else 503,
         content={"status": "ready" if ready_state else "not_ready", "dependencies": dependencies},

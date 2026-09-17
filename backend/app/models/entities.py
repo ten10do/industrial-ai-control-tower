@@ -104,9 +104,21 @@ class Incident(TimestampMixin, Base):
 
 class Diagnosis(TimestampMixin, Base):
     __tablename__ = "diagnoses"
+    __table_args__ = (Index("ix_diagnosis_device_created", "device_id", "created_at"),)
     id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
     incident_id: Mapped[UUID | None] = mapped_column(ForeignKey("incidents.id"))
+    device_id: Mapped[str | None] = mapped_column(ForeignKey("devices.device_id"))
+    window_start: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    window_end: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     status: Mapped[str] = mapped_column(String(40), nullable=False, default="DRAFT")
+    fault_type: Mapped[str | None] = mapped_column(String(100))
+    anomaly_score: Mapped[float | None] = mapped_column(Float)
+    confidence: Mapped[float | None] = mapped_column(Float)
+    severity: Mapped[str | None] = mapped_column(String(20))
+    evidence: Mapped[list[dict[str, Any]]] = mapped_column(JSONB, default=list)
+    model_version: Mapped[str | None] = mapped_column(String(100))
+    feature_version: Mapped[str | None] = mapped_column(String(100))
+    trace_id: Mapped[str | None] = mapped_column(String(100))
     payload: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict)
 
 

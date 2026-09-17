@@ -8,6 +8,7 @@ from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.config import Settings
+from app.services.diagnosis import OnlineDiagnosisCoordinator
 from app.services.telemetry import IngestionCounters, TelemetryService
 from app.websocket.manager import WebSocketManager
 
@@ -22,12 +23,14 @@ class MqttTelemetryConsumer:
         redis: Redis,
         websocket_manager: WebSocketManager,
         counters: IngestionCounters,
+        diagnosis: OnlineDiagnosisCoordinator | None = None,
     ) -> None:
         self.settings = settings
         self.sessions = sessions
         self.redis = redis
         self.websocket_manager = websocket_manager
         self.counters = counters
+        self.diagnosis = diagnosis
         self._task: asyncio.Task[None] | None = None
         self.connected = False
 
@@ -62,7 +65,11 @@ class MqttTelemetryConsumer:
                     async for message in client.messages:
                         async with self.sessions() as session:
                             service = TelemetryService(
-                                session, self.redis, self.websocket_manager, self.counters
+                                session,
+                                self.redis,
+                                self.websocket_manager,
+                                self.counters,
+                                self.diagnosis,
                             )
                             try:
                                 payload = message.payload

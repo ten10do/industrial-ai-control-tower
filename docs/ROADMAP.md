@@ -36,16 +36,17 @@ Implement the FastAPI backend with domain services and persistence.
 - API endpoints under `/api/v1/`
 - Authentication and authorization foundation
 
-## Phase 3 — AI Diagnosis Engine
+## Phase 3 — ML Diagnosis Engine
 
-Introduce the Diagnosis Agent and Safety Agent with structured outputs and evidence policy.
+Build a reproducible, explainable telemetry diagnosis engine without LLMs or agents.
 
 **Deliverables:**
 
-- Diagnosis Agent skeleton with provider abstraction
-- Safety Agent with deterministic policy engine
-- Evidence sufficiency gate
-- Agent evaluation harness
+- Scenario-group dataset generation and frozen evaluation split
+- Versioned telemetry-window feature pipeline with leakage gates
+- Statistical anomaly detection and calibrated fault classification baselines
+- Severity and sensor/feature evidence
+- Integrity-checked serving artifact, online inference, persistence, and REST APIs
 
 ## Phase 4 — Industrial RAG
 

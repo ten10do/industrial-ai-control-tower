@@ -27,12 +27,14 @@ Ensure the Industrial AI Control Tower is correct, safe, observable, and maintai
 - Characteristics: verify request/response shapes and error semantics.
 - Phase: introduced in Phase 2.
 
-### Agent Evaluation Tests
+### Model Evaluation Tests
 
-- Scope: Diagnosis, Knowledge, Planning, Safety agents.
-- Tool: Custom evaluation harness with labeled datasets and deterministic safety test cases.
-- Characteristics: measure correctness, evidence sufficiency, and safety veto behavior.
-- Phase: introduced in Phase 3 and Phase 5.
+- Scope: dataset isolation, leakage, window features, anomaly detection, fault classification,
+  calibration, serialization, compatibility, and online diagnosis.
+- Tool: pytest smoke tests plus `industrial_ml.evaluation` for the frozen benchmark.
+- Characteristics: CI uses tiny deterministic fixtures; the full 200-scenario benchmark is a
+  deliberate release gate and is not retrained on every pull request.
+- Phase: introduced in Phase 3. Agent evaluation remains Phase 5 work.
 
 ### RAG Evaluation Tests
 
@@ -68,6 +70,15 @@ Ensure the Industrial AI Control Tower is correct, safe, observable, and maintai
 - Failing tests block merge.
 - Skipping tests, deleting tests, or using `|| true` to mask failures is prohibited.
 - Code coverage is reported but not used as a gate in early phases.
+- ML CI must never present tiny-fixture metrics as the formal benchmark.
+
+## Phase 3 Gates
+
+- Scenario/seed group isolation and forbidden-label feature checks.
+- Deterministic dataset generation, training smoke test, artifact save/load, and compatibility.
+- Real Compose gate: Simulator → MQTT → Backend → model → PostgreSQL → REST.
+- Restart warmup from PostgreSQL and explicit unavailable/failed model behavior.
+- Frozen test is evaluated only after model and thresholds are selected from train/validation.
 
 ## Phase 0 Tests
 

@@ -13,7 +13,7 @@ The schema separates UUID database primary keys (`id`) from industrial identifie
 
 Phase 2 creates `devices`, `telemetry`, `alarms`, `incidents`, `diagnoses`, `evidence`,
 `maintenance_plans`, `approvals`, `work_orders`, `agent_runs`, and `audit_events`. Device,
-Telemetry, Alarm, and AuditEvent have active Phase 2 behavior. The remaining tables are only
+Telemetry, Alarm, Diagnosis, and AuditEvent have active behavior. The remaining tables are only
 minimal persistence foundations for later phases.
 
 All timestamps are stored as timezone-aware values and normalized to UTC at ingestion. The
@@ -28,6 +28,11 @@ filtering uses `fault_state`. No per-measurement indexes are created.
 
 History is bounded to 500 records per call and uses an exclusive timestamp cursor. The current
 contract permits at most one sample for a device at an instant, so that cursor is unambiguous.
+
+Phase 3 migration `20260917_02` extends `diagnoses` with device and window timestamps, status,
+fault type, anomaly score, confidence, severity, JSONB sensor evidence, artifact versions, and
+trace ID. `(device_id, created_at)` supports recent-diagnosis queries. Online inference commits a
+diagnosis and matching audit event in the same transaction.
 
 ## Redis consistency
 

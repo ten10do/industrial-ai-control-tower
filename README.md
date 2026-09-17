@@ -1,6 +1,7 @@
 # Industrial AI Control Tower
 
-A multi-agent AI decision platform for industrial equipment operation and maintenance.
+An industrial telemetry and synthetic fault-diagnosis platform, built phase by phase toward a
+larger decision-support system.
 
 ## Problem
 
@@ -12,7 +13,8 @@ The target architecture is documented in [`docs/architecture/SYSTEM_ARCHITECTURE
 
 - **Frontend:** React / TypeScript / Vite
 - **Backend:** FastAPI service layer
-- **Agent Orchestrator:** LangGraph-based workflow (Phase 5+)
+- **Diagnosis Engine:** versioned scikit-learn models over bounded telemetry windows
+- **Agent Orchestrator:** LangGraph-based workflow (Phase 5+, not implemented)
 - **Data Layer:** PostgreSQL, Redis, Vector Store, Audit/Event Storage
 - **Industrial Integration:** MQTT, OPC UA, Equipment Simulator
 - **Observability:** Structured logging, Prometheus, OpenTelemetry, Grafana
@@ -31,6 +33,7 @@ The target architecture is documented in [`docs/architecture/SYSTEM_ARCHITECTURE
 | Layer | Technology |
 |-------|------------|
 | Backend | Python 3.11+, FastAPI, Pydantic, SQLAlchemy, Alembic |
+| Diagnosis | NumPy, scikit-learn, joblib |
 | Frontend | React, TypeScript, Vite |
 | Agent | LangGraph (future) |
 | Persistence | PostgreSQL, Redis |
@@ -46,6 +49,7 @@ industrial-ai-control-tower/
 ├── backend/              # FastAPI application
 ├── frontend/             # React + TypeScript + Vite application
 ├── simulator/            # Industrial equipment simulator (Phase 1)
+├── ml/                   # Reproducible dataset, training, and evaluation pipeline
 ├── docs/                 # Architecture, ADRs, contracts
 │   ├── architecture/
 │   ├── adr/
@@ -68,7 +72,7 @@ industrial-ai-control-tower/
 ## Quick Start
 
 1. Copy `.env.example` to `.env` and adjust values.
-2. Start the Phase 2 platform (the backend applies Alembic migrations):
+2. Start the platform (the backend applies Alembic migrations and loads the frozen model):
    ```bash
    docker compose up -d postgres redis mosquitto backend
    ```
@@ -107,6 +111,9 @@ See [`docs/architecture/SYSTEM_ARCHITECTURE.md`](docs/architecture/SYSTEM_ARCHIT
 ## Testing
 
 - Backend: `pytest`
+- ML smoke suite: `cd ml && pytest`
+- Full benchmark: generate, train, then run the frozen-test evaluation as documented in
+  [`docs/ML_PIPELINE.md`](docs/ML_PIPELINE.md)
 - Frontend: `npm run test`
 - Full verification: see CI workflow
 
@@ -133,8 +140,10 @@ See [`docs/architecture/SYSTEM_ARCHITECTURE.md`](docs/architecture/SYSTEM_ARCHIT
 
 ## Current Project Status
 
-**Current Phase: Phase 2**
+**Current Phase: Phase 3**
 
-Phase 2 implements the async MQTT-to-PostgreSQL ingestion path, Redis latest-state cache,
-device/telemetry REST APIs, deterministic alarms, audit events, and bounded live WebSockets.
-AI diagnosis, RAG, multi-agent workflows, and LLM integration remain intentionally deferred.
+Phase 3 adds a reproducible, window-based ML pipeline; anomaly detection; calibrated fault
+classification; severity and sensor evidence; integrity-checked artifacts; online inference;
+diagnosis persistence; and REST APIs. The benchmark uses only synthetic IndustrialMotor data.
+Its metrics demonstrate the engineering pipeline and simulator fault discrimination—not equal
+accuracy on real motors. RAG, agents, planning, and LLM integration remain intentionally deferred.

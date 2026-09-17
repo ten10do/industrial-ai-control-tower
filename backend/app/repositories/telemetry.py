@@ -58,3 +58,12 @@ class TelemetryRepository:
             query = query.where(Telemetry.timestamp < cursor)
         rows = await self.session.scalars(query.order_by(Telemetry.timestamp.desc()).limit(limit))
         return list(rows)
+
+    async def recent_window(self, device_id: str, limit: int) -> list[Telemetry]:
+        rows = await self.session.scalars(
+            select(Telemetry)
+            .where(Telemetry.device_id == device_id)
+            .order_by(Telemetry.timestamp.desc())
+            .limit(limit)
+        )
+        return list(reversed(list(rows)))

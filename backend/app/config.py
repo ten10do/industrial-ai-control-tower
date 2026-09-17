@@ -1,6 +1,7 @@
 """Application configuration."""
 
 from functools import lru_cache
+from pathlib import Path
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -32,6 +33,9 @@ class Settings(BaseSettings):
     mqtt_topic: str = "industrial/devices/+/telemetry"
     mqtt_enabled: bool = True
     websocket_queue_size: int = 1
+    diagnosis_enabled: bool = True
+    diagnosis_artifact_path: Path = Path("artifacts/diagnosis-v1.joblib")
+    diagnosis_manifest_path: Path = Path("artifacts/model_manifest.json")
 
 
 @lru_cache
