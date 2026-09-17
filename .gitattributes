@@ -1,0 +1,31 @@
+# Normalize line endings to LF in the repository for code and config files.
+* text=auto
+
+*.py text eol=lf
+*.ts text eol=lf
+*.tsx text eol=lf
+*.js text eol=lf
+*.jsx text eol=lf
+*.json text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.toml text eol=lf
+*.md text eol=lf
+*.sh text eol=lf
+*.conf text eol=lf
+
+# Windows-specific files may use CRLF if needed.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Binary files should never be modified.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.eot binary
+*.pdf binary
