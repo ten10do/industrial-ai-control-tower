@@ -13,7 +13,7 @@ All APIs are versioned under `/api/v1/`.
 
 Authentication is reserved for Phase 2+. Phase 0 endpoints are open.
 
-## Phase 0 Endpoints
+## Health Endpoints
 
 ### GET /health
 
@@ -34,27 +34,31 @@ Host: localhost:8000
 }
 ```
 
-## Future Namespaces
+### GET /ready
 
-The following namespaces are planned but not implemented in Phase 0:
+Returns `200` only when PostgreSQL and Redis are reachable. MQTT is reported as `connected` or
+`degraded` but does not by itself fail HTTP readiness.
 
-### /api/v1/devices
+## Phase 2 Endpoints
 
-- `GET /api/v1/devices` — list devices
-- `GET /api/v1/devices/{id}` — get device
-- `POST /api/v1/devices` — register device
-- `PUT /api/v1/devices/{id}` — update device
+| Method | Path | Purpose |
+|---|---|---|
+| POST | `/api/v1/devices` | Register a device |
+| GET | `/api/v1/devices?limit=100&offset=0` | List devices |
+| GET | `/api/v1/devices/{device_id}` | Get by industrial ID |
+| PATCH | `/api/v1/devices/{device_id}` | Update fields or lifecycle status |
+| GET | `/api/v1/devices/{device_id}/telemetry` | Bounded history |
+| GET | `/api/v1/devices/{device_id}/telemetry/latest` | Redis-first latest state |
+| GET | `/api/v1/alarms` | List deterministic alarms |
+| WS | `/ws/devices/{device_id}/telemetry` | Latest-value live telemetry |
 
-### /api/v1/telemetry
+Telemetry history accepts timezone-aware `start`, `end`, and exclusive `cursor` timestamps plus
+`limit` from 1 to 500. It returns `{"items": [...], "next_cursor": ...}`. Device deletion is not
+provided; use `INACTIVE` or `DECOMMISSIONED` to preserve history.
 
-- `POST /api/v1/telemetry` — ingest telemetry batch
-- `GET /api/v1/telemetry` — query telemetry
+## Deferred Namespaces
 
-### /api/v1/alarms
-
-- `GET /api/v1/alarms` — list alarms
-- `GET /api/v1/alarms/{id}` — get alarm
-- `PATCH /api/v1/alarms/{id}` — acknowledge or clear alarm
+The following namespaces remain later-phase work:
 
 ### /api/v1/incidents
 
@@ -106,6 +110,9 @@ Common status codes:
 | 422 | Validation Error |
 | 500 | Internal Server Error |
 | 503 | Service Unavailable |
+
+Every HTTP response includes `X-Trace-ID`. A caller-supplied `X-Trace-ID` is propagated; otherwise
+the backend creates one. MQTT ingestion creates a correlation ID per message.
 
 ## Status Values
 

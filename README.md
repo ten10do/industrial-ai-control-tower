@@ -68,17 +68,16 @@ industrial-ai-control-tower/
 ## Quick Start
 
 1. Copy `.env.example` to `.env` and adjust values.
-2. Start infrastructure services (optional for Phase 0):
+2. Start the Phase 2 platform (the backend applies Alembic migrations):
    ```bash
-   docker compose up -d postgres redis
+   docker compose up -d postgres redis mosquitto backend
    ```
-3. Install and run the backend:
+3. Register `MOTOR-001`, then start the simulator demo:
    ```bash
-   cd backend
-   python -m venv .venv
-   source .venv/Scripts/activate
-   pip install -r requirements-dev.txt
-   uvicorn app.main:app --reload
+   curl -X POST http://localhost:8000/api/v1/devices \
+     -H "Content-Type: application/json" \
+     -d '{"device_id":"MOTOR-001","device_type":"IndustrialMotor","name":"Demo motor"}'
+   docker compose --profile demo up -d simulator
    ```
 4. Install and run the frontend:
    ```bash
@@ -101,6 +100,8 @@ See [`docs/architecture/SYSTEM_ARCHITECTURE.md`](docs/architecture/SYSTEM_ARCHIT
 | [`docs/API_CONTRACT.md`](docs/API_CONTRACT.md) | API namespaces, error contract, status values |
 | [`docs/TESTING_STRATEGY.md`](docs/TESTING_STRATEGY.md) | Test levels and CI requirements |
 | [`docs/SIMULATOR.md`](docs/SIMULATOR.md) | Simulator model, telemetry schema, MQTT topics |
+| [`docs/DATA_PLATFORM.md`](docs/DATA_PLATFORM.md) | PostgreSQL schema, indexes, Redis and retention |
+| [`docs/INGESTION_PIPELINE.md`](docs/INGESTION_PIPELINE.md) | Validation and delivery semantics |
 | [`docs/ROADMAP.md`](docs/ROADMAP.md) | Phase-by-phase roadmap |
 
 ## Testing
@@ -132,6 +133,8 @@ See [`docs/architecture/SYSTEM_ARCHITECTURE.md`](docs/architecture/SYSTEM_ARCHIT
 
 ## Current Project Status
 
-**Current Phase: Phase 1**
+**Current Phase: Phase 2**
 
-Phase 1 implements the industrial equipment simulator. It produces correlated motor telemetry, supports fault injection with a defined lifecycle, and publishes validated JSON payloads over MQTT. No AI diagnosis, RAG, multi-agent, or LLM integration is present yet.
+Phase 2 implements the async MQTT-to-PostgreSQL ingestion path, Redis latest-state cache,
+device/telemetry REST APIs, deterministic alarms, audit events, and bounded live WebSockets.
+AI diagnosis, RAG, multi-agent workflows, and LLM integration remain intentionally deferred.

@@ -21,12 +21,13 @@ A physical or logical piece of industrial equipment.
 
 | Field | Description |
 |-------|-------------|
-| id | Unique identifier |
+| id | Database UUID primary key (not exposed as the industrial identity) |
+| device_id | Stable industrial identifier, for example `MOTOR-001` |
 | name | Human-readable name |
 | type | Device category (pump, motor, compressor, etc.) |
 | location | Physical or logical location |
 | metadata | Tags, model, manufacturer, commissioning date |
-| status | `ONLINE`, `OFFLINE`, `MAINTENANCE`, `DEGRADED` |
+| status | Phase 2 lifecycle: `ACTIVE`, `INACTIVE`, `DECOMMISSIONED` |
 | created_at | Timestamp |
 | updated_at | Timestamp |
 
@@ -39,10 +40,12 @@ A normalized time-series measurement from a device.
 | id | Unique identifier |
 | device_id | Reference to Device |
 | timestamp | Measurement timestamp |
-| metric_name | e.g., temperature, vibration_x |
-| value | Numeric or categorical value |
-| unit | Unit of measure |
-| quality | Data quality flag |
+| timestamp | UTC measurement timestamp; part of the idempotency key |
+| measurements | Motor temperature, bearing temperature, vibration, electrical, speed and load fields |
+| operating_state | Equipment operating state |
+| fault_state | Simulator fault lifecycle state; not an AI diagnosis |
+| schema_version | Source contract version |
+| ingested_at | UTC persistence timestamp |
 
 ### Alarm
 

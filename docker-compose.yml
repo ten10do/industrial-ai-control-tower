@@ -8,7 +8,7 @@ services:
     volumes:
       - postgres-data:/var/lib/postgresql/data
     ports:
-      - "5432:5432"
+      - "${POSTGRES_PORT_PUBLISHED:-5432}:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER}"]
       interval: 5s
@@ -18,7 +18,7 @@ services:
   redis:
     image: redis:7-alpine
     ports:
-      - "6379:6379"
+      - "${REDIS_PORT_PUBLISHED:-6379}:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -28,7 +28,7 @@ services:
   mosquitto:
     image: eclipse-mosquitto:2
     ports:
-      - "1883:1883"
+      - "${MQTT_PORT_PUBLISHED:-1883}:1883"
     volumes:
       - ./infra/mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
       - mosquitto-data:/mosquitto/data
@@ -41,21 +41,46 @@ services:
   backend:
     build: ./backend
     ports:
-      - "8000:8000"
+      - "${BACKEND_PORT_PUBLISHED:-8000}:8000"
     environment:
       - ENVIRONMENT=${ENVIRONMENT:-development}
-      - DATABASE_URL=${DATABASE_URL}
-      - REDIS_URL=${REDIS_URL}
+      - DATABASE_URL=${DATABASE_URL:-postgresql+asyncpg://postgres:change-me-in-dotenv@postgres:5432/industrial_ai_control_tower}
+      - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
+      - MQTT_HOST=${MQTT_HOST:-mosquitto}
+      - MQTT_PORT=${MQTT_PORT:-1883}
+      - MQTT_USERNAME=${MQTT_USERNAME:-}
+      - MQTT_PASSWORD=${MQTT_PASSWORD:-}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    command: ["sh", "-c", "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000"]
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
+      mosquitto:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  simulator:
+    build: ./simulator
+    profiles: ["demo"]
+    environment:
+      - SIMULATOR_MQTT_BROKER_HOST=mosquitto
+      - SIMULATOR_MQTT_BROKER_PORT=1883
+      - SIMULATOR_DEVICE_ID=${SIMULATOR_DEVICE_ID:-MOTOR-001}
+      - SIMULATOR_SAMPLE_INTERVAL=${SIMULATOR_SAMPLE_INTERVAL:-1.0}
+    depends_on:
+      backend:
+        condition: service_healthy
 
   frontend:
     build: ./frontend
     ports:
-      - "80:80"
+      - "${FRONTEND_PORT_PUBLISHED:-80}:80"
     depends_on:
       - backend
 

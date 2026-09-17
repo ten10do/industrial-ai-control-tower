@@ -84,9 +84,11 @@ graph TB
 
 ### Backend
 
-- FastAPI service layer
-- Domain services: Device, Alarm, Incident, Agent Run, Approval, Work Order
-- Validates inputs, enforces authorization, persists state, emits audit events
+- FastAPI API and WebSocket layer over focused services and repositories
+- Async SQLAlchemy/asyncpg, Redis asyncio, and aiomqtt share one non-blocking event-loop strategy
+- Domain services own device lifecycle, telemetry ingestion, deterministic alarms, and audit events
+- Repositories isolate PostgreSQL queries; Pydantic schemas remain separate from ORM models
+- The API boundary is ready for later RBAC dependencies, but Phase 2 deliberately has no OAuth/SSO
 
 ### Agent Orchestrator
 
@@ -100,6 +102,10 @@ graph TB
 - Redis: caching, session state, task queues, rate limiting
 - Vector Store: industrial knowledge embeddings (Phase 4+)
 - Audit/Event Storage: immutable log of agent actions and human decisions
+
+In Phase 2, PostgreSQL is authoritative and Alembic owns the schema. Redis contains only
+rebuildable latest telemetry. See [`DATA_PLATFORM.md`](../DATA_PLATFORM.md) and
+[`INGESTION_PIPELINE.md`](../INGESTION_PIPELINE.md).
 
 ### Industrial Integration
 
