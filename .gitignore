@@ -82,5 +82,8 @@ simulator/data/
 .dockerignore is tracked; ignore local Docker artifacts if any
 docker-volumes/
 
+# WorkBuddy memory and session data
+.workbuddy/
+
 # Git
 !.github/
