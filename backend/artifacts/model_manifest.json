@@ -1,7 +1,7 @@
 {
-  "artifact_sha256": "b905c64386c619819b1b610893e7994eff1a1fcc71465ed7c417fd2c76ff7021",
-  "code_git_sha": "d7e1dd04aa4a046e395a5e32ce36cc371e2379aa",
-  "created_at": "2026-09-17T08:00:46.961433+00:00",
+  "artifact_sha256": "043b88b4ab996c673996a3f6a9cc847a79a589dfc93f021dff9cca58d9b8167f",
+  "code_git_sha": "690356a1c04b933d2cd69a55a3a14ce2ba188d65",
+  "created_at": "2026-09-17T08:14:30.558373+00:00",
   "dataset_manifest_sha256": "18cb802d154205f41e398b9bfe0bdbe814acd1bb4e40ee1b5572c4f75490ba10",
   "feature_version": "features-v1",
   "hyperparameters": {
@@ -46,7 +46,7 @@
       }
     },
     "calibration": {
-      "brier": 0.018372773516986206,
+      "brier": 0.01837277351698621,
       "confidence_threshold": 0.6000000000000001,
       "ece": 0.028523135626427405,
       "method": "CalibratedClassifierCV sigmoid, scenario-group 3-fold"

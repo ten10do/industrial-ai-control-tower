@@ -106,6 +106,8 @@ See [`docs/architecture/SYSTEM_ARCHITECTURE.md`](docs/architecture/SYSTEM_ARCHIT
 | [`docs/SIMULATOR.md`](docs/SIMULATOR.md) | Simulator model, telemetry schema, MQTT topics |
 | [`docs/DATA_PLATFORM.md`](docs/DATA_PLATFORM.md) | PostgreSQL schema, indexes, Redis and retention |
 | [`docs/INGESTION_PIPELINE.md`](docs/INGESTION_PIPELINE.md) | Validation and delivery semantics |
+| [`docs/ML_PIPELINE.md`](docs/ML_PIPELINE.md) | Phase 3 dataset, features, models, evaluation, and serving |
+| [`docs/evaluation/PHASE3_MODEL_EVALUATION.md`](docs/evaluation/PHASE3_MODEL_EVALUATION.md) | Frozen-test metrics and limitations |
 | [`docs/ROADMAP.md`](docs/ROADMAP.md) | Phase-by-phase roadmap |
 
 ## Testing
