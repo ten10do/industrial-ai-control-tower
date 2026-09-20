@@ -16,7 +16,7 @@ from pydantic import BaseModel, Field
 
 from app.ml.features import FEATURE_VERSION, SIGNALS, FeatureExtractor, TelemetryWindow, sigmoid
 
-MODEL_VERSION = "diagnosis-v1"
+MODEL_VERSION = "diagnosis-v1.1"
 logger = logging.getLogger(__name__)
 
 

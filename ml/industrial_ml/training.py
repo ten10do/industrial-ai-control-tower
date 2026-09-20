@@ -64,19 +64,32 @@ def robust_scores(
 
 
 def choose_anomaly_threshold(labels: np.ndarray, scores: np.ndarray) -> float:
-    candidates = np.unique(np.quantile(scores, np.linspace(0.02, 0.98, 150)))
-    eligible: list[tuple[float, float]] = []
-    all_results: list[tuple[float, float, float]] = []
+    """Maximize validation recall with a 95% FPR upper bound at or below 5%."""
+    candidates = np.append(np.unique(scores), np.nextafter(float(np.max(scores)), np.inf))
+    eligible: list[tuple[float, float, float, float]] = []
+    all_results: list[tuple[float, float, float, float]] = []
     for threshold in candidates:
         metrics = anomaly_metrics(labels, scores, float(threshold))
         all_results.append(
-            (metrics["f1"], -metrics["normal_false_positive_rate"], float(threshold))
+            (
+                -metrics["normal_fpr_ci95_upper"],
+                metrics["recall"],
+                metrics["f1"],
+                float(threshold),
+            )
         )
-        if metrics["normal_false_positive_rate"] <= 0.05:
-            eligible.append((metrics["f1"], float(threshold)))
+        if metrics["normal_fpr_ci95_upper"] <= 0.05:
+            eligible.append(
+                (
+                    metrics["recall"],
+                    metrics["f1"],
+                    -metrics["normal_false_positive_rate"],
+                    -float(threshold),
+                )
+            )
     if eligible:
-        return max(eligible)[1]
-    return max(all_results)[2]
+        return -max(eligible)[3]
+    return max(all_results)[3]
 
 
 def deterministic_rule_predict(features: np.ndarray, feature_names: tuple[str, ...]) -> np.ndarray:
@@ -291,12 +304,19 @@ def main() -> None:
         "--dataset-manifest", type=Path, default=Path("manifests/dataset_manifest.json")
     )
     parser.add_argument(
-        "--artifact", type=Path, default=Path("../backend/artifacts/diagnosis-v1.joblib")
+        "--artifact", type=Path, default=Path("../backend/artifacts/diagnosis-v1.1.joblib")
     )
     parser.add_argument(
-        "--model-manifest", type=Path, default=Path("../backend/artifacts/model_manifest.json")
+        "--model-manifest",
+        type=Path,
+        default=Path("../backend/artifacts/model_manifest-v1.1.json"),
     )
     parser.add_argument("--validation-report", type=Path, default=Path("output/validation.json"))
+    parser.add_argument(
+        "--blind-manifest",
+        type=Path,
+        default=Path("manifests/blind_holdout_manifest_v1.json"),
+    )
     args = parser.parse_args()
 
     dataset = load_dataset(args.dataset)
@@ -308,8 +328,10 @@ def main() -> None:
     joblib.dump(bundle, args.artifact, compress=3)
     artifact_sha = hashlib.sha256(args.artifact.read_bytes()).hexdigest()
     root = Path(__file__).resolve().parents[2]
+    blind_manifest = json.loads(args.blind_manifest.read_text(encoding="utf-8"))
     model_manifest = {
         "model_version": MODEL_VERSION,
+        "parent_model_version": "diagnosis-v1",
         "model_type": {
             "anomaly": bundle["anomaly_kind"],
             "classifier": bundle["classifier_name"],
@@ -322,6 +344,8 @@ def main() -> None:
         },
         "training_dataset_version": DATASET_VERSION,
         "dataset_manifest_sha256": dataset_manifest["manifest_sha256"],
+        "blind_acceptance_manifest_sha256": blind_manifest["manifest_sha256"],
+        "blind_holdout_sha256": blind_manifest["blind_holdout_sha256"],
         "feature_version": FEATURE_VERSION,
         "telemetry_schema_major": 1,
         "library_versions": {
@@ -332,6 +356,13 @@ def main() -> None:
         "thresholds": {
             "anomaly": bundle["anomaly_threshold"],
             "uncertain_confidence": bundle["confidence_threshold"],
+        },
+        "threshold_selection": {
+            "split": "validation",
+            "algorithm": (
+                "maximize anomaly recall; tie-break by F1 and lower FPR; "
+                "require two-sided Wilson 95% Normal FPR upper bound <= 0.05"
+            ),
         },
         "validation_metrics": validation,
         "artifact_sha256": artifact_sha,

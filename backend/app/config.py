@@ -34,8 +34,8 @@ class Settings(BaseSettings):
     mqtt_enabled: bool = True
     websocket_queue_size: int = 1
     diagnosis_enabled: bool = True
-    diagnosis_artifact_path: Path = Path("artifacts/diagnosis-v1.joblib")
-    diagnosis_manifest_path: Path = Path("artifacts/model_manifest.json")
+    diagnosis_artifact_path: Path = Path("artifacts/diagnosis-v1.1.joblib")
+    diagnosis_manifest_path: Path = Path("artifacts/model_manifest-v1.1.json")
 
 
 @lru_cache

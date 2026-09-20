@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from typing import Any
 
 import numpy as np
@@ -25,7 +26,10 @@ def anomaly_metrics(labels: np.ndarray, scores: np.ndarray, threshold: float) ->
         truth, predicted, average="binary", zero_division=0
     )
     normal_mask = truth == 0
-    false_positive_rate = float(np.mean(predicted[normal_mask])) if np.any(normal_mask) else 0.0
+    normal_count = int(np.sum(normal_mask))
+    false_positive_count = int(np.sum(predicted[normal_mask]))
+    false_positive_rate = false_positive_count / normal_count if normal_count else 0.0
+    ci_lower, ci_upper = wilson_interval(false_positive_count, normal_count)
     return {
         "precision": float(precision),
         "recall": float(recall),
@@ -33,7 +37,28 @@ def anomaly_metrics(labels: np.ndarray, scores: np.ndarray, threshold: float) ->
         "roc_auc": float(roc_auc_score(truth, scores)),
         "pr_auc": float(average_precision_score(truth, scores)),
         "normal_false_positive_rate": false_positive_rate,
+        "normal_false_positive_count": float(false_positive_count),
+        "normal_window_count": float(normal_count),
+        "normal_fpr_ci95_lower": ci_lower,
+        "normal_fpr_ci95_upper": ci_upper,
     }
+
+
+def wilson_interval(
+    successes: int, total: int, z: float = 1.959963984540054
+) -> tuple[float, float]:
+    """Return the two-sided Wilson score interval for a binomial proportion."""
+    if total <= 0:
+        return 0.0, 0.0
+    proportion = successes / total
+    denominator = 1.0 + z**2 / total
+    center = (proportion + z**2 / (2.0 * total)) / denominator
+    margin = (
+        z
+        * math.sqrt(proportion * (1.0 - proportion) / total + z**2 / (4.0 * total**2))
+        / denominator
+    )
+    return max(0.0, center - margin), min(1.0, center + margin)
 
 
 def classification_metrics(

@@ -124,10 +124,8 @@ def build_scenarios(
     return scenarios
 
 
-def generate_scenario(
-    spec: ScenarioSpec, extractor: FeatureExtractor
-) -> tuple[list[tuple[np.ndarray, str, int]], Counter[str]]:
-    """Generate one independent scenario; labels never enter the extractor input."""
+def simulate_scenario(spec: ScenarioSpec) -> tuple[list[WindowSample], list[str]]:
+    """Reproduce raw simulator samples and separate labels for one scenario."""
     motor = IndustrialMotor(
         device_id=spec.scenario_id,
         seed=spec.seed,
@@ -172,6 +170,14 @@ def generate_scenario(
         # WindowSample has no label/fault_state field. Extra simulator fields are discarded here.
         samples.append(WindowSample.model_validate(telemetry, from_attributes=True))
         labels.append(label)
+    return samples, labels
+
+
+def generate_scenario(
+    spec: ScenarioSpec, extractor: FeatureExtractor
+) -> tuple[list[tuple[np.ndarray, str, int]], Counter[str]]:
+    """Generate one independent scenario; labels never enter the extractor input."""
+    samples, labels = simulate_scenario(spec)
 
     rows: list[tuple[np.ndarray, str, int]] = []
     rejections: Counter[str] = Counter()

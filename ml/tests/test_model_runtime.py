@@ -21,7 +21,8 @@ from app.ml.runtime import MODEL_VERSION, ModelCompatibilityError, ModelRuntime
 
 from industrial_ml.dataset import CLASSES, build_manifest, build_scenarios, generate_dataset
 from industrial_ml.evaluation import evaluate
-from industrial_ml.training import train
+from industrial_ml.metrics import anomaly_metrics
+from industrial_ml.training import choose_anomaly_threshold, train
 
 
 def normal_window() -> TelemetryWindow:
@@ -178,3 +179,14 @@ def test_tiny_frozen_evaluation_smoke(
     assert results["test_scenarios"] == 6
     assert set(results["per_class_recall"]) == set(CLASSES) - {"NORMAL"}
     assert "fault_confusion_pairs" in results["error_analysis"]
+
+
+def test_threshold_selection_enforces_validation_fpr_confidence_margin() -> None:
+    normal_scores = np.linspace(0.0, 1.0, 800)
+    fault_scores = np.linspace(0.6, 1.6, 400)
+    labels = np.asarray(["NORMAL"] * len(normal_scores) + ["FAULT"] * len(fault_scores))
+    scores = np.concatenate((normal_scores, fault_scores))
+    threshold = choose_anomaly_threshold(labels, scores)
+    metrics = anomaly_metrics(labels, scores, threshold)
+    assert metrics["normal_fpr_ci95_upper"] <= 0.05
+    assert metrics["recall"] > 0.5

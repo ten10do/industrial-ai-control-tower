@@ -12,6 +12,7 @@ from app.ml.features import (
     WindowSample,
 )
 
+from industrial_ml.blind import BLIND_SEED_BASE, build_blind_scenarios
 from industrial_ml.dataset import CLASSES, build_scenarios, generate_dataset
 
 
@@ -54,6 +55,18 @@ def test_every_class_has_train_validation_and_test_scenarios() -> None:
     observed = {(item.fault_type, item.split) for item in scenarios}
     expected = {(label, split) for label in CLASSES for split in ("train", "validation", "test")}
     assert observed == expected
+
+
+def test_blind_seed_plan_is_deterministic_balanced_and_new() -> None:
+    existing = {BLIND_SEED_BASE - 1, 202609170}
+    first = build_blind_scenarios(existing)
+    second = build_blind_scenarios(existing)
+    assert first == second
+    assert len(first) == 120
+    assert len({item.seed for item in first}) == 120
+    assert not {item.seed for item in first}.intersection(existing)
+    distribution = {label: sum(item.fault_type == label for item in first) for label in CLASSES}
+    assert distribution == dict.fromkeys(CLASSES, 20)
 
 
 def test_forbidden_labels_cannot_enter_feature_schema() -> None:

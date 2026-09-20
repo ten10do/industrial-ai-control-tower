@@ -184,7 +184,7 @@ async def run_full() -> dict[str, Any]:
             assert matches, f"no live {fault_type} diagnosis: {summarize(phase_rows)}"
             best = max(matches, key=lambda row: row["confidence"] or 0.0)
             assert best["evidence"]
-            assert best["model_version"] == "diagnosis-v1"
+            assert best["model_version"] == "diagnosis-v1.1"
             assert best["feature_version"] == "features-v1"
             phase_end = intervals[fault_type][1]
             recovery_start = phase_end - timedelta(seconds=24)

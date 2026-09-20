@@ -83,7 +83,12 @@ def analyze_errors(
     recovery_false_positive: list[int] = []
     for row in false_positive:
         spec = scenario_meta[str(scenarios[row])]
-        recovery_end = spec["start_tick"] + 10 + spec["duration"] + 15
+        recovery_end = (
+            spec["start_tick"]
+            + spec.get("ramp_up_ticks", 10)
+            + spec["duration"]
+            + spec.get("recovery_ticks", 15)
+        )
         if spec["fault_type"] != "NORMAL" and ticks[row] >= recovery_end:
             recovery_false_positive.append(int(row))
 
@@ -119,14 +124,18 @@ def analyze_errors(
 
 
 def evaluate(
-    dataset: DatasetArrays, bundle: dict[str, Any], dataset_manifest: dict[str, Any]
+    dataset: DatasetArrays,
+    bundle: dict[str, Any],
+    dataset_manifest: dict[str, Any],
+    split_name: str = "test",
 ) -> dict[str, Any]:
-    test_mask = dataset.splits == "test"
+    test_mask = dataset.splits == split_name
     test_digest = hashlib.sha256()
     test_digest.update(np.ascontiguousarray(dataset.X[test_mask]).tobytes())
     test_digest.update(np.ascontiguousarray(dataset.y[test_mask]).tobytes())
-    if test_digest.hexdigest() != dataset_manifest["frozen_test_sha256"]:
-        raise RuntimeError("frozen test set hash mismatch")
+    hash_key = "frozen_test_sha256" if split_name == "test" else "frozen_label_feature_sha256"
+    if test_digest.hexdigest() != dataset_manifest[hash_key]:
+        raise RuntimeError(f"frozen {split_name} set hash mismatch")
 
     features = dataset.X[test_mask]
     truth = dataset.y[test_mask]
@@ -168,9 +177,10 @@ def evaluate(
         "normal_fpr_lte_0_05": anomaly["normal_false_positive_rate"] <= 0.05,
     }
     return {
+        "evaluation_split": split_name,
         "test_windows": int(np.sum(test_mask)),
         "test_scenarios": len(set(dataset.scenario_ids[test_mask].tolist())),
-        "frozen_test_sha256": dataset_manifest["frozen_test_sha256"],
+        "frozen_test_sha256": dataset_manifest[hash_key],
         "anomaly": anomaly,
         "classification": classification,
         "per_class_recall": recalls,
