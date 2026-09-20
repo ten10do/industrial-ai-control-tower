@@ -36,6 +36,10 @@ class Settings(BaseSettings):
     diagnosis_enabled: bool = True
     diagnosis_artifact_path: Path = Path("artifacts/diagnosis-v1.1.joblib")
     diagnosis_manifest_path: Path = Path("artifacts/model_manifest-v1.1.json")
+    knowledge_enabled: bool = True
+    knowledge_index_path: Path = Path("knowledge/index-v1.json")
+    knowledge_corpus_version: str = "industrial-maintenance-corpus-v1"
+    knowledge_embedding_version: str = "local-hash-embedding-v1"
 
 
 @lru_cache

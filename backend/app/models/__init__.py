@@ -9,7 +9,10 @@ from app.models.entities import (
     Diagnosis,
     Evidence,
     Incident,
+    KnowledgeChunk,
+    KnowledgeDocument,
     MaintenancePlan,
+    RetrievalRun,
     Telemetry,
     WorkOrder,
 )
@@ -23,7 +26,10 @@ __all__ = [
     "Diagnosis",
     "Evidence",
     "Incident",
+    "KnowledgeChunk",
+    "KnowledgeDocument",
     "MaintenancePlan",
+    "RetrievalRun",
     "Telemetry",
     "WorkOrder",
 ]

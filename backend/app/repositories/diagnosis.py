@@ -2,6 +2,7 @@
 
 from datetime import datetime
 from typing import cast
+from uuid import UUID
 
 from sqlalchemy import Select, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -71,5 +72,15 @@ class DiagnosisRepository:
                 .where(Diagnosis.device_id == device_id)
                 .order_by(Diagnosis.created_at.desc())
                 .limit(1)
+            ),
+        )
+
+    async def get(self, diagnosis_id: UUID, device_id: str) -> Diagnosis | None:
+        return cast(
+            Diagnosis | None,
+            await self.session.scalar(
+                select(Diagnosis).where(
+                    Diagnosis.id == diagnosis_id, Diagnosis.device_id == device_id
+                )
             ),
         )

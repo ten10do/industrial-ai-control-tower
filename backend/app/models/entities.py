@@ -4,6 +4,7 @@ from datetime import datetime
 from typing import Any
 from uuid import UUID, uuid4
 
+from pgvector.sqlalchemy import VECTOR
 from sqlalchemy import (
     CheckConstraint,
     DateTime,
@@ -175,4 +176,65 @@ class AuditEvent(Base):
     resource: Mapped[str] = mapped_column(String(200), nullable=False)
     status: Mapped[str] = mapped_column(String(40), nullable=False)
     details: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict)
+    timestamp: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+
+
+class KnowledgeDocument(Base):
+    __tablename__ = "knowledge_documents"
+    __table_args__ = (UniqueConstraint("sha256", name="uq_knowledge_documents_sha256"),)
+
+    document_id: Mapped[str] = mapped_column(String(100), primary_key=True)
+    title: Mapped[str] = mapped_column(String(500), nullable=False)
+    vendor: Mapped[str] = mapped_column(String(200), nullable=False)
+    document_type: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
+    equipment_type: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
+    model: Mapped[str | None] = mapped_column(String(200), index=True)
+    revision: Mapped[str | None] = mapped_column(String(200))
+    publication_date: Mapped[str | None] = mapped_column(String(40))
+    source: Mapped[str] = mapped_column(Text, nullable=False)
+    source_type: Mapped[str] = mapped_column(String(80), nullable=False)
+    license_note: Mapped[str] = mapped_column(Text, nullable=False)
+    sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    corpus_version: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
+    page_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    chunk_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    ingested_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+
+
+class KnowledgeChunk(Base):
+    __tablename__ = "knowledge_chunks"
+    __table_args__ = (Index("ix_knowledge_chunks_document_index", "document_id", "chunk_index"),)
+
+    chunk_id: Mapped[str] = mapped_column(String(40), primary_key=True)
+    document_id: Mapped[str] = mapped_column(
+        ForeignKey("knowledge_documents.document_id", ondelete="CASCADE"), nullable=False
+    )
+    text: Mapped[str] = mapped_column(Text, nullable=False)
+    page: Mapped[int | None] = mapped_column(Integer)
+    section: Mapped[str | None] = mapped_column(String(500))
+    heading: Mapped[str | None] = mapped_column(String(500))
+    document_type: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
+    equipment_type: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
+    model: Mapped[str | None] = mapped_column(String(200), index=True)
+    source: Mapped[str] = mapped_column(Text, nullable=False)
+    revision: Mapped[str | None] = mapped_column(String(200))
+    chunk_index: Mapped[int] = mapped_column(Integer, nullable=False)
+    content_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    embedding: Mapped[list[float]] = mapped_column(VECTOR(384), nullable=False)
+
+
+class RetrievalRun(Base):
+    __tablename__ = "retrieval_runs"
+    __table_args__ = (Index("ix_retrieval_runs_timestamp", "timestamp"),)
+
+    id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
+    query: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    filters: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    pipeline_version: Mapped[str] = mapped_column(String(100), nullable=False)
+    corpus_version: Mapped[str] = mapped_column(String(100), nullable=False)
+    embedding_version: Mapped[str] = mapped_column(String(100), nullable=False)
+    candidate_chunks: Mapped[list[dict[str, Any]]] = mapped_column(JSONB, nullable=False)
+    selected_evidence: Mapped[list[dict[str, Any]]] = mapped_column(JSONB, nullable=False)
+    sufficiency_result: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    latency_ms: Mapped[float] = mapped_column(Float, nullable=False)
     timestamp: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)

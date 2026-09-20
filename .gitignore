@@ -83,6 +83,11 @@ ml/data/
 ml/output/
 ml/artifacts/
 
+# Rebuildable Phase 4 knowledge inputs and processed index
+backend/knowledge/raw/
+backend/knowledge/index-v1.json
+backend/knowledge/evaluation-results.json
+
 # Docker
 .dockerignore is tracked; ignore local Docker artifacts if any
 docker-volumes/

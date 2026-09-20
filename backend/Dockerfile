@@ -12,6 +12,7 @@ COPY app/ ./app/
 COPY alembic.ini ./
 COPY alembic/ ./alembic/
 COPY artifacts/ ./artifacts/
+COPY knowledge/ ./knowledge/
 
 EXPOSE 8000
 

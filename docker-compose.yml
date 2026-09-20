@@ -1,6 +1,6 @@
 services:
   postgres:
-    image: postgres:16-alpine
+    image: pgvector/pgvector:pg16
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me-in-dotenv}
@@ -54,7 +54,9 @@ services:
       - DIAGNOSIS_ENABLED=${DIAGNOSIS_ENABLED:-true}
       - DIAGNOSIS_ARTIFACT_PATH=${DIAGNOSIS_ARTIFACT_PATH:-artifacts/diagnosis-v1.1.joblib}
       - DIAGNOSIS_MANIFEST_PATH=${DIAGNOSIS_MANIFEST_PATH:-artifacts/model_manifest-v1.1.json}
-    command: ["sh", "-c", "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000"]
+      - KNOWLEDGE_ENABLED=${KNOWLEDGE_ENABLED:-true}
+      - KNOWLEDGE_INDEX_PATH=${KNOWLEDGE_INDEX_PATH:-knowledge/index-v1.json}
+    command: ["sh", "-c", "alembic upgrade head && python -m app.knowledge.ingest --if-present && uvicorn app.main:app --host 0.0.0.0 --port 8000"]
     depends_on:
       postgres:
         condition: service_healthy

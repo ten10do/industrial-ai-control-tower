@@ -13,13 +13,14 @@ from redis.asyncio import Redis
 from sqlalchemy import text
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from app.api import alarms, devices, diagnoses, telemetry, websockets
+from app.api import alarms, devices, diagnoses, knowledge, telemetry, websockets
 from app.config import get_settings
 from app.core.context import trace_id_context
 from app.core.errors import AppError
 from app.core.logging import configure_logging
 from app.infrastructure.database.session import Database
 from app.infrastructure.mqtt.consumer import MqttTelemetryConsumer
+from app.knowledge.retrieval import KnowledgeIndex
 from app.ml.runtime import ModelCompatibilityError, ModelRuntime
 from app.services.diagnosis import OnlineDiagnosisCoordinator
 from app.services.telemetry import IngestionCounters
@@ -45,6 +46,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     counters = IngestionCounters()
     diagnosis: OnlineDiagnosisCoordinator | None = None
     diagnosis_error: str | None = None
+    knowledge_index: KnowledgeIndex | None = None
+    knowledge_error: str | None = None
     if settings.diagnosis_enabled:
         try:
             runtime = ModelRuntime.load(
@@ -55,6 +58,21 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         except ModelCompatibilityError as exc:
             diagnosis_error = str(exc)
             logger.error("diagnosis_model_unavailable", extra={"error": diagnosis_error})
+    if settings.knowledge_enabled:
+        try:
+            knowledge_index = KnowledgeIndex.load(settings.knowledge_index_path)
+            if knowledge_index.artifact.corpus_version != settings.knowledge_corpus_version:
+                raise ValueError("knowledge corpus version does not match configuration")
+            logger.info(
+                "knowledge_index_loaded",
+                extra={
+                    "corpus_version": knowledge_index.artifact.corpus_version,
+                    "chunk_count": len(knowledge_index.chunks),
+                },
+            )
+        except (OSError, ValueError) as exc:
+            knowledge_error = str(exc)
+            logger.error("knowledge_index_unavailable", extra={"error": knowledge_error})
     mqtt = MqttTelemetryConsumer(
         settings, database.sessions, redis, websocket_manager, counters, diagnosis
     )
@@ -65,6 +83,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     app.state.mqtt = mqtt
     app.state.diagnosis = diagnosis
     app.state.diagnosis_error = diagnosis_error
+    app.state.knowledge_index = knowledge_index
+    app.state.knowledge_error = knowledge_error
     if settings.mqtt_enabled:
         mqtt.start()
     try:
@@ -85,6 +105,7 @@ app.include_router(devices.router)
 app.include_router(telemetry.router)
 app.include_router(alarms.router)
 app.include_router(diagnoses.router)
+app.include_router(knowledge.router)
 app.include_router(websockets.router)
 
 
@@ -151,6 +172,12 @@ async def ready(request: Request) -> JSONResponse:
         )
     else:
         dependencies["diagnosis"] = "disabled"
+    if settings.knowledge_enabled:
+        dependencies["knowledge"] = (
+            "indexed" if request.app.state.knowledge_index is not None else "unavailable"
+        )
+    else:
+        dependencies["knowledge"] = "disabled"
     ready_state = all(dependencies[name] == "ok" for name in ("postgres", "redis"))
     if settings.diagnosis_enabled:
         ready_state = ready_state and dependencies["diagnosis"] == "loaded"
