@@ -16,6 +16,12 @@ Phase 2 creates `devices`, `telemetry`, `alarms`, `incidents`, `diagnoses`, `evi
 Telemetry, Alarm, Diagnosis, and AuditEvent have active behavior. The remaining tables are only
 minimal persistence foundations for later phases.
 
+Phase 4 migration `20260920_03` enables the pgvector extension and adds
+`knowledge_documents`, `knowledge_chunks`, and `retrieval_runs`. Documents store provenance and
+content hashes, chunks store filtering/location metadata and `VECTOR(384)` embeddings, and runs
+store the complete retrieval/sufficiency audit envelope. The document foreign key cascades chunk
+deletion; index ingestion performs changed-document replacement transactionally.
+
 All timestamps are stored as timezone-aware values and normalized to UTC at ingestion. The
 telemetry table enforces a device foreign key, non-null measurements, `load_pct` between 0 and
 120, and uniqueness of `(device_id, timestamp)`.
@@ -52,7 +58,8 @@ alembic current
 alembic check
 ```
 
-Container startup runs `alembic upgrade head` before Uvicorn.
+Container startup runs `alembic upgrade head`, conditionally ingests the versioned knowledge
+artifact, and only then starts Uvicorn.
 
 ## Retention (design only)
 

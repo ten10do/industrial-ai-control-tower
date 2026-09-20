@@ -39,8 +39,10 @@ Ensure the Industrial AI Control Tower is correct, safe, observable, and maintai
 ### RAG Evaluation Tests
 
 - Scope: Knowledge retrieval relevance, citation accuracy, evidence sufficiency.
-- Tool: RAGAS or custom metrics.
-- Characteristics: evaluate retrieval and generation quality against annotated industrial documents.
+- Tool: deterministic custom evaluator over the versioned corpus and query set.
+- Characteristics: development queries are used for tuning; the 60-query frozen split is a
+  one-shot release gate. It reports Hit@1/3, Recall@5, MRR, nDCG@5, latency, supported acceptance,
+  unsupported rejection, and False Sufficient Rate. Phase 4 evaluates retrieval, not generation.
 - Phase: introduced in Phase 4.
 
 ### E2E Tests
@@ -78,6 +80,14 @@ Ensure the Industrial AI Control Tower is correct, safe, observable, and maintai
 - Deterministic dataset generation, training smoke test, artifact save/load, and compatibility.
 - Real Compose gate: Simulator → MQTT → Backend → model → PostgreSQL → REST.
 - Restart warmup from PostgreSQL and explicit unavailable/failed model behavior.
+
+## Phase 4 Gates
+
+- Source provenance, hashes, stable chunk identity, duplicate handling, and embedding metadata.
+- Frozen BM25/dense/hybrid/reranker comparison and explicit default selection.
+- Citation traceability, metadata filtering, deterministic sufficiency, and OOD refusal.
+- Real Compose gate: Diagnosis v1.1 → KnowledgeQuery → evidence → REST → retrieval audit.
+- Knowledge-index failure remains isolated from telemetry and diagnosis readiness.
 - Frozen test is evaluated only after model and thresholds are selected from train/validation.
 
 ## Phase 0 Tests

@@ -1,6 +1,8 @@
 services:
   postgres:
-    image: pgvector/pgvector:pg16
+    image: industrial-ai-control-tower-postgres:16-pgvector-0.8.1
+    build:
+      context: ./infra/postgres
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me-in-dotenv}
@@ -56,6 +58,8 @@ services:
       - DIAGNOSIS_MANIFEST_PATH=${DIAGNOSIS_MANIFEST_PATH:-artifacts/model_manifest-v1.1.json}
       - KNOWLEDGE_ENABLED=${KNOWLEDGE_ENABLED:-true}
       - KNOWLEDGE_INDEX_PATH=${KNOWLEDGE_INDEX_PATH:-knowledge/index-v1.json}
+      - KNOWLEDGE_CORPUS_VERSION=${KNOWLEDGE_CORPUS_VERSION:-industrial-maintenance-corpus-v1}
+      - KNOWLEDGE_EMBEDDING_VERSION=${KNOWLEDGE_EMBEDDING_VERSION:-local-hash-embedding-v1}
     command: ["sh", "-c", "alembic upgrade head && python -m app.knowledge.ingest --if-present && uvicorn app.main:app --host 0.0.0.0 --port 8000"]
     depends_on:
       postgres:

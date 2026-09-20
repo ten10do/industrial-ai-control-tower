@@ -2,9 +2,17 @@
 
 from pathlib import Path
 
-from app.knowledge.contracts import IndexArtifact, IndexedChunk, KnowledgeQuery, SufficiencyStatus
+from app.knowledge.contracts import (
+    BuiltQuery,
+    IndexArtifact,
+    IndexedChunk,
+    KnowledgeFilters,
+    KnowledgeQuery,
+    SufficiencyStatus,
+)
 from app.knowledge.corpus import chunk_blocks, parse_document
 from app.knowledge.embedding import DIMENSION, MODEL_VERSION, NORMALIZATION, embed
+from app.knowledge.ingest import deduplicate_chunks
 from app.knowledge.query import build_query
 from app.knowledge.retrieval import KnowledgeIndex
 
@@ -100,3 +108,73 @@ def test_unknown_fault_is_never_declared_sufficient() -> None:
         build_query(KnowledgeQuery(fault_type="QUANTUM_TELEPORT")), pipeline="hybrid"
     )
     assert result.sufficiency.status == SufficiencyStatus.INSUFFICIENT
+
+
+def test_metadata_filters_are_enforced_before_ranking() -> None:
+    chunks = [
+        _chunk("kc-r1", "manual-r1", "bearing lubrication vibration inspection"),
+        _chunk("kc-r2", "manual-r2", "bearing lubrication vibration inspection"),
+    ]
+    chunks[1].revision = "R2"
+    artifact = IndexArtifact(
+        index_version="test",
+        corpus_version="test-corpus",
+        corpus_manifest_sha256="d" * 64,
+        embedding_model=MODEL_VERSION,
+        embedding_dimension=DIMENSION,
+        embedding_normalization=NORMALIZATION,
+        created_at="2026-09-20T00:00:00+00:00",
+        documents=[],
+        chunks=chunks,
+    )
+    query = BuiltQuery(
+        search_terms=["bearing", "lubrication"],
+        exact_terms=[],
+        semantic_query="bearing lubrication",
+        filters=KnowledgeFilters(equipment_type="industrial_motor", revision="R2"),
+        supported_fault=True,
+    )
+    result = KnowledgeIndex(artifact).search(query, pipeline="bm25", top_k=5)
+    assert [item.document_id for item in result.evidence] == ["manual-r2"]
+    assert result.sufficiency.metadata_match is True
+
+
+def test_filter_without_matching_chunks_is_insufficient() -> None:
+    chunk = _chunk("kc-r1", "manual-r1", "bearing lubrication vibration inspection")
+    artifact = IndexArtifact(
+        index_version="test",
+        corpus_version="test-corpus",
+        corpus_manifest_sha256="e" * 64,
+        embedding_model=MODEL_VERSION,
+        embedding_dimension=DIMENSION,
+        embedding_normalization=NORMALIZATION,
+        created_at="2026-09-20T00:00:00+00:00",
+        documents=[],
+        chunks=[chunk],
+    )
+    query = BuiltQuery(
+        search_terms=["bearing"],
+        exact_terms=[],
+        semantic_query="bearing",
+        filters=KnowledgeFilters(model="NONEXISTENT"),
+        supported_fault=True,
+    )
+    result = KnowledgeIndex(artifact).search(query, pipeline="bm25")
+    assert result.evidence == []
+    assert result.sufficiency.status == SufficiencyStatus.INSUFFICIENT
+
+
+def test_ingestion_collapses_only_identical_duplicate_chunk_ids() -> None:
+    first = _chunk("kc-duplicate", "manual-1", "same stable content")
+    repeated = first.model_copy(update={"chunk_index": 99})
+    unique, duplicate_count = deduplicate_chunks([first, repeated])
+    assert [item.chunk_id for item in unique] == ["kc-duplicate"]
+    assert duplicate_count == 1
+
+    conflicting = first.model_copy(update={"text": "different content"})
+    try:
+        deduplicate_chunks([first, conflicting])
+    except ValueError as exc:
+        assert "conflicting duplicate chunk id" in str(exc)
+    else:
+        raise AssertionError("conflicting duplicate chunk ids must be rejected")

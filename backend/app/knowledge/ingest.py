@@ -12,12 +12,14 @@ from sqlalchemy import delete, select
 
 from app.config import get_settings
 from app.infrastructure.database.session import Database
-from app.knowledge.contracts import IndexArtifact
+from app.knowledge.contracts import IndexArtifact, IndexedChunk
 from app.knowledge.embedding import DIMENSION, MODEL_VERSION
 from app.models import KnowledgeChunk, KnowledgeDocument
 
 
-def _document_values(document: dict[str, Any], corpus_version: str) -> dict[str, Any]:
+def _document_values(
+    document: dict[str, Any], corpus_version: str, unique_chunk_count: int
+) -> dict[str, Any]:
     return {
         "title": document["title"],
         "vendor": document["vendor"],
@@ -32,9 +34,40 @@ def _document_values(document: dict[str, Any], corpus_version: str) -> dict[str,
         "sha256": document["sha256"],
         "corpus_version": corpus_version,
         "page_count": document["page_count"],
-        "chunk_count": document["chunk_count"],
+        "chunk_count": unique_chunk_count,
         "ingested_at": datetime.fromisoformat(document["ingested_at"]),
     }
+
+
+def deduplicate_chunks(chunks: list[IndexedChunk]) -> tuple[list[IndexedChunk], int]:
+    """Collapse identical stable IDs and reject any identity/content conflict."""
+    unique: dict[str, IndexedChunk] = {}
+    for chunk in chunks:
+        current = unique.get(chunk.chunk_id)
+        if current is None:
+            unique[chunk.chunk_id] = chunk
+            continue
+        identity = (
+            chunk.document_id,
+            chunk.text,
+            chunk.page,
+            chunk.section,
+            chunk.heading,
+            chunk.content_hash,
+            chunk.embedding,
+        )
+        current_identity = (
+            current.document_id,
+            current.text,
+            current.page,
+            current.section,
+            current.heading,
+            current.content_hash,
+            current.embedding,
+        )
+        if identity != current_identity:
+            raise ValueError(f"conflicting duplicate chunk id: {chunk.chunk_id}")
+    return list(unique.values()), len(chunks) - len(unique)
 
 
 async def ingest(path: Path) -> dict[str, int]:
@@ -44,11 +77,18 @@ async def ingest(path: Path) -> dict[str, int]:
     hashes = [str(document["sha256"]) for document in artifact.documents]
     if len(hashes) != len(set(hashes)):
         raise ValueError("duplicate document hashes in index")
-    chunks_by_document: dict[str, list[Any]] = {}
-    for chunk in artifact.chunks:
+    unique_chunks, duplicate_count = deduplicate_chunks(artifact.chunks)
+    chunks_by_document: dict[str, list[IndexedChunk]] = {}
+    for chunk in unique_chunks:
         chunks_by_document.setdefault(chunk.document_id, []).append(chunk)
     database = Database(get_settings())
-    stats = {"inserted": 0, "replaced": 0, "skipped": 0, "chunks": 0}
+    stats = {
+        "inserted": 0,
+        "replaced": 0,
+        "skipped": 0,
+        "chunks": 0,
+        "duplicates": duplicate_count,
+    }
     try:
         async with database.sessions() as session:
             existing_rows = list(await session.scalars(select(KnowledgeDocument)))
@@ -61,7 +101,11 @@ async def ingest(path: Path) -> dict[str, int]:
                 if current is not None and current.sha256 == document["sha256"]:
                     stats["skipped"] += 1
                     continue
-                values = _document_values(document, artifact.corpus_version)
+                values = _document_values(
+                    document,
+                    artifact.corpus_version,
+                    len(chunks_by_document.get(document_id, [])),
+                )
                 if current is None:
                     current = KnowledgeDocument(document_id=document_id, **values)
                     session.add(current)

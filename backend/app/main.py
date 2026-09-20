@@ -63,6 +63,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             knowledge_index = KnowledgeIndex.load(settings.knowledge_index_path)
             if knowledge_index.artifact.corpus_version != settings.knowledge_corpus_version:
                 raise ValueError("knowledge corpus version does not match configuration")
+            if knowledge_index.artifact.embedding_model != settings.knowledge_embedding_version:
+                raise ValueError("knowledge embedding version does not match configuration")
             logger.info(
                 "knowledge_index_loaded",
                 extra={
@@ -97,8 +99,10 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
 app = FastAPI(
     title="Industrial AI Control Tower",
-    version="0.3.0",
-    description="Industrial telemetry platform with synthetic-benchmark ML diagnosis.",
+    version="0.4.0",
+    description=(
+        "Industrial telemetry, synthetic-benchmark ML diagnosis, and cited knowledge retrieval."
+    ),
     lifespan=lifespan,
 )
 app.include_router(devices.router)

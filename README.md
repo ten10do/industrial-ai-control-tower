@@ -15,7 +15,7 @@ The target architecture is documented in [`docs/architecture/SYSTEM_ARCHITECTURE
 - **Backend:** FastAPI service layer
 - **Diagnosis Engine:** versioned scikit-learn models over bounded telemetry windows
 - **Agent Orchestrator:** LangGraph-based workflow (Phase 5+, not implemented)
-- **Data Layer:** PostgreSQL, Redis, Vector Store, Audit/Event Storage
+- **Data Layer:** PostgreSQL + pgvector, Redis, Audit/Event Storage
 - **Industrial Integration:** MQTT, OPC UA, Equipment Simulator
 - **Observability:** Structured logging, Prometheus, OpenTelemetry, Grafana
 
@@ -37,7 +37,7 @@ The target architecture is documented in [`docs/architecture/SYSTEM_ARCHITECTURE
 | Frontend | React, TypeScript, Vite |
 | Agent | LangGraph (future) |
 | Persistence | PostgreSQL, Redis |
-| Vector Store | Reserved for Phase 4+ |
+| Vector Store | PostgreSQL + pgvector; versioned local retrieval artifact |
 | Industrial | MQTT, OPC UA (future) |
 | DevOps | Docker, Docker Compose, GitHub Actions |
 | Observability | Structured logging, Prometheus, OpenTelemetry (future) |
@@ -72,7 +72,8 @@ industrial-ai-control-tower/
 ## Quick Start
 
 1. Copy `.env.example` to `.env` and adjust values.
-2. Start the platform (the backend applies Alembic migrations and loads the frozen model):
+2. Start the platform (the backend applies Alembic migrations, ingests the versioned knowledge
+   index, and loads the frozen diagnosis model):
    ```bash
    docker compose up -d postgres redis mosquitto backend
    ```
@@ -107,6 +108,10 @@ See [`docs/architecture/SYSTEM_ARCHITECTURE.md`](docs/architecture/SYSTEM_ARCHIT
 | [`docs/DATA_PLATFORM.md`](docs/DATA_PLATFORM.md) | PostgreSQL schema, indexes, Redis and retention |
 | [`docs/INGESTION_PIPELINE.md`](docs/INGESTION_PIPELINE.md) | Validation and delivery semantics |
 | [`docs/ML_PIPELINE.md`](docs/ML_PIPELINE.md) | Phase 3 dataset, features, models, evaluation, and serving |
+| [`docs/KNOWLEDGE_RAG.md`](docs/KNOWLEDGE_RAG.md) | Phase 4 query, retrieval, evidence, sufficiency, and failure contracts |
+| [`docs/KNOWLEDGE_CORPUS.md`](docs/KNOWLEDGE_CORPUS.md) | Corpus provenance, parsing, hashes, and reindex procedure |
+| [`docs/evaluation/PHASE4_RAG_EVALUATION.md`](docs/evaluation/PHASE4_RAG_EVALUATION.md) | Frozen 60-query retrieval evaluation and pipeline selection |
+| [`docs/evaluation/PHASE4_ERROR_ANALYSIS.md`](docs/evaluation/PHASE4_ERROR_ANALYSIS.md) | Retrieval errors, safety failures, and limitations |
 | [`docs/evaluation/PHASE3_MODEL_EVALUATION.md`](docs/evaluation/PHASE3_MODEL_EVALUATION.md) | Frozen-test metrics and limitations |
 | [`docs/evaluation/EXPOSED_TEST_V1_ANALYSIS.md`](docs/evaluation/EXPOSED_TEST_V1_ANALYSIS.md) | Root cause of the original Normal false positives |
 | [`docs/evaluation/PHASE3_1_BLIND_EVALUATION.md`](docs/evaluation/PHASE3_1_BLIND_EVALUATION.md) | One-shot v1.1 blind acceptance metrics |
@@ -145,13 +150,13 @@ See [`docs/architecture/SYSTEM_ARCHITECTURE.md`](docs/architecture/SYSTEM_ARCHIT
 
 ## Current Project Status
 
-**Current Phase: Phase 3.1 PASS — Phase 4 READY (not started)**
+**Current Phase: Phase 4 PASS — Phase 5 READY (not started)**
 
-Phase 3 adds a reproducible, window-based ML pipeline; anomaly detection; calibrated fault
-classification; severity and sensor evidence; integrity-checked artifacts; online inference;
-diagnosis persistence; and REST APIs. The benchmark uses only synthetic IndustrialMotor data.
-The immutable Phase 3 Test V1 remains documented with Normal FPR 5.1842%. Version 1.1 uses a
-validation-only confidence-margin threshold and a separately frozen 120-scenario blind holdout;
-its one-shot acceptance passed all four gates. These metrics demonstrate the engineering pipeline
-and simulator fault discrimination—not equal accuracy on real motors. Phase 4 is ready but has not
-started; RAG, agents, planning, and LLM integration remain intentionally deferred.
+Phase 4 adds a curated, provenance-tracked industrial maintenance corpus; stable structured
+chunking; PostgreSQL/pgvector persistence; BM25, local dense, hybrid, and reranked retrieval;
+traceable citations; deterministic evidence sufficiency; frozen retrieval evaluation; and REST
+integration from Diagnosis v1.1. The default BM25 pipeline achieved Recall@5 0.85, MRR 0.8617,
+p95 46.84 ms, and zero false-sufficient OOD results on the one-shot 60-query frozen split.
+The corpus is limited and Phase 3 diagnoses still use synthetic motor telemetry, so these are
+engineering validation results, not field-performance claims. Multi-agent planning, LLM synthesis,
+safety orchestration, and work-order execution remain intentionally deferred to Phase 5+.

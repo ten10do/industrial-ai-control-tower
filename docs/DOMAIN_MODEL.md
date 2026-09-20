@@ -106,6 +106,21 @@ A piece of supporting information retrieved by the Knowledge Agent.
 | relevance_score | Retrieval relevance |
 | sufficiency | Whether this evidence satisfies the sufficiency gate |
 
+Phase 4 evidence additionally carries stable `document_id`, `chunk_id`, document title, page,
+section, heading, source URL, revision, retrieval score, optional rerank score, and a structured
+citation. It is immutable output from a versioned corpus, not an executable instruction.
+
+### KnowledgeDocument and KnowledgeChunk
+
+`KnowledgeDocument` records provenance, source type, license note, SHA-256, corpus version, and
+page/chunk counts. `KnowledgeChunk` records stable text location, filtering metadata, content hash,
+and a 384-dimensional versioned embedding. A changed source replaces only its own chunks.
+
+### RetrievalRun
+
+A durable audit record containing the built query, filters, retrieval/corpus/embedding versions,
+candidate and selected evidence, deterministic sufficiency result, latency, and timestamp.
+
 ### MaintenancePlan
 
 A proposed set of maintenance actions.

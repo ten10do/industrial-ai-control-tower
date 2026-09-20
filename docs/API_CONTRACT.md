@@ -38,8 +38,10 @@ Host: localhost:8000
 
 Returns `200` only when PostgreSQL and Redis are reachable and, when diagnosis is enabled, the
 artifact is integrity-checked and loaded. MQTT is reported as `connected` or `degraded` but does
-not by itself fail HTTP readiness. A missing, corrupt, or incompatible model reports diagnosis as
-`unavailable`; telemetry ingestion remains isolated from that capability.
+not by itself fail HTTP readiness. Knowledge is reported as `indexed`, `disabled`, or `unavailable`
+but is an optional capability and does not fail overall readiness. A missing, corrupt, or
+incompatible knowledge index makes its APIs return `503 INDEX_NOT_AVAILABLE`; telemetry ingestion
+and diagnosis remain available.
 
 ## Phase 2 Endpoints
 
@@ -64,6 +66,25 @@ not by itself fail HTTP readiness. A missing, corrupt, or incompatible model rep
 Diagnosis statuses are `NORMAL`, `FAULT`, `UNCERTAIN`, and `FAILED`. Results include the telemetry
 window, anomaly score, calibrated classifier confidence, severity, sensor evidence, model version,
 feature version, trace ID, and creation time. `FAILED` is explicit and never converted to NORMAL.
+
+## Phase 4 Knowledge Endpoints
+
+| Method | Path | Purpose |
+|---|---|---|
+| POST | `/api/v1/knowledge/search` | Free-text or structured deterministic evidence search |
+| GET | `/api/v1/knowledge/documents?limit=100` | List persisted corpus metadata |
+| GET | `/api/v1/knowledge/documents/{document_id}` | Get one document's provenance and hash |
+| POST | `/api/v1/devices/{device_id}/knowledge-context` | Build a query from a persisted diagnosis and retrieve cited evidence |
+
+Search accepts exactly one of `query` or `knowledge_query`, an optional exact-match filter object
+(`equipment_type`, `document_type`, `model`, `revision`), `top_k` 1–20, and an optional pipeline:
+`bm25`, `dense`, `hybrid`, or `hybrid_rerank`. The default is the frozen-evaluation-selected
+`bm25` pipeline. Responses include the built query, corpus/embedding versions, retrieval run ID,
+latency, cited evidence, and `SUFFICIENT`, `PARTIAL`, or `INSUFFICIENT_EVIDENCE` assessment.
+
+Knowledge errors are explicit: `UNSUPPORTED_QUERY` (422), `CORPUS_NOT_AVAILABLE` (404),
+`INDEX_NOT_AVAILABLE` (503), and `SEARCH_FAILED` (500). Every successful search is persisted as a
+retrieval run.
 
 Telemetry history accepts timezone-aware `start`, `end`, and exclusive `cursor` timestamps plus
 `limit` from 1 to 500. It returns `{"items": [...], "next_cursor": ...}`. Device deletion is not

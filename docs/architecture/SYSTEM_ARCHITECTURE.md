@@ -103,6 +103,17 @@ artifact after SHA-256, model, feature, telemetry-schema, and library-version ch
 the buffer is warmed from recent PostgreSQL telemetry. See
 [`ML_PIPELINE.md`](../ML_PIPELINE.md).
 
+#### Industrial Knowledge and Evidence (Phase 4)
+
+Diagnosis results are converted to a deterministic `KnowledgeQuery`; free-text search is also
+available. A versioned artifact provides exact BM25/dense/hybrid retrieval over 2,149 parsed rows
+(2,146 unique stable chunk IDs),
+while PostgreSQL + pgvector is the canonical document, embedding, and retrieval-run store. Every
+evidence item retains document, page, section, source, revision, and chunk identity. A deterministic
+sufficiency gate rejects unsupported fault types before evidence can be accepted. See
+[`KNOWLEDGE_RAG.md`](../KNOWLEDGE_RAG.md) and
+[`ADR-011`](../adr/ADR-011.md).
+
 ### Agent Orchestrator
 
 - LangGraph workflow engine
@@ -113,11 +124,12 @@ the buffer is warmed from recent PostgreSQL telemetry. See
 
 - PostgreSQL: primary persistence for domain entities
 - Redis: caching, session state, task queues, rate limiting
-- Vector Store: industrial knowledge embeddings (Phase 4+)
+- PostgreSQL + pgvector: industrial documents, chunks, 384-dimensional embeddings, and retrieval runs
 - Audit/Event Storage: immutable log of agent actions and human decisions
 
-In Phases 2–3, PostgreSQL is authoritative and Alembic owns the schema. Redis contains only
-rebuildable latest telemetry. See [`DATA_PLATFORM.md`](../DATA_PLATFORM.md) and
+In Phases 2–4, PostgreSQL is authoritative and Alembic owns the schema. Redis contains only
+rebuildable latest telemetry. The versioned knowledge artifact is a reproducible bootstrap; its
+documents, chunks, and embeddings are transactionally ingested into pgvector. See [`DATA_PLATFORM.md`](../DATA_PLATFORM.md) and
 [`INGESTION_PIPELINE.md`](../INGESTION_PIPELINE.md).
 
 ### Industrial Integration
@@ -197,6 +209,9 @@ The system defines four trust boundaries:
 2. **Platform Boundary**: Authenticated and authorized access only. Secrets never leave this boundary in plain text.
 3. **Agent Boundary**: LLM outputs are treated as recommendations, not commands.
 4. **Execution Boundary**: Physical actions or CMMS mutations occur only after deterministic safety and human approval gates.
+
+Retrieved documents are also untrusted input. Their text can be quoted as evidence but cannot
+change system instructions, authorize tools, or cross the execution boundary.
 
 ## Human-in-the-Loop
 

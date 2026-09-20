@@ -50,6 +50,8 @@ Build a reproducible, explainable telemetry diagnosis engine without LLMs or age
 
 ## Phase 4 — Industrial RAG
 
+**Status:** Complete (Phase 4 gate passed)
+
 Implement knowledge retrieval over industrial manuals.
 
 **Deliverables:**
@@ -60,7 +62,13 @@ Implement knowledge retrieval over industrial manuals.
 - Reranker and citation generation
 - RAG evaluation suite
 
+**Delivered:** 13 provenance-tracked documents, 2,149 parsed rows / 2,146 unique stable chunks, pgvector persistence,
+four measured retrieval pipelines, deterministic citations/sufficiency, 60-query frozen evaluation,
+and Diagnosis v1.1 context integration. No LLM or agent workflow is included.
+
 ## Phase 5 — Multi-Agent Workflow
+
+**Status:** Ready, not started
 
 Integrate agents into a LangGraph orchestrator with human-in-the-loop checkpoints.
 

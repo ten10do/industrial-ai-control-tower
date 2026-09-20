@@ -22,7 +22,8 @@ from app.knowledge.contracts import (
 from app.knowledge.embedding import MODEL_VERSION, cosine, embed, tokenize
 
 PIPELINE_VERSION = "hybrid-rrf-v1"
-DEFAULT_PIPELINE = "hybrid"
+# Frozen Eval v1: BM25 dominated hybrid on Recall@5, MRR, nDCG@5, and p95 latency.
+DEFAULT_PIPELINE = "bm25"
 RRF_K = 60
 
 
