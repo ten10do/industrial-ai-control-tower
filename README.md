@@ -108,6 +108,9 @@ See [`docs/architecture/SYSTEM_ARCHITECTURE.md`](docs/architecture/SYSTEM_ARCHIT
 | [`docs/INGESTION_PIPELINE.md`](docs/INGESTION_PIPELINE.md) | Validation and delivery semantics |
 | [`docs/ML_PIPELINE.md`](docs/ML_PIPELINE.md) | Phase 3 dataset, features, models, evaluation, and serving |
 | [`docs/evaluation/PHASE3_MODEL_EVALUATION.md`](docs/evaluation/PHASE3_MODEL_EVALUATION.md) | Frozen-test metrics and limitations |
+| [`docs/evaluation/EXPOSED_TEST_V1_ANALYSIS.md`](docs/evaluation/EXPOSED_TEST_V1_ANALYSIS.md) | Root cause of the original Normal false positives |
+| [`docs/evaluation/PHASE3_1_BLIND_EVALUATION.md`](docs/evaluation/PHASE3_1_BLIND_EVALUATION.md) | One-shot v1.1 blind acceptance metrics |
+| [`PHASE_3_1_FINAL_REPORT.md`](PHASE_3_1_FINAL_REPORT.md) | Phase 3.1 closure, live-chain evidence, and readiness decision |
 | [`docs/ROADMAP.md`](docs/ROADMAP.md) | Phase-by-phase roadmap |
 
 ## Testing
@@ -142,10 +145,13 @@ See [`docs/architecture/SYSTEM_ARCHITECTURE.md`](docs/architecture/SYSTEM_ARCHIT
 
 ## Current Project Status
 
-**Current Phase: Phase 3**
+**Current Phase: Phase 3.1 PASS — Phase 4 READY (not started)**
 
 Phase 3 adds a reproducible, window-based ML pipeline; anomaly detection; calibrated fault
 classification; severity and sensor evidence; integrity-checked artifacts; online inference;
 diagnosis persistence; and REST APIs. The benchmark uses only synthetic IndustrialMotor data.
-Its metrics demonstrate the engineering pipeline and simulator fault discrimination—not equal
-accuracy on real motors. RAG, agents, planning, and LLM integration remain intentionally deferred.
+The immutable Phase 3 Test V1 remains documented with Normal FPR 5.1842%. Version 1.1 uses a
+validation-only confidence-margin threshold and a separately frozen 120-scenario blind holdout;
+its one-shot acceptance passed all four gates. These metrics demonstrate the engineering pipeline
+and simulator fault discrimination—not equal accuracy on real motors. Phase 4 is ready but has not
+started; RAG, agents, planning, and LLM integration remain intentionally deferred.

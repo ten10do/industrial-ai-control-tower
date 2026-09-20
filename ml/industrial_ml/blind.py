@@ -11,7 +11,7 @@ from collections import Counter
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import numpy as np
 from app.ml.features import FeatureExtractor, FeatureValidationError, TelemetryWindow, WindowSample
@@ -257,13 +257,15 @@ def build_blind_manifest(
     return manifest
 
 
-def write_blind_manifest(manifest: dict[str, Any], path: Path) -> None:
+def write_blind_manifest(manifest: dict[str, Any], path: Path) -> dict[str, Any]:
     if path.exists():
-        existing = json.loads(path.read_text(encoding="utf-8"))
+        existing = cast(dict[str, Any], json.loads(path.read_text(encoding="utf-8")))
         if existing.get("blind_holdout_sha256") != manifest["blind_holdout_sha256"]:
             raise RuntimeError("refusing to replace the frozen blind holdout")
+        return existing
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    return manifest
 
 
 def main() -> None:
@@ -283,7 +285,7 @@ def main() -> None:
     root = Path(__file__).resolve().parents[2]
     manifest = build_blind_manifest(dataset, scenarios, existing_seeds, root)
     save_dataset(dataset, args.output)
-    write_blind_manifest(manifest, args.manifest)
+    manifest = write_blind_manifest(manifest, args.manifest)
     print(
         json.dumps(
             {

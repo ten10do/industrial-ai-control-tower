@@ -43,9 +43,20 @@ measurements are rejected and counted; values are never silently filled with zer
 - Anomaly and uncertainty thresholds are selected from validation only.
 - Class probabilities use sigmoid `CalibratedClassifierCV` with scenario-group three-fold splits.
 
-The frozen test is read once by the final `industrial_ml.evaluation` command after model selection.
-It checks the stored test hash before reporting anomaly, classification, calibration, confusion,
-detection-delay, and error-analysis results.
+The original frozen test was read once by `industrial_ml.evaluation`. It produced Normal FPR
+5.1842% and is permanently retained as `EXPOSED_TEST_V1`; it is never reused to claim acceptance
+after threshold changes. Its 38 false positives and the synthetic classifier separability audit
+are preserved under `docs/evaluation/`.
+
+`diagnosis-v1.1` uses a deterministic validation-only operating point: maximize anomaly recall,
+tie-break by F1 and lower FPR, while requiring the two-sided Wilson 95% upper bound for validation
+Normal FPR to be at most 5%. This selected threshold 46.708485 with validation FPR 3.1437%
+(21/668), upper bound 4.7580%, and recall 51.5625%.
+
+Before v1.1 was frozen, `industrial_ml.blind` allocated 120 new scenarios/seeds with wider load,
+severity, timing, ramp, duration, and recovery ranges. The seed overlap with the original 200
+scenarios is zero. The manifest and artifact were committed together before the one-shot
+`industrial_ml.blind_evaluation` command revealed any label-based model metrics.
 
 ## Reproduction commands
 
@@ -54,13 +65,18 @@ From `ml/` with Python 3.11:
 ```bash
 pip install -r requirements-dev.txt
 python -m industrial_ml.dataset
+python -m industrial_ml.exposed_analysis
+python -m industrial_ml.separability_audit
+python -m industrial_ml.blind
 python -m industrial_ml.training
-python -m industrial_ml.evaluation
+python -m industrial_ml.blind_evaluation
 ```
 
 The first command creates the ignored dataset plus its manifest. Training consumes only train and
 validation splits and writes the selected artifact and model manifest to `backend/artifacts/`.
-Evaluation verifies the frozen hash and writes the formal reports under `docs/evaluation/`.
+The blind commands describe a release protocol, not an iterative tuning loop. Once blind metrics
+are exposed, changing the artifact or holdout invalidates the acceptance claim. Generated arrays
+remain ignored; manifests and reports are tracked.
 
 CI deliberately runs only deterministic unit tests and tiny training/serialization smoke tests:
 
@@ -73,7 +89,7 @@ mypy industrial_ml tests
 
 ## Serving behavior
 
-At startup the backend verifies artifact SHA-256, `diagnosis-v1`, `features-v1`, telemetry schema
+At startup the backend verifies artifact SHA-256, `diagnosis-v1.1`, `features-v1`, telemetry schema
 major version, and exact NumPy/scikit-learn/joblib versions. Missing, corrupt, or incompatible
 artifacts make the diagnosis capability unavailable and `/ready` returns 503 when that capability
 is enabled. Telemetry ingestion can continue; no random or rule-based result is substituted.

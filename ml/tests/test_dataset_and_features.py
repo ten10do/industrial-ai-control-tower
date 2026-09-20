@@ -1,6 +1,7 @@
 """Mandatory determinism, split-isolation, and leakage tests."""
 
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 
 import numpy as np
 import pytest
@@ -12,7 +13,7 @@ from app.ml.features import (
     WindowSample,
 )
 
-from industrial_ml.blind import BLIND_SEED_BASE, build_blind_scenarios
+from industrial_ml.blind import BLIND_SEED_BASE, build_blind_scenarios, write_blind_manifest
 from industrial_ml.dataset import CLASSES, build_scenarios, generate_dataset
 
 
@@ -67,6 +68,19 @@ def test_blind_seed_plan_is_deterministic_balanced_and_new() -> None:
     assert not {item.seed for item in first}.intersection(existing)
     distribution = {label: sum(item.fault_type == label for item in first) for label in CLASSES}
     assert distribution == dict.fromkeys(CLASSES, 20)
+
+
+def test_frozen_blind_manifest_cannot_be_replaced(tmp_path: Path) -> None:
+    path = tmp_path / "blind.json"
+    first = {"blind_holdout_sha256": "frozen", "manifest_sha256": "first"}
+    assert write_blind_manifest(first, path) == first
+    changed_metadata = {"blind_holdout_sha256": "frozen", "manifest_sha256": "changed"}
+    assert write_blind_manifest(changed_metadata, path) == first
+    assert path.read_text(encoding="utf-8").find('"first"') >= 0
+    with pytest.raises(RuntimeError, match="refusing"):
+        write_blind_manifest(
+            {"blind_holdout_sha256": "different", "manifest_sha256": "different"}, path
+        )
 
 
 def test_forbidden_labels_cannot_enter_feature_schema() -> None:
