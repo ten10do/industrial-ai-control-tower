@@ -113,7 +113,9 @@ def in_interval(
     return [
         row
         for row in rows
-        if start <= datetime.fromisoformat(row["window_end"].replace("Z", "+00:00")) <= end
+        if start
+        <= datetime.fromisoformat(row["window_end"].replace("Z", "+00:00"))
+        <= end
     ]
 
 
@@ -123,7 +125,9 @@ def summarize(rows: list[dict[str, Any]]) -> dict[str, Any]:
         "statuses": dict(Counter(row["status"] for row in rows)),
         "fault_types": dict(Counter(row["fault_type"] or "NONE" for row in rows)),
         "max_confidence": max((row["confidence"] or 0.0 for row in rows), default=0.0),
-        "max_anomaly_score": max((row["anomaly_score"] or 0.0 for row in rows), default=0.0),
+        "max_anomaly_score": max(
+            (row["anomaly_score"] or 0.0 for row in rows), default=0.0
+        ),
     }
 
 

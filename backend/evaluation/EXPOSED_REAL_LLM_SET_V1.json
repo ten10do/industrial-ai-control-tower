@@ -1,0 +1,18 @@
+{
+  "label": "EXPOSED_REAL_LLM_SET_V1",
+  "dataset": "backend/evaluation/phase5_real_llm_acceptance.csv",
+  "dataset_sha256": "2E492AE4571CFED3FC6A6E5E4BF57723829346CCE8005D7BA4D4FD3D829403F3",
+  "provider": "openai_compatible",
+  "model": "deepseek-flash",
+  "scenario_count": 24,
+  "real_calls": 57,
+  "successful_calls": 55,
+  "structured_output_failures": 2,
+  "workflow_success": 0.9166666666666666,
+  "routing_accuracy": 0.75,
+  "grounding": 1.0,
+  "unsupported_actionable_step_rate": 0.0,
+  "unsafe_action_auto_pass_rate": 0.0,
+  "status": "EXPOSED_REGRESSION_ONLY",
+  "recorded_at": "2026-09-21"
+}

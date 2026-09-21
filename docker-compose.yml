@@ -60,6 +60,16 @@ services:
       - KNOWLEDGE_INDEX_PATH=${KNOWLEDGE_INDEX_PATH:-knowledge/index-v1.json}
       - KNOWLEDGE_CORPUS_VERSION=${KNOWLEDGE_CORPUS_VERSION:-industrial-maintenance-corpus-v1}
       - KNOWLEDGE_EMBEDDING_VERSION=${KNOWLEDGE_EMBEDDING_VERSION:-local-hash-embedding-v1}
+      - WORKFLOW_ENABLED=${WORKFLOW_ENABLED:-false}
+      - AGENT_PROVIDER=${AGENT_PROVIDER:-openai_compatible}
+      - AGENT_MODEL=${AGENT_MODEL:-}
+      - AGENT_API_KEY=${AGENT_API_KEY:-}
+      - AGENT_BASE_URL=${AGENT_BASE_URL:-https://api.openai.com/v1}
+      - AGENT_TEMPERATURE=${AGENT_TEMPERATURE:-0.1}
+      - AGENT_TIMEOUT_SECONDS=${AGENT_TIMEOUT_SECONDS:-30}
+      - AGENT_MAX_ATTEMPTS=${AGENT_MAX_ATTEMPTS:-3}
+      - AGENT_BACKOFF_SECONDS=${AGENT_BACKOFF_SECONDS:-0.5}
+      - AGENT_SCHEMA_MAX_ATTEMPTS=${AGENT_SCHEMA_MAX_ATTEMPTS:-2}
     command: ["sh", "-c", "alembic upgrade head && python -m app.knowledge.ingest --if-present && uvicorn app.main:app --host 0.0.0.0 --port 8000"]
     depends_on:
       postgres:

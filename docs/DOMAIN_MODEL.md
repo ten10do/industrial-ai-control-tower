@@ -73,7 +73,7 @@ A triaged situation that may involve one or more alarms and requires diagnosis.
 | description | Detailed description |
 | alarm_ids | Related alarms |
 | device_ids | Related devices |
-| status | `OPEN`, `IN_PROGRESS`, `RESOLVED`, `CLOSED` |
+| status | Phase 5: `OPEN`, `UNDER_ANALYSIS`, `ACTION_PENDING`, `WORK_ORDER_CREATED`, `CLOSED` |
 | priority | `LOW`, `MEDIUM`, `HIGH`, `CRITICAL` |
 | created_at | Timestamp |
 | updated_at | Timestamp |
@@ -130,10 +130,12 @@ A proposed set of maintenance actions.
 | id | Unique identifier |
 | diagnosis_id | Reference to Diagnosis |
 | steps | Ordered list of actions |
-| required_parts | Spare parts or tools |
-| estimated_duration | Estimated time |
-| risk_level | `LOW`, `MEDIUM`, `HIGH` |
-| status | `DRAFT`, `APPROVED`, `REJECTED` |
+| workflow_run_id | Owning workflow; unique |
+| version / plan_hash | Stale-approval protection |
+| steps | Typed taxonomy actions with current evidence IDs |
+| tools_required | Declared maintenance tools, not agent tool permissions |
+| estimated_risk | `LOW`, `MEDIUM`, `HIGH`, `CRITICAL` |
+| status | Phase 5 persistence status (`READY`) |
 
 ### Approval
 
@@ -142,27 +144,28 @@ A human approval request and decision.
 | Field | Description |
 |-------|-------------|
 | id | Unique identifier |
-| request_type | `MAINTENANCE_PLAN`, `SAFETY_OVERRIDE`, `CONFIG_CHANGE` |
-| requested_by | Agent or system component |
-| approver_id | Human approver |
-| payload | Reference to plan or action |
+| workflow_run_id | Owning workflow; unique |
+| maintenance_plan_id | Exact plan under review |
+| actor | Development identity header value |
+| plan_version / plan_hash | Immutable decision target |
 | decision | `PENDING`, `APPROVED`, `REJECTED` |
-| decision_at | Timestamp |
-| justification | Free-text justification |
+| decided_at | Timestamp |
+| reason | Human justification |
 
 ### WorkOrder
 
-An approved, executable maintenance task.
+A maintenance task record and recommendation. It is not equipment execution authorization.
 
 | Field | Description |
 |-------|-------------|
 | id | Unique identifier |
 | maintenance_plan_id | Reference to MaintenancePlan |
 | approval_id | Reference to Approval |
-| assignee | Assigned technician or team |
-| scheduled_at | Scheduled time |
-| status | `DRAFT`, `ASSIGNED`, `IN_PROGRESS`, `COMPLETED`, `CANCELLED` |
-| result | Completion result |
+| workflow_run_id | Owning workflow; unique for exactly-once creation |
+| device_id / incident_id / diagnosis_id | Full decision lineage |
+| plan / evidence_refs | Frozen recommendation and citations |
+| safety_requirements | Deterministic policy reasons |
+| status | Phase 5 only creates `DRAFT` |
 
 ### AgentRun
 
@@ -180,6 +183,12 @@ A single execution of an agent or orchestrator workflow.
 | latency_ms | Execution time |
 | status | `SUCCESS`, `FAILED`, `TIMEOUT`, `RETRYING`, `BLOCKED`, `NOT_RUN`, `INSUFFICIENT_EVIDENCE`, `REQUIRES_APPROVAL`, `REJECTED` |
 | timestamp | Start time |
+
+### WorkflowRun
+
+The durable Phase 5 aggregate. It records the workflow/idempotency/policy versions, provider/model,
+prompt versions, current typed state, stage, attempts, errors, plan version, trace, and timestamps.
+The idempotency key is derived from incident, diagnosis, and workflow version.
 
 ### AuditEvent
 
@@ -206,4 +215,5 @@ An immutable record of a significant action or decision.
 - A confirmed Diagnosis feeds into a MaintenancePlan.
 - The MaintenancePlan is evaluated by the Safety Agent and, if necessary, sent for Approval.
 - An approved MaintenancePlan becomes a WorkOrder.
-- WorkOrder completion produces Feedback, which may enrich future Evidence.
+- Phase 5 stops after draft WorkOrder creation. Completion/feedback requires a future verified
+  execution integration and is never inferred from an approval.

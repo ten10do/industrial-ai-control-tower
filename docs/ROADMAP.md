@@ -68,7 +68,7 @@ and Diagnosis v1.1 context integration. No LLM or agent workflow is included.
 
 ## Phase 5 — Multi-Agent Workflow
 
-**Status:** Ready, not started
+**Status:** Partial / not ready (real runtime LLM gate not run)
 
 Integrate agents into a LangGraph orchestrator with human-in-the-loop checkpoints.
 
@@ -78,6 +78,11 @@ Integrate agents into a LangGraph orchestrator with human-in-the-loop checkpoint
 - Diagnosis → Knowledge → Planning → Safety → Approval → WorkOrder flow
 - Approval service
 - Agent run persistence and observability
+
+**Delivered:** typed LangGraph state, Triage/Planning/Safety agents behind one provider interface,
+PostgreSQL checkpoint interrupt/resume, evidence grounding, `safety-policy-v1`, idempotent approval
+and draft work-order persistence, 80-case semantic evaluation, retry/failure injection, and restart
+recovery. No provider API key was available, so `REAL_LLM_NOT_RUN` prevents a full Phase 5 pass.
 
 ## Phase 6 — Frontend
 

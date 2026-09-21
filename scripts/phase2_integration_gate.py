@@ -77,7 +77,9 @@ async def main() -> None:
         assert any(item["device_id"] == DEVICE_ID for item in listed.json())
         results["device_api"] = "PASS"
 
-        async with websockets.connect(f"{WS}/ws/devices/{DEVICE_ID}/telemetry") as websocket:
+        async with websockets.connect(
+            f"{WS}/ws/devices/{DEVICE_ID}/telemetry"
+        ) as websocket:
             process = await asyncio.create_subprocess_exec(
                 sys.executable,
                 "-m",
@@ -104,10 +106,14 @@ async def main() -> None:
             results["simulator_messages_printed"] = len(stdout.decode().splitlines())
             results["websocket"] = "PASS"
 
-        latest_response = await client.get(f"/api/v1/devices/{DEVICE_ID}/telemetry/latest")
+        latest_response = await client.get(
+            f"/api/v1/devices/{DEVICE_ID}/telemetry/latest"
+        )
         latest_response.raise_for_status()
         simulator_latest = latest_response.json()
-        base_time = datetime.fromisoformat(simulator_latest["timestamp"].replace("Z", "+00:00"))
+        base_time = datetime.fromisoformat(
+            simulator_latest["timestamp"].replace("Z", "+00:00")
+        )
 
         manual_time = (base_time + timedelta(seconds=10)).astimezone(UTC)
         manual = {
@@ -161,14 +167,18 @@ async def main() -> None:
             results["out_of_order_policy"] = "PASS"
             results["redis_latest"] = "PASS"
 
-            audit_before = int(await connection.fetchval("SELECT count(*) FROM audit_events"))
+            audit_before = int(
+                await connection.fetchval("SELECT count(*) FROM audit_events")
+            )
             await publish(b"not-json")
             unsupported = dict(manual)
             unsupported["timestamp"] = datetime.now(UTC).isoformat()
             unsupported["schema_version"] = "2.0"
             await publish(json.dumps(unsupported).encode())
             for _ in range(30):
-                audit_after = int(await connection.fetchval("SELECT count(*) FROM audit_events"))
+                audit_after = int(
+                    await connection.fetchval("SELECT count(*) FROM audit_events")
+                )
                 if audit_after >= audit_before + 2:
                     break
                 await asyncio.sleep(0.1)
@@ -178,7 +188,9 @@ async def main() -> None:
             await redis.aclose()
             await connection.close()
 
-        history = await client.get(f"/api/v1/devices/{DEVICE_ID}/telemetry", params={"limit": 3})
+        history = await client.get(
+            f"/api/v1/devices/{DEVICE_ID}/telemetry", params={"limit": 3}
+        )
         history.raise_for_status()
         assert 1 <= len(history.json()["items"]) <= 3
         alarms = await client.get("/api/v1/alarms", params={"device_id": DEVICE_ID})

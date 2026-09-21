@@ -36,12 +36,10 @@ Host: localhost:8000
 
 ### GET /ready
 
-Returns `200` only when PostgreSQL and Redis are reachable and, when diagnosis is enabled, the
-artifact is integrity-checked and loaded. MQTT is reported as `connected` or `degraded` but does
-not by itself fail HTTP readiness. Knowledge is reported as `indexed`, `disabled`, or `unavailable`
-but is an optional capability and does not fail overall readiness. A missing, corrupt, or
-incompatible knowledge index makes its APIs return `503 INDEX_NOT_AVAILABLE`; telemetry ingestion
-and diagnosis remain available.
+Returns `200` only when PostgreSQL and Redis are reachable and each enabled diagnosis, knowledge,
+and workflow capability initialized successfully. MQTT is reported as `connected` or `degraded`
+but does not by itself fail HTTP readiness. A missing knowledge index or runtime-model credential
+makes its enabled capability unavailable rather than silently selecting fabricated output.
 
 ## Phase 2 Endpoints
 
@@ -86,6 +84,30 @@ Knowledge errors are explicit: `UNSUPPORTED_QUERY` (422), `CORPUS_NOT_AVAILABLE`
 `INDEX_NOT_AVAILABLE` (503), and `SEARCH_FAILED` (500). Every successful search is persisted as a
 retrieval run.
 
+## Phase 5 Workflow Endpoints
+
+| Method | Path | Purpose |
+|---|---|---|
+| POST | `/api/v1/incidents` | Bind a valid persisted diagnosis to an incident |
+| POST | `/api/v1/incidents/{incident_id}/workflows` | Idempotently trigger the versioned workflow |
+| GET | `/api/v1/workflows/{workflow_run_id}` | Read current typed state |
+| GET | `/api/v1/workflows/{workflow_run_id}/trace` | Read workflow and agent audit summaries |
+| POST | `/api/v1/workflows/{workflow_run_id}/cancel` | Safely cancel an allowed pre-terminal state |
+| GET | `/api/v1/approvals/pending` | List pending human decisions |
+| GET | `/api/v1/approvals/{approval_id}` | Read decision and bound plan version/hash |
+| POST | `/api/v1/approvals/{approval_id}/approve` | Resume an interrupt and create a draft order |
+| POST | `/api/v1/approvals/{approval_id}/reject` | Resume to rejection without a work order |
+| GET | `/api/v1/work-orders/{work_order_id}` | Read a non-executing draft work order |
+| GET | `/api/v1/workflow-metrics` | Read Phase 5 audit-derived counters and latency |
+
+Approval decisions require `X-Development-Actor` and `{"reason":"..."}`. Repeating the same
+decision is idempotent. Opposite concurrent decisions return `409 APPROVAL_ALREADY_DECIDED`; an
+approval whose plan version/hash is stale returns `409 STALE_APPROVAL`.
+
+Workflow terminal values are `BLOCKED`, `REJECTED`, `WORK_ORDER_CREATED`, `CANCELLED`, and
+`FAILED`. `AUTO_ALLOWED` only permits deterministic creation of a `DRAFT` record. No endpoint in
+Phase 5 executes maintenance or writes to industrial equipment.
+
 Telemetry history accepts timezone-aware `start`, `end`, and exclusive `cursor` timestamps plus
 `limit` from 1 to 500. It returns `{"items": [...], "next_cursor": ...}`. Device deletion is not
 provided; use `INACTIVE` or `DECOMMISSIONED` to preserve history.
@@ -94,30 +116,13 @@ provided; use `INACTIVE` or `DECOMMISSIONED` to preserve history.
 
 The following namespaces remain later-phase work:
 
-### /api/v1/incidents
-
-- `GET /api/v1/incidents` — list incidents
-- `GET /api/v1/incidents/{id}` — get incident
-- `POST /api/v1/incidents` — create incident
-- `PATCH /api/v1/incidents/{id}` — update incident status
-
 ### /api/v1/agent-runs
 
 - `POST /api/v1/agent-runs` — start an agent run
 - `GET /api/v1/agent-runs/{id}` — get run status and result
 
-### /api/v1/approvals
-
-- `GET /api/v1/approvals` — list pending approvals
-- `GET /api/v1/approvals/{id}` — get approval
-- `POST /api/v1/approvals/{id}/decision` — approve or reject
-
-### /api/v1/work-orders
-
-- `GET /api/v1/work-orders` — list work orders
-- `GET /api/v1/work-orders/{id}` — get work order
-- `POST /api/v1/work-orders` — create work order
-- `PATCH /api/v1/work-orders/{id}` — update work order status
+Incident listing/editing, agent-run mutation, work-order assignment/execution, and production
+identity/RBAC remain deferred.
 
 ## Error Contract
 

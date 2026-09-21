@@ -14,6 +14,7 @@ from app.models.entities import (
     MaintenancePlan,
     RetrievalRun,
     Telemetry,
+    WorkflowRun,
     WorkOrder,
 )
 
@@ -32,4 +33,5 @@ __all__ = [
     "RetrievalRun",
     "Telemetry",
     "WorkOrder",
+    "WorkflowRun",
 ]

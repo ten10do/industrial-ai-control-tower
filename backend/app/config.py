@@ -3,6 +3,7 @@
 from functools import lru_cache
 from pathlib import Path
 
+from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -40,6 +41,20 @@ class Settings(BaseSettings):
     knowledge_index_path: Path = Path("knowledge/index-v1.json")
     knowledge_corpus_version: str = "industrial-maintenance-corpus-v1"
     knowledge_embedding_version: str = "local-hash-embedding-v1"
+    workflow_enabled: bool = False
+    agent_provider: str = "openai_compatible"
+    agent_model: str = ""
+    agent_api_key: SecretStr | None = None
+    agent_base_url: str = "https://api.openai.com/v1"
+    agent_temperature: float = 0.1
+    agent_timeout_seconds: float = 30.0
+    agent_max_attempts: int = 3
+    agent_backoff_seconds: float = 0.5
+    agent_schema_max_attempts: int = 2
+
+    @property
+    def checkpoint_database_url(self) -> str:
+        return self.database_url.replace("postgresql+asyncpg://", "postgresql://", 1)
 
 
 @lru_cache

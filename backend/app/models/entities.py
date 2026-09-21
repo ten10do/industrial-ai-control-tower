@@ -97,6 +97,7 @@ class Alarm(Base):
 class Incident(TimestampMixin, Base):
     __tablename__ = "incidents"
     id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
+    device_id: Mapped[str | None] = mapped_column(ForeignKey("devices.device_id"), index=True)
     title: Mapped[str] = mapped_column(String(200), nullable=False)
     description: Mapped[str] = mapped_column(Text, default="")
     status: Mapped[str] = mapped_column(String(30), nullable=False, default="OPEN")
@@ -133,25 +134,50 @@ class Evidence(TimestampMixin, Base):
 
 class MaintenancePlan(TimestampMixin, Base):
     __tablename__ = "maintenance_plans"
+    __table_args__ = (UniqueConstraint("workflow_run_id", name="uq_plan_workflow_run"),)
     id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
     diagnosis_id: Mapped[UUID | None] = mapped_column(ForeignKey("diagnoses.id"))
+    workflow_run_id: Mapped[UUID | None] = mapped_column(ForeignKey("workflow_runs.id"))
+    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    plan_hash: Mapped[str | None] = mapped_column(String(64))
+    objective: Mapped[str | None] = mapped_column(Text)
+    steps: Mapped[list[dict[str, Any]]] = mapped_column(JSONB, default=list)
+    tools_required: Mapped[list[str]] = mapped_column(JSONB, default=list)
+    estimated_risk: Mapped[str | None] = mapped_column(String(20))
     status: Mapped[str] = mapped_column(String(30), nullable=False, default="DRAFT")
     payload: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict)
 
 
 class Approval(TimestampMixin, Base):
     __tablename__ = "approvals"
+    __table_args__ = (UniqueConstraint("workflow_run_id", name="uq_approval_workflow_run"),)
     id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
     maintenance_plan_id: Mapped[UUID | None] = mapped_column(ForeignKey("maintenance_plans.id"))
+    workflow_run_id: Mapped[UUID | None] = mapped_column(ForeignKey("workflow_runs.id"))
     decision: Mapped[str] = mapped_column(String(30), nullable=False, default="PENDING")
+    actor: Mapped[str | None] = mapped_column(String(200))
+    reason: Mapped[str | None] = mapped_column(Text)
+    plan_version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    plan_hash: Mapped[str | None] = mapped_column(String(64))
+    decided_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     payload: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict)
 
 
 class WorkOrder(TimestampMixin, Base):
     __tablename__ = "work_orders"
+    __table_args__ = (UniqueConstraint("workflow_run_id", name="uq_work_order_workflow_run"),)
     id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
+    workflow_run_id: Mapped[UUID | None] = mapped_column(ForeignKey("workflow_runs.id"))
     maintenance_plan_id: Mapped[UUID | None] = mapped_column(ForeignKey("maintenance_plans.id"))
     approval_id: Mapped[UUID | None] = mapped_column(ForeignKey("approvals.id"))
+    device_id: Mapped[str | None] = mapped_column(ForeignKey("devices.device_id"))
+    incident_id: Mapped[UUID | None] = mapped_column(ForeignKey("incidents.id"))
+    diagnosis_id: Mapped[UUID | None] = mapped_column(ForeignKey("diagnoses.id"))
+    title: Mapped[str | None] = mapped_column(String(300))
+    priority: Mapped[str | None] = mapped_column(String(20))
+    plan: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict)
+    evidence_refs: Mapped[list[str]] = mapped_column(JSONB, default=list)
+    safety_requirements: Mapped[list[str]] = mapped_column(JSONB, default=list)
     status: Mapped[str] = mapped_column(String(30), nullable=False, default="DRAFT")
     payload: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict)
 
@@ -159,11 +185,48 @@ class WorkOrder(TimestampMixin, Base):
 class AgentRun(Base):
     __tablename__ = "agent_runs"
     id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
+    workflow_run_id: Mapped[UUID | None] = mapped_column(ForeignKey("workflow_runs.id"), index=True)
     trace_id: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
     agent_name: Mapped[str] = mapped_column(String(100), nullable=False)
     status: Mapped[str] = mapped_column(String(40), nullable=False)
+    provider: Mapped[str | None] = mapped_column(String(100))
+    model: Mapped[str | None] = mapped_column(String(200))
+    prompt_version: Mapped[str | None] = mapped_column(String(100))
+    input_ref: Mapped[str | None] = mapped_column(String(200))
+    output_ref: Mapped[str | None] = mapped_column(String(200))
+    tool_calls: Mapped[list[dict[str, Any]]] = mapped_column(JSONB, default=list)
+    latency_ms: Mapped[float | None] = mapped_column(Float)
+    input_tokens: Mapped[int | None] = mapped_column(Integer)
+    output_tokens: Mapped[int | None] = mapped_column(Integer)
+    error: Mapped[str | None] = mapped_column(Text)
     payload: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict)
     timestamp: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+
+
+class WorkflowRun(TimestampMixin, Base):
+    __tablename__ = "workflow_runs"
+    __table_args__ = (
+        UniqueConstraint("idempotency_key", name="uq_workflow_runs_idempotency_key"),
+        Index("ix_workflow_runs_incident_status", "incident_id", "status"),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
+    incident_id: Mapped[UUID] = mapped_column(ForeignKey("incidents.id"), nullable=False)
+    diagnosis_id: Mapped[UUID] = mapped_column(ForeignKey("diagnoses.id"), nullable=False)
+    device_id: Mapped[str] = mapped_column(ForeignKey("devices.device_id"), nullable=False)
+    trace_id: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
+    idempotency_key: Mapped[str] = mapped_column(String(200), nullable=False)
+    workflow_version: Mapped[str] = mapped_column(String(100), nullable=False)
+    policy_version: Mapped[str] = mapped_column(String(100), nullable=False)
+    provider: Mapped[str] = mapped_column(String(100), nullable=False)
+    model: Mapped[str] = mapped_column(String(200), nullable=False)
+    prompt_versions: Mapped[dict[str, str]] = mapped_column(JSONB, nullable=False)
+    status: Mapped[str] = mapped_column(String(40), nullable=False)
+    current_stage: Mapped[str] = mapped_column(String(40), nullable=False)
+    state: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    attempt_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    errors: Mapped[list[dict[str, Any]]] = mapped_column(JSONB, default=list)
+    plan_version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
 
 
 class AuditEvent(Base):

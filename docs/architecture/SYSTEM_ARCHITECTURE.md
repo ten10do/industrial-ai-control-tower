@@ -34,10 +34,13 @@ graph TB
         Cache[(Redis)]
         Vector[(Vector Store)]
         Orchestrator[LangGraph Orchestrator]
-        Diagnosis[Diagnosis Agent]
-        Knowledge[Knowledge Agent]
+        Diagnosis[Diagnosis Service]
+        Knowledge[Knowledge Evidence Service]
         Planning[Planning Agent]
         Safety[Safety Agent]
+        Policy[Deterministic Safety Policy]
+        Approval[Approval Service]
+        WorkOrder[WorkOrder Draft Service]
         Audit[Audit Event Store]
     end
 
@@ -63,6 +66,10 @@ graph TB
     Orchestrator --> Knowledge
     Orchestrator --> Planning
     Orchestrator --> Safety
+    Safety --> Policy
+    Policy --> Approval
+    Policy --> WorkOrder
+    Approval --> WorkOrder
     Diagnosis --> Knowledge
     Planning --> Safety
     BE --> Audit
@@ -116,9 +123,11 @@ sufficiency gate rejects unsupported fault types before evidence can be accepted
 
 ### Agent Orchestrator
 
-- LangGraph workflow engine
-- Coordinates Diagnosis, Knowledge, Planning, Safety, and WorkOrder agents
-- Maintains run state, handles retries, timeouts, and failure semantics
+- LangGraph coordinates only Triage, Planning, and Safety Review model responsibilities.
+- Diagnosis, knowledge retrieval, deterministic policy, approval, and work-order persistence are
+  ordinary services, not agents renamed for architectural effect.
+- Typed state and PostgreSQL checkpoints provide conditional routing, bounded retries, real
+  interrupt/resume, and restart recovery. See [`MULTI_AGENT_ARCHITECTURE.md`](../MULTI_AGENT_ARCHITECTURE.md).
 
 ### Data Layer
 
@@ -127,10 +136,14 @@ sufficiency gate rejects unsupported fault types before evidence can be accepted
 - PostgreSQL + pgvector: industrial documents, chunks, 384-dimensional embeddings, and retrieval runs
 - Audit/Event Storage: immutable log of agent actions and human decisions
 
-In Phases 2–4, PostgreSQL is authoritative and Alembic owns the schema. Redis contains only
+In Phases 2–5, PostgreSQL is authoritative and Alembic owns the schema. Redis contains only
 rebuildable latest telemetry. The versioned knowledge artifact is a reproducible bootstrap; its
 documents, chunks, and embeddings are transactionally ingested into pgvector. See [`DATA_PLATFORM.md`](../DATA_PLATFORM.md) and
 [`INGESTION_PIPELINE.md`](../INGESTION_PIPELINE.md).
+
+Phase 5 also persists workflow runs, plan versions/hashes, approvals, draft work orders, agent
+audits, and LangGraph checkpoints. Work-order creation does not dispatch to CMMS, simulator, OPC UA,
+or any actuator.
 
 ### Industrial Integration
 
@@ -154,16 +167,15 @@ The simulator generates synthetic telemetry for an `IndustrialMotor` and publish
 1. Telemetry arrives via MQTT or OPC UA.
 2. Backend normalizes telemetry and evaluates alarm rules.
 3. Alarms may spawn Incidents when they exceed thresholds or correlate across devices.
-4. The Orchestrator receives an Incident and invokes the Diagnosis Agent.
-5. The Diagnosis Agent may call the Knowledge Agent for evidence retrieval.
-6. If evidence is insufficient, the workflow returns `INSUFFICIENT_EVIDENCE`.
-7. If evidence is sufficient, the Planning Agent proposes a Maintenance Plan.
-8. The Safety Agent evaluates the plan against deterministic policies.
-9. If the Safety Agent vetoes, the workflow returns `REJECTED`.
-10. If the plan requires human approval, it enters the Approval Queue.
-11. Upon approval, the WorkOrder Agent generates a work order.
-12. The work order is dispatched to the CMMS or execution boundary.
-13. Results and feedback are recorded and fed back into the knowledge base.
+4. A valid Incident and persisted Diagnosis trigger the orchestrator.
+5. The Knowledge Service supplies a versioned evidence snapshot and sufficiency result.
+6. Triage preserves the diagnosis; insufficient/conflicting/uncertain input is blocked.
+7. Planning proposes taxonomy-constrained, evidence-cited steps.
+8. Safety Review identifies semantic hazards.
+9. The deterministic policy blocks, requires approval, or allows a low-risk draft.
+10. LangGraph interrupts when human approval is required and resumes from PostgreSQL.
+11. Approval or a low-risk route creates exactly one `DRAFT` work order.
+12. No physical action or maintenance completion exists in Phase 5.
 
 ## Agent Flow
 

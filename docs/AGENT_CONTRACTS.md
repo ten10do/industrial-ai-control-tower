@@ -1,178 +1,50 @@
-# Agent Contracts
+# Phase 5 Agent Contracts
 
-All agent outputs used as internal system protocol must be structured. Free text is acceptable for human-readable explanations, but the consuming system must not parse free text to make decisions.
+Only responsibilities requiring language-model reasoning are agents. Diagnosis v1.1, knowledge
+retrieval/sufficiency, deterministic policy, repositories, approval, and work-order persistence are
+ordinary services.
 
-## Diagnosis Agent
+Every agent is called through `AgentModelProvider`, receives a typed `AgentInvocation`, and returns
+a Pydantic-validated structured output. Provider, model, prompt version, latency, token usage, and
+status are audited. The default temperature is low and all allowed tools are read-only.
 
-### Input
+## Triage Agent (`triage-prompt-v3`)
 
-```json
-{
-  "incident_id": "string",
-  "device_context": { "device_id": "string", "type": "string", "status": "string" },
-  "alarms": [{ "alarm_id": "string", "rule_id": "string", "severity": "string" }],
-  "telemetry_summary": { "metrics": [...], "time_range": { "start": "ISO8601", "end": "ISO8601" } }
-}
-```
+Input: immutable Diagnosis v1.1 snapshot, sensor evidence, knowledge evidence/sufficiency, and
+device-bound context.
 
-### Output
+Output: only `problem_summary`. Diagnosis status, fault type, severity, confidence, knowledge
+sufficiency, and routing remain immutable structured inputs owned by deterministic code. An
+`INSUFFICIENT_EVIDENCE` knowledge result or any diagnosis status other than `FAULT` is blocked by
+the precondition gate before Triage is called.
 
-```json
-{
-  "diagnosis_id": "string",
-  "incident_id": "string",
-  "root_cause": "string",
-  "confidence": "HIGH | MEDIUM | LOW",
-  "evidence_ids": ["string"],
-  "recommended_actions": ["string"],
-  "status": "DRAFT | INSUFFICIENT_EVIDENCE | CONFIRMED | REJECTED"
-}
-```
+## Planning Agent (`planning-prompt-v3`)
 
-### Failure
+Input: only the bound diagnosis, sensor evidence, current knowledge evidence, device context, and
+triage result.
 
-- `INSUFFICIENT_EVIDENCE`: not enough information to form a diagnosis.
-- `TIMEOUT`: diagnosis did not complete within the allotted time.
-- `FAILED`: unexpected error; details logged, not exposed.
+Output: objective and 1–5 typed steps. Each step contains only a human-readable action, an allowed
+action type, and one or more evidence IDs. The deterministic validator rejects any ID outside the
+current context. Persisted legacy `tools_required` and `estimated_risk` columns are populated from
+deterministic system facts rather than model output.
 
-## Knowledge Agent
+## Safety Review Agent (`safety-review-prompt-v3`)
 
-### Input
+Input: the same bound context plus the structured plan.
 
-```json
-{
-  "query": "string",
-  "context": { "device_type": "string", "symptoms": ["string"] },
-  "required_evidence_types": ["manual", "historical_case", "specification"],
-  "min_relevance": 0.7
-}
-```
+Output: hazards and violations only. This review may block a plan but cannot lower diagnosis
+severity, recommend approval, or auto-allow work. `safety-policy-v1` always makes the final
+decision and may be stricter.
 
-### Output
+## Failure contract
 
-```json
-{
-  "evidence": [
-    {
-      "evidence_id": "string",
-      "source": "string",
-      "content": "string",
-      "citation": "string",
-      "relevance_score": 0.85,
-      "sufficiency": true
-    }
-  ],
-  "sufficiency_check": {
-    "sufficient": true,
-    "missing_evidence": ["string"]
-  }
-}
-```
+Provider timeout, network errors, and HTTP 5xx may retry within configured graph bounds. Native
+tool-schema output that is missing or fails strict Pydantic validation may receive one bounded
+schema retry (`AGENT_SCHEMA_MAX_ATTEMPTS=2` by default); it is never repaired with regex or string
+rewrites. Policy block, insufficient evidence, rejection, and cancellation do not retry.
+Exhaustion becomes `FAILED`; there is no fabricated plan, automatic approval, or device action
+fallback.
 
-### Evidence Contract
-
-- Each evidence item must include a citation.
-- Relevance scores must be numeric and bounded [0, 1].
-- The sufficiency check must explicitly state whether evidence is adequate.
-
-### Failure
-
-- `INSUFFICIENT_EVIDENCE`: retrieved evidence does not meet the sufficiency gate.
-- `FAILED`: retrieval system error.
-
-## Planning Agent
-
-### Input
-
-```json
-{
-  "diagnosis_id": "string",
-  "diagnosis": { "root_cause": "string", "confidence": "string" },
-  "evidence": [...],
-  "constraints": { "max_duration_hours": 4, "available_parts": ["string"] }
-}
-```
-
-### Output
-
-```json
-{
-  "plan_id": "string",
-  "diagnosis_id": "string",
-  "steps": [
-    { "order": 1, "action": "string", "estimated_minutes": 30 }
-  ],
-  "required_parts": ["string"],
-  "estimated_duration_minutes": 60,
-  "risk_level": "LOW | MEDIUM | HIGH",
-  "status": "DRAFT | REJECTED"
-}
-```
-
-### Failure
-
-- `FAILED`: unable to produce a feasible plan.
-- `REJECTED`: plan violates hard constraints.
-
-## Safety Agent
-
-### Input
-
-```json
-{
-  "plan_id": "string",
-  "plan": { "steps": [...], "risk_level": "string" },
-  "context": { "device_status": "string", "operational_mode": "string" }
-}
-```
-
-### Output
-
-```json
-{
-  "evaluation_id": "string",
-  "plan_id": "string",
-  "verdict": "ALLOWED | REQUIRES_APPROVAL | REJECTED",
-  "policy_violations": ["string"],
-  "risk_level": "LOW | MEDIUM | HIGH",
-  "explanation": "string"
-}
-```
-
-### Veto Semantics
-
-- `REJECTED`: the plan violates a hard safety policy and cannot proceed.
-- `REQUIRES_APPROVAL`: the plan is conditionally allowed but needs human approval.
-- `ALLOWED`: the plan passes all automated safety checks.
-
-The Safety Agent's verdict is advisory for `REQUIRES_APPROVAL` and binding for `REJECTED`.
-
-## WorkOrder Agent
-
-### Input
-
-```json
-{
-  "plan_id": "string",
-  "approval_id": "string",
-  "assignee": "string"
-}
-```
-
-### Output
-
-```json
-{
-  "work_order_id": "string",
-  "plan_id": "string",
-  "approval_id": "string",
-  "assignee": "string",
-  "status": "DRAFT | ASSIGNED | IN_PROGRESS | COMPLETED | CANCELLED",
-  "scheduled_at": "ISO8601"
-}
-```
-
-### Failure
-
-- `BLOCKED`: approval missing or invalid.
-- `FAILED`: unable to create work order in target system.
+Retrieved document text is enclosed in an explicit `UNTRUSTED RETRIEVED EVIDENCE` section. It can
+support citations but cannot change system instructions, add tools, weaken safety, or authorize an
+execution boundary.

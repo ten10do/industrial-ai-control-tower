@@ -13,7 +13,7 @@ from redis.asyncio import Redis
 from sqlalchemy import text
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from app.api import alarms, devices, diagnoses, knowledge, telemetry, websockets
+from app.api import alarms, devices, diagnoses, knowledge, telemetry, websockets, workflows
 from app.config import get_settings
 from app.core.context import trace_id_context
 from app.core.errors import AppError
@@ -25,6 +25,8 @@ from app.ml.runtime import ModelCompatibilityError, ModelRuntime
 from app.services.diagnosis import OnlineDiagnosisCoordinator
 from app.services.telemetry import IngestionCounters
 from app.websocket.manager import WebSocketManager
+from app.workflow.provider import AgentModelProvider, OpenAICompatibleProvider, TestProvider
+from app.workflow.service import WorkflowService
 
 settings = get_settings()
 configure_logging(settings.log_level)
@@ -40,6 +42,8 @@ def _error_response(code: str, message: str, trace_id: str, status_code: int) ->
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
+
     database = Database(settings)
     redis = Redis.from_url(settings.redis_url, decode_responses=False)
     websocket_manager = WebSocketManager(settings.websocket_queue_size)
@@ -48,6 +52,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     diagnosis_error: str | None = None
     knowledge_index: KnowledgeIndex | None = None
     knowledge_error: str | None = None
+    workflow_service: WorkflowService | None = None
+    workflow_error: str | None = None
+    checkpoint_context: Any = None
     if settings.diagnosis_enabled:
         try:
             runtime = ModelRuntime.load(
@@ -75,6 +82,44 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         except (OSError, ValueError) as exc:
             knowledge_error = str(exc)
             logger.error("knowledge_index_unavailable", extra={"error": knowledge_error})
+    if settings.workflow_enabled:
+        try:
+            provider: AgentModelProvider
+            if settings.agent_provider == "test":
+                if settings.environment not in {"development", "test", "ci"}:
+                    raise ValueError("test agent provider is forbidden outside test environments")
+                provider = TestProvider()
+            elif settings.agent_provider == "openai_compatible":
+                if settings.agent_api_key is None or not settings.agent_model.strip():
+                    raise ValueError(
+                        "AGENT_API_KEY and AGENT_MODEL are required for the real provider"
+                    )
+                provider = OpenAICompatibleProvider(
+                    api_key=settings.agent_api_key.get_secret_value(),
+                    base_url=settings.agent_base_url,
+                    model=settings.agent_model,
+                    temperature=settings.agent_temperature,
+                    timeout_seconds=settings.agent_timeout_seconds,
+                    schema_max_attempts=settings.agent_schema_max_attempts,
+                )
+            else:
+                raise ValueError(f"unsupported agent provider: {settings.agent_provider}")
+            checkpoint_context = AsyncPostgresSaver.from_conn_string(
+                settings.checkpoint_database_url
+            )
+            checkpointer = await checkpoint_context.__aenter__()
+            workflow_service = WorkflowService(
+                sessions=database.sessions,
+                knowledge_index=knowledge_index,
+                provider=provider,
+                checkpointer=checkpointer,
+                max_attempts=settings.agent_max_attempts,
+                backoff_seconds=settings.agent_backoff_seconds,
+                timeout_seconds=settings.agent_timeout_seconds,
+            )
+        except Exception as exc:
+            workflow_error = str(exc)
+            logger.error("workflow_service_unavailable", extra={"error": workflow_error})
     mqtt = MqttTelemetryConsumer(
         settings, database.sessions, redis, websocket_manager, counters, diagnosis
     )
@@ -87,12 +132,16 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     app.state.diagnosis_error = diagnosis_error
     app.state.knowledge_index = knowledge_index
     app.state.knowledge_error = knowledge_error
+    app.state.workflow_service = workflow_service
+    app.state.workflow_error = workflow_error
     if settings.mqtt_enabled:
         mqtt.start()
     try:
         yield
     finally:
         await mqtt.stop()
+        if checkpoint_context is not None:
+            await checkpoint_context.__aexit__(None, None, None)
         await redis.aclose()
         await database.close()
 
@@ -110,6 +159,7 @@ app.include_router(telemetry.router)
 app.include_router(alarms.router)
 app.include_router(diagnoses.router)
 app.include_router(knowledge.router)
+app.include_router(workflows.router)
 app.include_router(websockets.router)
 
 
@@ -182,9 +232,19 @@ async def ready(request: Request) -> JSONResponse:
         )
     else:
         dependencies["knowledge"] = "disabled"
+    if settings.workflow_enabled:
+        dependencies["workflow"] = (
+            "available" if request.app.state.workflow_service is not None else "unavailable"
+        )
+    else:
+        dependencies["workflow"] = "disabled"
     ready_state = all(dependencies[name] == "ok" for name in ("postgres", "redis"))
     if settings.diagnosis_enabled:
         ready_state = ready_state and dependencies["diagnosis"] == "loaded"
+    if settings.knowledge_enabled:
+        ready_state = ready_state and dependencies["knowledge"] == "indexed"
+    if settings.workflow_enabled:
+        ready_state = ready_state and dependencies["workflow"] == "available"
     return JSONResponse(
         status_code=200 if ready_state else 503,
         content={"status": "ready" if ready_state else "not_ready", "dependencies": dependencies},

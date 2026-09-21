@@ -5,7 +5,7 @@ larger decision-support system.
 
 ## Problem
 
-Industrial facilities generate large volumes of telemetry, alarms, and maintenance knowledge, but critical decisions still rely on fragmented systems and human triage. This project aims to build a control tower that combines real-time monitoring, anomaly detection, fault diagnosis, industrial knowledge retrieval, multi-agent collaboration, safety review, human approval, and work-order execution into one auditable, closed-loop system.
+Industrial facilities generate large volumes of telemetry, alarms, and maintenance knowledge, but critical decisions still rely on fragmented systems and human triage. This project builds a control tower that combines real-time monitoring, anomaly detection, fault diagnosis, industrial knowledge retrieval, multi-agent collaboration, safety review, human approval, and work-order generation in one auditable decision-support system.
 
 ## Architecture
 
@@ -14,7 +14,7 @@ The target architecture is documented in [`docs/architecture/SYSTEM_ARCHITECTURE
 - **Frontend:** React / TypeScript / Vite
 - **Backend:** FastAPI service layer
 - **Diagnosis Engine:** versioned scikit-learn models over bounded telemetry windows
-- **Agent Orchestrator:** LangGraph-based workflow (Phase 5+, not implemented)
+- **Agent Orchestrator:** LangGraph workflow with PostgreSQL checkpoints and human interrupts
 - **Data Layer:** PostgreSQL + pgvector, Redis, Audit/Event Storage
 - **Industrial Integration:** MQTT, OPC UA, Equipment Simulator
 - **Observability:** Structured logging, Prometheus, OpenTelemetry, Grafana
@@ -35,7 +35,7 @@ The target architecture is documented in [`docs/architecture/SYSTEM_ARCHITECTURE
 | Backend | Python 3.11+, FastAPI, Pydantic, SQLAlchemy, Alembic |
 | Diagnosis | NumPy, scikit-learn, joblib |
 | Frontend | React, TypeScript, Vite |
-| Agent | LangGraph (future) |
+| Agent | LangGraph, typed structured outputs, provider abstraction |
 | Persistence | PostgreSQL, Redis |
 | Vector Store | PostgreSQL + pgvector; versioned local retrieval artifact |
 | Industrial | MQTT, OPC UA (future) |
@@ -77,6 +77,10 @@ industrial-ai-control-tower/
    ```bash
    docker compose up -d postgres redis mosquitto backend
    ```
+   Phase 5 is disabled by default. It requires `WORKFLOW_ENABLED=true`,
+   `AGENT_PROVIDER=openai_compatible`, `AGENT_MODEL`, and an environment-only `AGENT_API_KEY` for
+   real-model operation. `AGENT_PROVIDER=test` is deterministic test-only mode and does not satisfy
+   the real-LLM gate.
 3. Register `MOTOR-001`, then start the simulator demo:
    ```bash
    curl -X POST http://localhost:8000/api/v1/devices \
@@ -110,6 +114,10 @@ See [`docs/architecture/SYSTEM_ARCHITECTURE.md`](docs/architecture/SYSTEM_ARCHIT
 | [`docs/ML_PIPELINE.md`](docs/ML_PIPELINE.md) | Phase 3 dataset, features, models, evaluation, and serving |
 | [`docs/KNOWLEDGE_RAG.md`](docs/KNOWLEDGE_RAG.md) | Phase 4 query, retrieval, evidence, sufficiency, and failure contracts |
 | [`docs/KNOWLEDGE_CORPUS.md`](docs/KNOWLEDGE_CORPUS.md) | Corpus provenance, parsing, hashes, and reindex procedure |
+| [`docs/MULTI_AGENT_ARCHITECTURE.md`](docs/MULTI_AGENT_ARCHITECTURE.md) | Phase 5 typed workflow, checkpoints, providers, and trust boundaries |
+| [`docs/SAFETY_POLICY.md`](docs/SAFETY_POLICY.md) | Versioned deterministic safety and grounding rules |
+| [`docs/HUMAN_APPROVAL.md`](docs/HUMAN_APPROVAL.md) | Interrupt/resume, identity, stale plans, and concurrency |
+| [`docs/evaluation/PHASE5_AGENT_EVALUATION.md`](docs/evaluation/PHASE5_AGENT_EVALUATION.md) | Tracked 80-scenario semantic evaluation |
 | [`docs/evaluation/PHASE4_RAG_EVALUATION.md`](docs/evaluation/PHASE4_RAG_EVALUATION.md) | Frozen 60-query retrieval evaluation and pipeline selection |
 | [`docs/evaluation/PHASE4_ERROR_ANALYSIS.md`](docs/evaluation/PHASE4_ERROR_ANALYSIS.md) | Retrieval errors, safety failures, and limitations |
 | [`docs/evaluation/PHASE3_MODEL_EVALUATION.md`](docs/evaluation/PHASE3_MODEL_EVALUATION.md) | Frozen-test metrics and limitations |
@@ -150,13 +158,11 @@ See [`docs/architecture/SYSTEM_ARCHITECTURE.md`](docs/architecture/SYSTEM_ARCHIT
 
 ## Current Project Status
 
-**Current Phase: Phase 4 PASS — Phase 5 READY (not started)**
+**Current Phase: Phase 5 PARTIAL / NOT_READY**
 
-Phase 4 adds a curated, provenance-tracked industrial maintenance corpus; stable structured
-chunking; PostgreSQL/pgvector persistence; BM25, local dense, hybrid, and reranked retrieval;
-traceable citations; deterministic evidence sufficiency; frozen retrieval evaluation; and REST
-integration from Diagnosis v1.1. The default BM25 pipeline achieved Recall@5 0.85, MRR 0.8617,
-p95 46.84 ms, and zero false-sufficient OOD results on the one-shot 60-query frozen split.
-The corpus is limited and Phase 3 diagnoses still use synthetic motor telemetry, so these are
-engineering validation results, not field-performance claims. Multi-agent planning, LLM synthesis,
-safety orchestration, and work-order execution remain intentionally deferred to Phase 5+.
+Phase 5 implements a multi-agent industrial maintenance decision workflow with deterministic
+safety gates and human approval. It includes typed LangGraph state, PostgreSQL checkpoint recovery,
+structured Triage/Planning/Safety outputs, evidence grounding, versioned policy, audited approval,
+and exactly-once draft work orders. The 80-case deterministic evaluation passed with zero unsafe
+auto-passes. A real runtime LLM could not be executed because no provider key was available, so
+Phase 5 is not a full pass and Phase 6 is not ready. The platform never executes device actions.
