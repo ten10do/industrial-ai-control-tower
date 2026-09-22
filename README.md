@@ -117,6 +117,9 @@ See [`docs/architecture/SYSTEM_ARCHITECTURE.md`](docs/architecture/SYSTEM_ARCHIT
 | [`docs/MULTI_AGENT_ARCHITECTURE.md`](docs/MULTI_AGENT_ARCHITECTURE.md) | Phase 5 typed workflow, checkpoints, providers, and trust boundaries |
 | [`docs/SAFETY_POLICY.md`](docs/SAFETY_POLICY.md) | Versioned deterministic safety and grounding rules |
 | [`docs/HUMAN_APPROVAL.md`](docs/HUMAN_APPROVAL.md) | Interrupt/resume, identity, stale plans, and concurrency |
+| [`docs/FRONTEND_ARCHITECTURE.md`](docs/FRONTEND_ARCHITECTURE.md) | Phase 6 routes, state, data flow, and browser trust boundaries |
+| [`docs/CONTROL_TOWER_UI.md`](docs/CONTROL_TOWER_UI.md) | Operator views, evidence presentation, and approval behavior |
+| [`docs/DEMO_GUIDE.md`](docs/DEMO_GUIDE.md) | End-to-end Control Tower demonstration procedure |
 | [`docs/evaluation/PHASE5_AGENT_EVALUATION.md`](docs/evaluation/PHASE5_AGENT_EVALUATION.md) | Tracked 80-scenario semantic evaluation |
 | [`docs/evaluation/PHASE4_RAG_EVALUATION.md`](docs/evaluation/PHASE4_RAG_EVALUATION.md) | Frozen 60-query retrieval evaluation and pipeline selection |
 | [`docs/evaluation/PHASE4_ERROR_ANALYSIS.md`](docs/evaluation/PHASE4_ERROR_ANALYSIS.md) | Retrieval errors, safety failures, and limitations |
@@ -133,6 +136,7 @@ See [`docs/architecture/SYSTEM_ARCHITECTURE.md`](docs/architecture/SYSTEM_ARCHIT
 - Full benchmark: generate, train, then run the frozen-test evaluation as documented in
   [`docs/ML_PIPELINE.md`](docs/ML_PIPELINE.md)
 - Frontend: `npm run test`
+- Phase 6 frontend: `cd frontend && npm test && npm run lint && npm run build`
 - Full verification: see CI workflow
 
 ## Roadmap
@@ -158,11 +162,10 @@ See [`docs/architecture/SYSTEM_ARCHITECTURE.md`](docs/architecture/SYSTEM_ARCHIT
 
 ## Current Project Status
 
-**Current Phase: Phase 5 PARTIAL / NOT_READY**
+**Current Phase: Phase 6 complete**
 
-Phase 5 implements a multi-agent industrial maintenance decision workflow with deterministic
-safety gates and human approval. It includes typed LangGraph state, PostgreSQL checkpoint recovery,
-structured Triage/Planning/Safety outputs, evidence grounding, versioned policy, audited approval,
-and exactly-once draft work orders. The 80-case deterministic evaluation passed with zero unsafe
-auto-passes. A real runtime LLM could not be executed because no provider key was available, so
-Phase 5 is not a full pass and Phase 6 is not ready. The platform never executes device actions.
+The Phase 6 operator interface is implemented over the real Phase 2–5 APIs: fleet overview,
+historical and WebSocket telemetry, ML and sensor evidence, cited knowledge, structured Agent
+traces, deterministic policy, human approval, and non-executing work orders. See
+[`docs/DEMO_GUIDE.md`](docs/DEMO_GUIDE.md). The isolated Docker, real-provider browser, full
+regression, migration, dependency, and security gates passed on 2026-09-22. Phase 7 has not begun.

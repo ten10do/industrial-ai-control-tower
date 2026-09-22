@@ -221,6 +221,36 @@ class IncidentRead(BaseModel):
     priority: str
 
 
+class IncidentSummaryRead(IncidentRead):
+    created_at: datetime
+    updated_at: datetime
+    diagnosis_status: str
+    fault_type: str | None
+    severity: str | None
+    workflow_run_id: UUID | None = None
+    workflow_status: str | None = None
+    work_order_id: UUID | None = None
+
+
+class IncidentDetailRead(IncidentSummaryRead):
+    description: str
+    diagnosis: dict[str, Any]
+
+
+class WorkflowSummaryRead(BaseModel):
+    workflow_run_id: UUID
+    incident_id: UUID
+    diagnosis_id: UUID
+    device_id: str
+    status: WorkflowStatus
+    current_stage: str
+    policy_version: str
+    provider: str
+    model: str
+    created_at: datetime
+    updated_at: datetime
+
+
 class ApprovalRead(BaseModel):
     approval_id: UUID
     workflow_run_id: UUID
@@ -248,3 +278,6 @@ class WorkOrderRead(BaseModel):
     approval_id: UUID | None
     status: str
     created_at: datetime
+    fault_type: str | None = None
+    approval_actor: str | None = None
+    approval_decided_at: datetime | None = None

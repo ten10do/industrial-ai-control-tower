@@ -68,7 +68,7 @@ and Diagnosis v1.1 context integration. No LLM or agent workflow is included.
 
 ## Phase 5 — Multi-Agent Workflow
 
-**Status:** Partial / not ready (real runtime LLM gate not run)
+**Status:** Complete (Phase 5.3 release gate passed)
 
 Integrate agents into a LangGraph orchestrator with human-in-the-loop checkpoints.
 
@@ -81,10 +81,12 @@ Integrate agents into a LangGraph orchestrator with human-in-the-loop checkpoint
 
 **Delivered:** typed LangGraph state, Triage/Planning/Safety agents behind one provider interface,
 PostgreSQL checkpoint interrupt/resume, evidence grounding, `safety-policy-v1`, idempotent approval
-and draft work-order persistence, 80-case semantic evaluation, retry/failure injection, and restart
-recovery. No provider API key was available, so `REAL_LLM_NOT_RUN` prevents a full Phase 5 pass.
+and draft work-order persistence, 80-case semantic evaluation, retry/failure injection, restart
+recovery, the one-shot 30-case Real LLM Blind Gate, and final real-provider integration.
 
 ## Phase 6 — Frontend
+
+**Status:** Complete (Phase 6 release gate passed)
 
 Build the operator-facing dashboard and approval UI.
 
@@ -95,6 +97,11 @@ Build the operator-facing dashboard and approval UI.
 - Diagnostic evidence display
 - Approval workflow UI
 - Work order views
+
+**Implemented:** typed real API client, router/deep links, global readiness, Dashboard, device
+history plus reconnecting bounded WebSocket charts, diagnosis/sensor/knowledge evidence, structured
+Agent trace without chain-of-thought, deterministic policy display, real Approve/Reject mutations,
+and non-executing work-order views.
 
 ## Phase 7 — Production Engineering
 

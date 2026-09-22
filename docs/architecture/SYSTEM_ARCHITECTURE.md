@@ -85,9 +85,13 @@ graph TB
 
 ### Frontend
 
-- React + TypeScript + Vite
-- Displays device status, alarms, incidents, diagnoses, approvals, and work orders
-- Communicates with backend via REST and WebSocket
+- React + TypeScript + Vite with BrowserRouter and TanStack Query server state
+- Displays real device status, bounded telemetry trends, alarms, incidents, diagnoses, cited
+  knowledge, structured Agent traces, deterministic policy, approvals, and non-executing work orders
+- Uses REST for bounded history and query state plus one reconnecting WebSocket per device detail
+- Treats evidence as untrusted plain text and never exposes chain-of-thought or browser secrets
+- See [`FRONTEND_ARCHITECTURE.md`](../FRONTEND_ARCHITECTURE.md) and
+  [`CONTROL_TOWER_UI.md`](../CONTROL_TOWER_UI.md)
 
 ### Backend
 

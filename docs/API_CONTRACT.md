@@ -89,7 +89,10 @@ retrieval run.
 | Method | Path | Purpose |
 |---|---|---|
 | POST | `/api/v1/incidents` | Bind a valid persisted diagnosis to an incident |
+| GET | `/api/v1/incidents?status=...&limit=100` | List incidents with diagnosis and workflow lifecycle |
+| GET | `/api/v1/incidents/{incident_id}` | Read incident and complete persisted diagnosis |
 | POST | `/api/v1/incidents/{incident_id}/workflows` | Idempotently trigger the versioned workflow |
+| GET | `/api/v1/workflows?status=...&limit=100` | List workflow summaries for operator views |
 | GET | `/api/v1/workflows/{workflow_run_id}` | Read current typed state |
 | GET | `/api/v1/workflows/{workflow_run_id}/trace` | Read workflow and agent audit summaries |
 | POST | `/api/v1/workflows/{workflow_run_id}/cancel` | Safely cancel an allowed pre-terminal state |
@@ -98,6 +101,7 @@ retrieval run.
 | POST | `/api/v1/approvals/{approval_id}/approve` | Resume an interrupt and create a draft order |
 | POST | `/api/v1/approvals/{approval_id}/reject` | Resume to rejection without a work order |
 | GET | `/api/v1/work-orders/{work_order_id}` | Read a non-executing draft work order |
+| GET | `/api/v1/work-orders?status=...&limit=100` | List draft work orders with approval audit context |
 | GET | `/api/v1/workflow-metrics` | Read Phase 5 audit-derived counters and latency |
 
 Approval decisions require `X-Development-Actor` and `{"reason":"..."}`. Repeating the same
@@ -121,8 +125,8 @@ The following namespaces remain later-phase work:
 - `POST /api/v1/agent-runs` — start an agent run
 - `GET /api/v1/agent-runs/{id}` — get run status and result
 
-Incident listing/editing, agent-run mutation, work-order assignment/execution, and production
-identity/RBAC remain deferred.
+Incident editing, agent-run mutation, work-order assignment/execution, and production identity/RBAC
+remain deferred.
 
 ## Error Contract
 

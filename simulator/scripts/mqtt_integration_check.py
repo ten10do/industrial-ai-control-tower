@@ -37,7 +37,8 @@ def on_message(client: mqtt.Client, userdata: None, msg: mqtt.MQTTMessage) -> No
 
 
 client = mqtt.Client(
-    callback_api_version=mqtt.CallbackAPIVersion.VERSION2,
+    # Paho exposes this at runtime, but its module stub omits the re-export.
+    callback_api_version=mqtt.CallbackAPIVersion.VERSION2,  # type: ignore[attr-defined]
     client_id="integration-check",
 )
 client.on_connect = on_connect
