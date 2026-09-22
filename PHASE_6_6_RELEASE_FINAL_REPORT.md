@@ -127,7 +127,7 @@ No Markdown linter is configured in this repository (no `.markdownlint*`, no `.m
 in hosts), so workflow results were read from the public GitHub REST API instead. The repository is
 public, and the API accepted unauthenticated reads.
 
-Run for the release HEAD:
+Run for the first pushed commit of this release (`2f420e1`, the DISC-1 fix):
 
 | Field | Value |
 |---|---|
@@ -138,18 +138,29 @@ Run for the release HEAD:
 | Conclusion | `failure` |
 | URL | https://github.com/ten10do/industrial-ai-control-tower/actions/runs/35692016246 |
 
-Per-job results:
+Run for the final release HEAD (`af0bbd0`, which adds only this Markdown report):
 
-| Job | Conclusion | Failing step |
+| Field | Value |
+|---|---|
+| Run ID | `35692397114` |
+| Head SHA | `af0bbd065f8f6657900dc1e55df84769d8d70dc2` |
+| Event | `push` |
+| Created | 2026-09-22T05:52:08Z |
+| Conclusion | `failure` |
+| URL | https://github.com/ten10do/industrial-ai-control-tower/actions/runs/35692397114 |
+
+Per-job results, identical in shape across both runs:
+
+| Job | `2f420e1` | `af0bbd0` |
 |---|---|---|
-| `docs` | **success** | none |
-| `backend` | **success** | none |
-| `simulator` | **success** | none |
-| `ml` | **success** | none |
-| `frontend` | **failure** | `Build` |
+| `docs` | **success** | **success** |
+| `backend` | **success** | **success** |
+| `simulator` | **success** | **success** |
+| `ml` | **success** | **success** |
+| `frontend` | **failure** (`Build`) | **failure** (`Build`) |
 
-The `docs` job is green on real GitHub Actions, which is the authoritative confirmation that DISC-1
-is fixed. The remaining red job is DISC-2.
+The `docs` job is green on real GitHub Actions in both runs, which is the authoritative
+confirmation that DISC-1 is fixed. The remaining red job is DISC-2 in both runs.
 
 Historical comparison, from the same API, showing that the two failures are independent and that
 the `frontend` failure predates Phase 6.6:
@@ -282,28 +293,28 @@ Docker backend image, live database integrity) are unaffected and were re-confir
 | Branch | `main` |
 | Phase 6.6 commit | `e8006857af4fd9946f160f0139fb9dfb0923b5e8` (`feat: add agent observability layer`) |
 | DISC-1 fix commit | `2f420e1f6a9879fcc451e5981c75c34f64bab1c0` (`fix: update ADR documentation CI check`) |
-| Release report commit | added by this task (`docs: add phase 6.6 release final report`) |
+| Release report commit | `af0bbd065f8f6657900dc1e55df84769d8d70dc2` (`docs: add phase 6.6 release final report`) |
+| Final tip | one further documentation commit recording the `af0bbd0` CI run; the tip hash is obtained with `git log -1 --format=%H` because it contains this file |
 | Working tree | clean |
-| `origin/main` | `2f420e1f6a9879fcc451e5981c75c34f64bab1c0` before the release report, then advanced by it |
 | Push | performed for all of the above |
 
-Remote synchronization was verified two ways. The authoritative check queries GitHub directly:
+Remote synchronization was verified two ways, after the `af0bbd0` push:
 
 ```text
 $ git ls-remote origin refs/heads/main
-2f420e1f6a9879fcc451e5981c75c34f64bab1c0	refs/heads/main
-```
+af0bbd065f8f6657900dc1e55df84769d8d70dc2	refs/heads/main
 
-The local tracking check agrees:
-
-```text
 $ git rev-parse HEAD origin/main
-2f420e1f6a9879fcc451e5981c75c34f64bab1c0
-2f420e1f6a9879fcc451e5981c75c34f64bab1c0
+af0bbd065f8f6657900dc1e55df84769d8d70dc2
+af0bbd065f8f6657900dc1e55df84769d8d70dc2
 
 $ git status -sb
 ## main...origin/main
 ```
+
+The authoritative check is `git ls-remote`, which reads the value GitHub actually holds. The local
+tracking check was verified at the same hash, then the final documentation commit advanced both
+sides together.
 
 One environment note worth recording. The first push attempt under the default Git transport
 protocol failed with `bash.exe: line 1: /mingw64/bin/git: Interrupted system call` and pushed
