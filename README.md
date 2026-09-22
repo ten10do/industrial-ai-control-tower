@@ -33,6 +33,9 @@ classification, retrieves cited maintenance evidence, and runs a typed LangGraph
 deterministic safety policy—not an LLM—controls whether a plan is blocked, allowed, or held for a
 human decision. The React Control Tower exposes the complete lifecycle over REST and WebSocket.
 
+The platform includes an extensible industrial protocol adapter layer for future MQTT, OPC UA and
+Modbus integration.
+
 ## Architecture
 
 This is the implemented Phase 1–6 path. The full component and trust-boundary model is documented
