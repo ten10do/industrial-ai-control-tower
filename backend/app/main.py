@@ -13,7 +13,16 @@ from redis.asyncio import Redis
 from sqlalchemy import text
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from app.api import alarms, devices, diagnoses, knowledge, telemetry, websockets, workflows
+from app.api import (
+    alarms,
+    devices,
+    diagnoses,
+    knowledge,
+    observability,
+    telemetry,
+    websockets,
+    workflows,
+)
 from app.config import get_settings
 from app.core.context import trace_id_context
 from app.core.errors import AppError
@@ -22,6 +31,7 @@ from app.infrastructure.database.session import Database
 from app.infrastructure.mqtt.consumer import MqttTelemetryConsumer
 from app.knowledge.retrieval import KnowledgeIndex
 from app.ml.runtime import ModelCompatibilityError, ModelRuntime
+from app.observability.tracer import ObservableWorkflowService, WorkflowTracer
 from app.services.diagnosis import OnlineDiagnosisCoordinator
 from app.services.telemetry import IngestionCounters
 from app.websocket.manager import WebSocketManager
@@ -117,6 +127,10 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
                 backoff_seconds=settings.agent_backoff_seconds,
                 timeout_seconds=settings.agent_timeout_seconds,
             )
+            if settings.observability_enabled:
+                workflow_service = ObservableWorkflowService(
+                    workflow_service, WorkflowTracer(database.sessions)
+                )
         except Exception as exc:
             workflow_error = str(exc)
             logger.error("workflow_service_unavailable", extra={"error": workflow_error})
@@ -160,6 +174,8 @@ app.include_router(alarms.router)
 app.include_router(diagnoses.router)
 app.include_router(knowledge.router)
 app.include_router(workflows.router)
+app.include_router(observability.router, prefix="/api/v1")
+app.include_router(observability.router, prefix="/api")
 app.include_router(websockets.router)
 
 
@@ -238,6 +254,7 @@ async def ready(request: Request) -> JSONResponse:
         )
     else:
         dependencies["workflow"] = "disabled"
+    dependencies["observability"] = "enabled" if settings.observability_enabled else "disabled"
     ready_state = all(dependencies[name] == "ok" for name in ("postgres", "redis"))
     if settings.diagnosis_enabled:
         ready_state = ready_state and dependencies["diagnosis"] == "loaded"

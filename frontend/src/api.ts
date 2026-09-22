@@ -7,6 +7,9 @@ import type {
   IncidentDetail,
   IncidentSummary,
   KnowledgeDocument,
+  ObservabilityMetrics,
+  ObservabilityRun,
+  ObservabilityRunTrace,
   ReadyStatus,
   Telemetry,
   Workflow,
@@ -87,6 +90,10 @@ export const api = {
   workOrders: () => request<WorkOrder[]>('/api/v1/work-orders?limit=100'),
   workOrder: (id: string) => request<WorkOrder>(`/api/v1/work-orders/${id}`),
   knowledgeDocuments: () => request<KnowledgeDocument[]>('/api/v1/knowledge/documents?limit=200'),
+  observabilityRuns: () => request<ObservabilityRun[]>('/api/observability/runs?limit=50'),
+  observabilityMetrics: () => request<ObservabilityMetrics>('/api/observability/metrics'),
+  observabilityRun: (id: string) =>
+    request<ObservabilityRunTrace>(`/api/observability/runs/${encodeURIComponent(id)}`),
 }
 
 export function websocketUrl(deviceId: string): string {

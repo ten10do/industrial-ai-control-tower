@@ -11,6 +11,7 @@ import {
   IncidentDetailPage,
   IncidentsPage,
   NotFoundPage,
+  ObservabilityPage,
   OverviewPage,
   WorkflowDetailPage,
   WorkOrderDetailPage,
@@ -40,6 +41,7 @@ function App() {
               <Route path="incidents" element={<IncidentsPage />} />
               <Route path="incidents/:incidentId" element={<IncidentDetailPage />} />
               <Route path="workflows/:workflowRunId" element={<WorkflowDetailPage />} />
+              <Route path="observability" element={<ObservabilityPage />} />
               <Route path="approvals" element={<ApprovalsPage />} />
               <Route path="approvals/:approvalId" element={<ApprovalDetailPage />} />
               <Route path="work-orders" element={<WorkOrdersPage />} />

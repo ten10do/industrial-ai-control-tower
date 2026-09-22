@@ -17,6 +17,11 @@ from app.models.entities import (
     WorkflowRun,
     WorkOrder,
 )
+from app.observability.models import (
+    ObservabilityMetric,
+    ObservabilityRun,
+    ObservabilityStep,
+)
 
 __all__ = [
     "AgentRun",
@@ -30,6 +35,9 @@ __all__ = [
     "KnowledgeChunk",
     "KnowledgeDocument",
     "MaintenancePlan",
+    "ObservabilityMetric",
+    "ObservabilityRun",
+    "ObservabilityStep",
     "RetrievalRun",
     "Telemetry",
     "WorkOrder",

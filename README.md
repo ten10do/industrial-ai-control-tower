@@ -133,6 +133,8 @@ outside the Phase 6 boundary, and approved plans produce only a `DRAFT` work ord
 - Deterministic policy review, human approval/rejection, and work-order views
 - Explicit loading, empty, unavailable, stale-decision, and backend-restart states
 
+Added Agent Observability layer for workflow tracing, metrics collection and execution analysis.
+
 ## Evaluation Results
 
 All values below are copied from the repository's frozen or one-shot evaluation reports. They were

@@ -3,11 +3,15 @@ import { FormEvent, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { api, ApiError } from './api'
 import {
+  AgentStepTrack,
   ApiErrorPanel,
   AsyncPanel,
   DiagnosisPanel,
   EvidencePanel,
+  formatLatency,
+  formatPercent,
   formatTime,
+  formatTokens,
   KeyValue,
   MetricCard,
   ResourceLink,
@@ -17,7 +21,7 @@ import {
   TelemetryChart,
   WorkflowPanel,
 } from './components'
-import type { Approval, Device } from './types'
+import type { Approval, Device, ObservabilityRun } from './types'
 import { useTelemetryStream } from './useTelemetryStream'
 
 const activeIncident = (status: string) => !['WORK_ORDER_CREATED', 'REJECTED', 'CANCELLED'].includes(status)
@@ -191,6 +195,46 @@ export function WorkOrderDetailPage() {
     <section className="panel safety-grid"><div><p className="eyebrow">Evidence references</p><h2>Grounding</h2><TagList values={data.evidence_refs} /></div><div><p className="eyebrow">Safety requirements</p><h2>Execution constraints</h2><TagList values={data.safety_requirements} /></div></section>
     <div className="link-row"><ResourceLink to={`/incidents/${data.incident_id}`}>Open incident</ResourceLink><ResourceLink to={`/workflows/${data.workflow_run_id}`}>Open workflow</ResourceLink></div>
   </>}</AsyncPanel></>
+}
+
+function RunHistoryRow({ run, selected, onSelect }: { run: ObservabilityRun; selected: boolean; onSelect: (runId: string) => void }) {
+  return <tr className={selected ? 'is-selected' : undefined}><td><button className="link-button" type="button" aria-pressed={selected} onClick={() => onSelect(run.run_id)}>{run.run_id.slice(0, 8)}</button><small>{run.run_id}</small></td><td>{run.workflow_name}<small>{run.device_id || 'Device not recorded'}</small></td><td><StatusBadge value={run.status} /></td><td>{formatLatency(run.latency_ms)}</td><td>{formatTime(run.start_time)}</td></tr>
+}
+
+export function ObservabilityPage() {
+  const [selectedRunId, setSelectedRunId] = useState<string | null>(null)
+  const metrics = useQuery({ queryKey: ['observability-metrics'], queryFn: api.observabilityMetrics, refetchInterval: 15_000 })
+  const runs = useQuery({ queryKey: ['observability-runs'], queryFn: api.observabilityRuns, refetchInterval: 15_000 })
+  const trace = useQuery({ queryKey: ['observability-run', selectedRunId], queryFn: () => api.observabilityRun(selectedRunId as string), enabled: !!selectedRunId })
+  const summary = metrics.data
+  const usage = summary?.token_usage
+  return <>
+    <PageHeader eyebrow="Agent observability" title="Agent workflow tracing" detail="Trace, metrics, and execution analysis for the existing multi-agent workflow. Read-only observation; the decision path is unchanged." />
+    <AsyncPanel loading={metrics.isPending} error={metrics.error}>
+      {summary && <section className="metrics-grid">
+        <MetricCard label="Agent runs today" value={summary.runs_today} detail={`${summary.total_runs} recorded in total`} />
+        <MetricCard label="Success rate" value={formatPercent(summary.success_rate)} detail={`${summary.success_count} of ${summary.completed_runs} completed runs`} />
+        <MetricCard label="Average latency" value={formatLatency(summary.avg_latency_ms)} detail={`p95 ${formatLatency(summary.p95_latency_ms)}`} />
+        <MetricCard label="Token usage" value={formatTokens(usage)} detail={usage ? `${usage.steps_with_token_data} of ${usage.steps_total} steps reported usage` : undefined} />
+        <MetricCard label="Failed runs" value={summary.failure_count} detail={`${summary.blocked_count} blocked · ${summary.cancelled_count} cancelled`} />
+        <MetricCard label="Awaiting approval" value={summary.runs_waiting_approval} detail={`${summary.runs_running} running`} />
+      </section>}
+      <AsyncPanel loading={runs.isPending} error={runs.error} empty={!runs.data?.length} emptyText="No Agent runs have been traced yet. Run a workflow from an incident to populate this view.">
+        <section className="panel"><div className="panel-heading"><div><p className="eyebrow">Run history</p><h2>Recent agent runs</h2></div><span>{runs.data?.length || 0} runs · select a run to inspect its trace</span></div><div className="table-wrap"><table className="run-history-table"><thead><tr><th>Run ID</th><th>Workflow</th><th>Status</th><th>Duration</th><th>Time</th></tr></thead><tbody>{runs.data?.map((run) => <RunHistoryRow key={run.run_id} run={run} selected={run.run_id === selectedRunId} onSelect={setSelectedRunId} />)}</tbody></table></div></section>
+      </AsyncPanel>
+      {selectedRunId && <AsyncPanel loading={trace.isPending} error={trace.error}>
+        {trace.data && <>
+          <section className="panel"><div className="panel-heading"><div><p className="eyebrow">Trace detail</p><h2>Agent step chain</h2></div><StatusBadge value={trace.data.run.status} /></div>
+            <div className="detail-grid"><KeyValue label="Run ID" value={trace.data.run.run_id} /><KeyValue label="Workflow" value={trace.data.run.workflow_name} /><KeyValue label="Workflow run" value={trace.data.run.workflow_run_id || 'Not linked'} /><KeyValue label="Device" value={trace.data.run.device_id || 'Not recorded'} /><KeyValue label="Provider / model" value={`${trace.data.run.provider || '—'} / ${trace.data.run.model || '—'}`} /><KeyValue label="Trace ID" value={trace.data.run.trace_id || 'Not available'} /><KeyValue label="Started" value={formatTime(trace.data.run.start_time)} /><KeyValue label="Ended" value={trace.data.run.end_time ? formatTime(trace.data.run.end_time) : 'Still open'} /><KeyValue label="Duration" value={formatLatency(trace.data.run.latency_ms)} /><KeyValue label="Steps" value={trace.data.run.step_count} /></div>
+            {trace.data.run.error_message && <div className="notice notice-error"><strong>Run failed</strong><span>{trace.data.run.error_message}</span></div>}
+            {trace.data.run.workflow_run_id && <ResourceLink to={`/workflows/${trace.data.run.workflow_run_id}`}>Open authoritative workflow</ResourceLink>}
+          </section>
+          <section className="panel"><div className="panel-heading"><div><p className="eyebrow">Agent steps</p><h2>Per-step latency, status, and tokens</h2></div><span>Derived from the persisted agent audit trail</span></div><AgentStepTrack steps={trace.data.steps} /></section>
+        </>}
+      </AsyncPanel>}
+      {summary && summary.by_agent.length > 0 && <section className="panel"><div className="panel-heading"><div><p className="eyebrow">Execution analysis</p><h2>Per-agent aggregation</h2></div><span>Step status: {Object.entries(summary.step_status_counts).map(([key, value]) => `${key} ${value}`).join(' · ') || 'No steps recorded'}</span></div><div className="table-wrap"><table><thead><tr><th>Agent</th><th>Steps</th><th>Failures</th><th>Avg latency</th><th>p95 latency</th><th>Tokens</th><th>Schema retries</th></tr></thead><tbody>{summary.by_agent.map((item) => <tr key={item.agent_name}><td><strong>{item.agent_name.replace(/_/g, ' ')}</strong></td><td>{item.steps_total}</td><td>{item.failures}</td><td>{formatLatency(item.avg_latency_ms)}</td><td>{formatLatency(item.p95_latency_ms)}</td><td>{item.total_tokens == null ? 'Not reported' : item.total_tokens}</td><td>{item.schema_retries == null ? 'Not reported' : item.schema_retries}</td></tr>)}</tbody></table></div></section>}
+    </AsyncPanel>
+  </>
 }
 
 export function NotFoundPage() {

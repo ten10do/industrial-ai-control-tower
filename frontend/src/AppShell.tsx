@@ -9,6 +9,7 @@ const navigation = [
   ['Incidents', '/incidents'],
   ['Approvals', '/approvals'],
   ['Work Orders', '/work-orders'],
+  ['Agent Observability', '/observability'],
 ] as const
 
 export function AppShell() {

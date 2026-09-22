@@ -51,6 +51,7 @@ class Settings(BaseSettings):
     agent_max_attempts: int = 3
     agent_backoff_seconds: float = 0.5
     agent_schema_max_attempts: int = 2
+    observability_enabled: bool = True
 
     @property
     def checkpoint_database_url(self) -> str:

@@ -151,9 +151,25 @@ button:disabled { cursor: not-allowed; opacity: .55; }
 .link-row { display: flex; gap: 20px; }
 .link-row .resource-link { min-width: 250px; }
 .fatal-error { display: grid; place-items: start; max-width: 620px; margin: 80px auto; padding: 30px; background: var(--surface); border: 1px solid var(--line); }
+.link-button { padding: 0; color: var(--accent-strong); background: none; border: 0; font-weight: 700; text-align: left; }
+.link-button:hover { text-decoration: underline; }
+.run-history-table tbody tr { cursor: pointer; }
+.run-history-table tbody tr.is-selected td { background: #17232b; box-shadow: inset 2px 0 0 var(--accent); }
+.agent-step-track { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 12px; padding: 0; margin: 0; list-style: none; }
+.agent-step-track li { display: grid; gap: 8px; align-content: start; padding: 14px; background: #0d161c; border: 1px solid var(--line); border-left: 3px solid #41636a; }
+.agent-step-track li.is-success { border-left-color: var(--accent); }
+.agent-step-track li.is-failed { border-left-color: var(--danger); }
+.agent-step-track .step-index { color: var(--muted); font-size: 10px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
+.agent-step-track strong { font-size: 13px; text-transform: capitalize; }
+.agent-step-track .step-status-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: var(--muted); font-size: 11px; }
+.agent-step-track dl { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 5px 10px; margin: 0; font-size: 11px; }
+.agent-step-track dt { color: var(--muted); }
+.agent-step-track dd { margin: 0; overflow-wrap: anywhere; }
+.agent-step-track small { color: var(--muted); font-size: 11px; line-height: 1.45; overflow-wrap: anywhere; }
 @media (max-width: 1380px) {
   .metrics-grid { grid-template-columns: repeat(3, 1fr); }
   .charts-grid { grid-template-columns: repeat(2, 1fr); }
   .evidence-grid { grid-template-columns: repeat(2, 1fr); }
+  .agent-step-track { grid-auto-flow: row; }
   .dependency-strip > span b { display: none; }
 }

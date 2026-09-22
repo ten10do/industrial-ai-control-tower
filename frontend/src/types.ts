@@ -230,6 +230,95 @@ export type ReadyStatus = {
   dependencies: Record<string, string>
 }
 
+export type AgentStepMetric = {
+  step_id: string
+  agent_name: string
+  input_tokens: number | null
+  output_tokens: number | null
+  total_tokens: number | null
+  latency_ms: number | null
+  request_count: number | null
+  schema_retries: number | null
+  token_data_available: boolean
+}
+
+export type AgentStep = {
+  step_id: string
+  agent_name: string
+  sequence: number
+  status: string
+  start_time: string
+  end_time: string
+  latency_ms: number | null
+  input_summary: string | null
+  output_summary: string | null
+  error: string | null
+  provider: string | null
+  model: string | null
+  prompt_version: string | null
+  metrics: AgentStepMetric | null
+}
+
+export type ObservabilityRun = {
+  run_id: string
+  workflow_run_id: string | null
+  workflow_name: string
+  device_id: string | null
+  trace_id: string | null
+  provider: string | null
+  model: string | null
+  status: string
+  start_time: string
+  end_time: string | null
+  latency_ms: number | null
+  step_count: number
+  total_tokens: number | null
+  result: Record<string, unknown>
+  error_message: string | null
+}
+
+export type ObservabilityRunTrace = {
+  run: ObservabilityRun
+  steps: AgentStep[]
+}
+
+export type AgentBreakdown = {
+  agent_name: string
+  steps_total: number
+  failures: number
+  avg_latency_ms: number | null
+  p95_latency_ms: number | null
+  total_tokens: number | null
+  schema_retries: number | null
+}
+
+export type TokenUsage = {
+  input_tokens: number | null
+  output_tokens: number | null
+  total_tokens: number | null
+  steps_with_token_data: number
+  steps_total: number
+}
+
+export type ObservabilityMetrics = {
+  total_runs: number
+  runs_running: number
+  runs_waiting_approval: number
+  runs_today: number
+  completed_runs: number
+  success_count: number
+  failure_count: number
+  blocked_count: number
+  cancelled_count: number
+  success_rate: number | null
+  avg_latency_ms: number | null
+  p95_latency_ms: number | null
+  avg_step_latency_ms: number | null
+  step_status_counts: Record<string, number>
+  token_usage: TokenUsage
+  by_agent: AgentBreakdown[]
+}
+
 export type ApiErrorPayload = {
   error?: { code?: string; message?: string; trace_id?: string }
   status?: string

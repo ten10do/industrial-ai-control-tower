@@ -4,11 +4,13 @@ import { Link } from 'react-router-dom'
 import { ApiError } from './api'
 import type {
   AgentRun,
+  AgentStep,
   Diagnosis,
   KnowledgeDocument,
   KnowledgeEvidence,
   SensorEvidence,
   Telemetry,
+  TokenUsage,
   Workflow,
 } from './types'
 
@@ -22,6 +24,16 @@ export function formatTime(value?: string | null) {
 
 export function formatPercent(value?: number | null) {
   return value == null ? 'Not available' : `${(value * 100).toFixed(1)}%`
+}
+
+export function formatLatency(value?: number | null) {
+  if (value == null) return 'Not available'
+  return value >= 1000 ? `${(value / 1000).toFixed(2)} s` : `${value.toFixed(0)} ms`
+}
+
+export function formatTokens(usage?: TokenUsage | null) {
+  if (!usage || usage.total_tokens == null) return 'Not reported'
+  return usage.total_tokens.toLocaleString()
 }
 
 export function StatusBadge({ value }: { value?: string | null }) {
@@ -205,6 +217,39 @@ export function WorkflowPanel({ workflow, agentRuns = [] }: { workflow: Workflow
         {agentRuns.length ? <div className="trace-list">{agentRuns.map((run) => <details key={run.agent_run_id}><summary><strong>{run.agent}</strong><StatusBadge value={run.status} /><span>{run.latency_ms?.toFixed(0) || '—'} ms</span></summary><div className="detail-grid"><KeyValue label="Provider / model" value={`${run.provider || '—'} / ${run.model || '—'}`} /><KeyValue label="Prompt version" value={run.prompt_version || '—'} /><KeyValue label="Timestamp" value={formatTime(run.timestamp)} /><KeyValue label="Tokens" value={`${run.input_tokens ?? '—'} in / ${run.output_tokens ?? '—'} out`} /></div><pre>{JSON.stringify(run.structured_output, null, 2)}</pre>{run.tool_calls.length > 0 && <pre>{JSON.stringify(run.tool_calls, null, 2)}</pre>}</details>)}</div> : <div className="panel-state">No Agent runs recorded.</div>}
       </section>
     </>
+  )
+}
+
+export function AgentStepTrack({ steps }: { steps: AgentStep[] }) {
+  if (!steps.length) {
+    return <div className="panel-state">No agent steps were recorded for this run.</div>
+  }
+  return (
+    <ol className="agent-step-track" aria-label="Agent step chain">
+      {steps.map((step, index) => (
+        <li key={step.step_id} className={step.status === 'FAILED' ? 'is-failed' : 'is-success'}>
+          <span className="step-index">Step {index + 1}</span>
+          <strong>{step.agent_name.replace(/_/g, ' ')}</strong>
+          <div className="step-status-row">
+            <StatusBadge value={step.status} />
+            <span>{formatLatency(step.latency_ms)}</span>
+          </div>
+          <dl>
+            <dt>Tokens</dt>
+            <dd>{step.metrics?.token_data_available ? `${step.metrics.total_tokens ?? '—'} total` : 'Not reported'}</dd>
+            <dt>Provider</dt>
+            <dd>{step.provider || 'Not available'}</dd>
+            <dt>Model</dt>
+            <dd>{step.model || 'Not available'}</dd>
+            <dt>Started</dt>
+            <dd>{formatTime(step.start_time)}</dd>
+          </dl>
+          {step.input_summary && <small>{step.input_summary}</small>}
+          {step.output_summary && <small>{step.output_summary}</small>}
+          {step.error && <div className="notice notice-error">{step.error}</div>}
+        </li>
+      ))}
+    </ol>
   )
 }
 
