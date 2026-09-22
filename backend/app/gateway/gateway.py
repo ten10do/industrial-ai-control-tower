@@ -14,6 +14,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from collections.abc import Callable, Sequence
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -30,6 +31,19 @@ from app.gateway.registry import DeviceRegistry
 from app.gateway.runtime import DeviceRuntime, RetryPolicy, SimulatorSourceFactory
 
 logger = logging.getLogger(__name__)
+
+DEFAULT_APPLY_TIMEOUT_SECONDS = 10.0
+
+
+@dataclass(frozen=True, slots=True)
+class ApplyResult:
+    """Outcome of applying one configuration version to a device runtime."""
+
+    device_id: str
+    applied: bool
+    version: int | None
+    state: DeviceState
+    error: str | None = None
 
 
 class IndustrialProtocolGateway:
@@ -56,6 +70,7 @@ class IndustrialProtocolGateway:
         self._simulator_source_factory = simulator_source_factory
         self._mqtt_connected = mqtt_connected
         self._runtimes: dict[str, DeviceRuntime] = {}
+        self._applied_versions: dict[str, int | None] = {}
         self._loaded_at: datetime | None = None
         for definition in registry.list_definitions():
             self._runtime_for(definition)
@@ -161,6 +176,147 @@ class IndustrialProtocolGateway:
         runtime = self._require_runtime(device_id)
         await runtime.stop()
         return runtime.status()
+
+    def applied_version(self, device_id: str) -> int | None:
+        """Return the configuration version this device runtime is running."""
+
+        return self._applied_versions.get(device_id)
+
+    def applied_versions(self) -> dict[str, int | None]:
+        """Return the applied configuration version of every device."""
+
+        return dict(self._applied_versions)
+
+    async def confirm_ready(
+        self,
+        device_id: str,
+        *,
+        version: int | None = None,
+        timeout_seconds: float = DEFAULT_APPLY_TIMEOUT_SECONDS,
+    ) -> ApplyResult:
+        """Wait for an already started device runtime to become usable.
+
+        Used at startup, where the runtime state machine must stay in charge of
+        reconnection. The runtime is never torn down on a slow first connection, so
+        the Phase 6.7 bounded-retry behaviour is preserved and the result only
+        reports whether the device was confirmed connected within the window. The
+        version is recorded only on success.
+        """
+
+        runtime = self._require_runtime(device_id)
+        ready = await runtime.wait_until_ready(timeout_seconds)
+        state = runtime.status().state
+        if not ready:
+            return ApplyResult(
+                device_id=device_id,
+                applied=False,
+                version=None,
+                state=state,
+                error=runtime.last_failure_message()
+                or f"runtime did not report connected within {timeout_seconds:g}s",
+            )
+        self._applied_versions[device_id] = version
+        return ApplyResult(
+            device_id=device_id,
+            applied=True,
+            version=version,
+            state=state,
+        )
+
+    async def apply_device_definition(
+        self,
+        definition: DeviceDefinition,
+        *,
+        version: int | None,
+        timeout_seconds: float = DEFAULT_APPLY_TIMEOUT_SECONDS,
+    ) -> ApplyResult:
+        """Replace one device runtime with a proven-healthy replacement.
+
+        The candidate runtime is built and started first. Only after it reports
+        ``CONNECTED`` is the previous runtime stopped and swapped out. When the
+        candidate never becomes healthy it is discarded and the previous runtime is
+        left untouched, so a bad configuration cannot take a working device down.
+        Other devices are never touched.
+        """
+
+        device_id = definition.device_id
+        if not self._enabled:
+            return ApplyResult(
+                device_id=device_id,
+                applied=False,
+                version=version,
+                state=DeviceState.DISABLED,
+                error="gateway is disabled in this process",
+            )
+        previous = self._runtimes.get(device_id)
+        candidate = DeviceRuntime(
+            definition,
+            sink=self._sink,
+            registration=self._registration,
+            policy=self._policy,
+            simulator_source_factory=self._simulator_source_factory,
+            mqtt_connected=self._mqtt_connected,
+        )
+        try:
+            await candidate.start()
+        except Exception as exc:  # defensive: apply must never break the gateway
+            logger.exception("gateway_apply_start_failed", extra={"device_id": device_id})
+            await candidate.stop()
+            return ApplyResult(
+                device_id=device_id,
+                applied=False,
+                version=version,
+                state=DeviceState.ERROR,
+                error=f"candidate runtime could not start: {exc}",
+            )
+        ready = await candidate.wait_until_ready(timeout_seconds)
+        if not ready:
+            reason = candidate.last_failure_message() or (
+                f"candidate runtime was not connected within {timeout_seconds:g}s"
+            )
+            await candidate.stop()
+            logger.warning(
+                "gateway_apply_not_ready", extra={"device_id": device_id, "detail": reason}
+            )
+            return ApplyResult(
+                device_id=device_id,
+                applied=False,
+                version=version,
+                state=candidate.status().state,
+                error=reason,
+            )
+        if previous is not None:
+            await previous.stop()
+        self._runtimes[device_id] = candidate
+        self._registry.replace(definition)
+        self._applied_versions[device_id] = version
+        logger.info(
+            "gateway_configuration_applied",
+            extra={"device_id": device_id, "configuration_version": version},
+        )
+        return ApplyResult(
+            device_id=device_id,
+            applied=True,
+            version=version,
+            state=candidate.status().state,
+        )
+
+    async def apply_definitions(
+        self,
+        definitions: Sequence[tuple[DeviceDefinition, int | None]],
+        *,
+        timeout_seconds: float = DEFAULT_APPLY_TIMEOUT_SECONDS,
+    ) -> list[ApplyResult]:
+        """Apply a batch of definitions, isolating individual failures."""
+
+        results: list[ApplyResult] = []
+        for definition, version in definitions:
+            results.append(
+                await self.apply_device_definition(
+                    definition, version=version, timeout_seconds=timeout_seconds
+                )
+            )
+        return results
 
     def status(self, device_id: str) -> DeviceStatusRead:
         """Return the status of one device."""

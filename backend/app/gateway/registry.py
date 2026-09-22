@@ -43,6 +43,15 @@ class DeviceRegistry:
         for definition in definitions:
             self._devices[definition.device_id] = definition
 
+    def replace(self, definition: DeviceDefinition) -> None:
+        """Insert or supersede one definition in place.
+
+        An existing device keeps its original position so the configured order stays
+        stable across a configuration change.
+        """
+
+        self._devices[definition.device_id] = definition
+
     def get(self, device_id: str) -> DeviceDefinition:
         """Return one definition or raise."""
 

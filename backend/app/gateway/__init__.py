@@ -11,7 +11,7 @@ from app.gateway.errors import (
     GatewayStateError,
     TelemetryNormalizationError,
 )
-from app.gateway.gateway import IndustrialProtocolGateway
+from app.gateway.gateway import ApplyResult, IndustrialProtocolGateway
 from app.gateway.ingestion import (
     DeviceRegistrationChecker,
     GatewayIngestionSink,
@@ -39,6 +39,7 @@ from app.gateway.runtime import DeviceRuntime, RetryPolicy
 
 __all__ = [
     "CANONICAL_SIGNAL_FIELDS",
+    "ApplyResult",
     "ConnectivitySummary",
     "DeviceDefinition",
     "DeviceRegistrationChecker",

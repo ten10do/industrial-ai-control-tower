@@ -2,16 +2,20 @@
 
 from __future__ import annotations
 
+import asyncio
+import time
 from pathlib import Path
 from typing import Any
 
 import pytest
 
+from adapters.exceptions import AdapterReadError
+from adapters.models import UnifiedTelemetry
 from app.gateway.errors import GatewayConfigurationError
 from app.gateway.gateway import IndustrialProtocolGateway
 from app.gateway.models import DeviceDefinition, DeviceState
 from app.gateway.registry import DeviceRegistry
-from app.gateway.runtime import RetryPolicy
+from app.gateway.runtime import STOP_TIMEOUT_SECONDS, DeviceRuntime, RetryPolicy
 from tests.gateway.conftest import (
     FakeRegistration,
     FakeSink,
@@ -177,3 +181,76 @@ def test_summary_counts_all_states_and_disabled_devices() -> None:
     assert summary.states["DISABLED"] == 1
     assert summary.total_samples_ingested == 0
     assert summary.gateway_available is True
+
+
+class ParkedAdapter(ScriptedAdapter):
+    """An adapter that parks inside a read and refuses to observe cancellation.
+
+    A protocol client can be sitting in an outstanding network read when a reload
+    asks it to stop. This fake reproduces the dangerous half of that behaviour: the
+    read does not return, and ``cancel()`` does not end it. The read does resume once
+    ``release`` is set, so the abandoned runtime can still finish on its own.
+    """
+
+    def __init__(self, *, park_after: int = 1) -> None:
+        super().__init__()
+        self.release = asyncio.Event()
+        self.parked = asyncio.Event()
+        self.park_after = park_after
+        self.reads = 0
+        self.reads_after_release = 0
+
+    async def read(self) -> UnifiedTelemetry:
+        self.reads += 1
+        if self.release.is_set():
+            self.reads_after_release += 1
+            raise AdapterReadError("released after the stop deadline")
+        if self.reads > self.park_after:
+            self.parked.set()
+            while not self.release.is_set():
+                try:
+                    await self.release.wait()
+                except asyncio.CancelledError:
+                    # Refusal to die is the property under test.
+                    continue
+        return self.telemetry_factory()
+
+
+async def test_stop_is_bounded_when_a_read_refuses_cancellation(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A stop on the reload path must return even when the poll task will not die.
+
+    ``DeviceRuntime.stop`` awaits the cancelled poll task, and cancellation is
+    cooperative. Without a deadline, one wedged read left the caller awaiting that
+    task forever, so a controlled reload deadlocked instead of failing. The runtime
+    must still report STOPPED and still release the adapter.
+    """
+
+    adapter = ParkedAdapter()
+    monkeypatch.setattr("app.gateway.runtime.create_adapter", lambda *args, **kwargs: adapter)
+    runtime = DeviceRuntime(
+        modbus_definition("MOTOR-001"),
+        sink=FakeSink(),
+        registration=FakeRegistration({"MOTOR-001"}),
+        policy=FAST,
+    )
+    try:
+        await runtime.start()
+        await wait_until(lambda: adapter.parked.is_set())
+
+        started = time.monotonic()
+        stopper = asyncio.create_task(runtime.stop())
+        done, _pending = await asyncio.wait({stopper}, timeout=STOP_TIMEOUT_SECONDS + 2.0)
+        elapsed = time.monotonic() - started
+
+        assert stopper in done, "stop must return instead of awaiting a wedged poll task"
+        await stopper
+        assert elapsed < STOP_TIMEOUT_SECONDS + 1.0
+        assert runtime.status().state is DeviceState.STOPPED
+        assert adapter.disconnect_calls == 1
+    finally:
+        # Release the parked read so the abandoned runtime exhausts its retries and
+        # ends, rather than being destroyed while still pending.
+        adapter.release.set()
+        await wait_until(lambda: adapter.reads_after_release >= 3)

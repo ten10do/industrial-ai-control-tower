@@ -15,6 +15,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import logging
+import time
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -36,6 +37,16 @@ SimulatorSourceFactory = Callable[[str], SimulatorSource]
 
 def _now() -> datetime:
     return datetime.now(UTC)
+
+
+STOP_TIMEOUT_SECONDS = 2.0
+"""Upper bound on how long ``DeviceRuntime.stop`` waits for a cancelled poll task.
+
+A protocol client can be parked inside an outstanding network read that is slow to
+observe cancellation. ``stop`` sits on the controlled-reload path, so an unbounded
+await there would deadlock the caller instead of reporting a failure. The bound keeps
+a reload finite; the abandoned task still ends once its adapter is released.
+"""
 
 
 @dataclass(frozen=True, slots=True)
@@ -131,13 +142,45 @@ class DeviceRuntime:
         self._task = asyncio.create_task(self._run(), name=f"gateway-{self.device_id}")
 
     async def stop(self) -> None:
-        """Stop this device gracefully and release its connection."""
+        """Stop this device gracefully and release its connection.
+
+        The wait for the cancelled poll task is bounded by ``STOP_TIMEOUT_SECONDS``.
+        Cancellation is cooperative, and a client parked in an outstanding read may
+        not observe it promptly, so awaiting the task without a deadline would let a
+        single wedged read stall a controlled reload or a gateway shutdown. When the
+        deadline expires the task is abandoned, the adapter is still released, and
+        the device still reports ``STOPPED``, so the caller makes progress and the
+        reason is recorded in the log.
+
+        The wait is skipped when the task has already finished, and also when it is
+        owned by a different event loop. Both cases arise under a request-scoped test
+        loop, and scheduling a callback on a loop that has been closed raises. The
+        adapter release below is what actually frees the connection in every case.
+        """
 
         task, self._task = self._task, None
         if task is not None:
             task.cancel()
-            with contextlib.suppress(asyncio.CancelledError):
-                await task
+            if task.done():
+                with contextlib.suppress(asyncio.CancelledError, Exception):
+                    task.result()
+            elif task.get_loop() is asyncio.get_running_loop():
+                done, _pending = await asyncio.wait({task}, timeout=STOP_TIMEOUT_SECONDS)
+                if task in done:
+                    with contextlib.suppress(asyncio.CancelledError, Exception):
+                        task.result()
+                else:
+                    logger.warning(
+                        "gateway_runtime_stop_deadline_exceeded",
+                        extra={
+                            "device_id": self.device_id,
+                            "timeout_seconds": STOP_TIMEOUT_SECONDS,
+                        },
+                    )
+            else:
+                logger.warning(
+                    "gateway_runtime_stop_cross_loop", extra={"device_id": self.device_id}
+                )
         adapter, self._adapter = self._adapter, None
         if adapter is not None:
             await self._teardown(adapter)
@@ -146,6 +189,34 @@ class DeviceRuntime:
         else:
             self._state = DeviceState.DISABLED
         self._message = None
+
+    async def wait_until_ready(self, timeout_seconds: float, poll_seconds: float = 0.05) -> bool:
+        """Wait until this runtime is provably usable, or the timeout expires.
+
+        Returns ``True`` when the runtime reached ``CONNECTED``. A device that is
+        disabled or that is not polled has no connection of its own, so it counts
+        as ready as soon as its state has been resolved. The bounded wait is what
+        lets a configuration change be proven healthy before it replaces a running
+        runtime.
+        """
+
+        if not self._definition.enabled or not self._definition.polled:
+            return True
+        deadline = time.monotonic() + max(timeout_seconds, 0.0)
+        while True:
+            state = self._current_state()
+            if state is DeviceState.CONNECTED:
+                return True
+            if state is DeviceState.ERROR:
+                return False
+            if time.monotonic() >= deadline:
+                return False
+            await asyncio.sleep(poll_seconds)
+
+    def last_failure_message(self) -> str | None:
+        """Return the most recent failure description, if any."""
+
+        return self._message
 
     def status(self) -> DeviceStatusRead:
         """Return a read-only status snapshot."""

@@ -35,6 +35,7 @@ class Device(TimestampMixin, Base):
     __table_args__ = (
         UniqueConstraint("device_id", name="uq_devices_device_id"),
         Index("ix_devices_device_id", "device_id"),
+        Index("ix_devices_asset_node_id", "asset_node_id"),
     )
 
     id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
@@ -43,6 +44,10 @@ class Device(TimestampMixin, Base):
     name: Mapped[str] = mapped_column(String(200), nullable=False)
     status: Mapped[str] = mapped_column(String(30), nullable=False, default="ACTIVE")
     device_metadata: Mapped[dict[str, Any]] = mapped_column("metadata", JSONB, default=dict)
+    asset_node_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("asset_nodes.id", ondelete="RESTRICT", name="fk_devices_asset_node_id"),
+        nullable=True,
+    )
 
 
 class Telemetry(Base):
@@ -231,7 +236,10 @@ class WorkflowRun(TimestampMixin, Base):
 
 class AuditEvent(Base):
     __tablename__ = "audit_events"
-    __table_args__ = (Index("ix_audit_timestamp", "timestamp"),)
+    __table_args__ = (
+        Index("ix_audit_timestamp", "timestamp"),
+        Index("ix_audit_events_resource_timestamp", "resource", "timestamp"),
+    )
     id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
     trace_id: Mapped[str] = mapped_column(String(100), nullable=False)
     actor: Mapped[str] = mapped_column(String(100), nullable=False)

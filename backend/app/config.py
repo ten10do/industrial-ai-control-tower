@@ -59,6 +59,10 @@ class Settings(BaseSettings):
     gateway_max_reconnect_attempts: int = 5
     gateway_backoff_initial_seconds: float = 1.0
     gateway_backoff_max_seconds: float = 30.0
+    # Phase 6.8. When enabled, a published database configuration is authoritative
+    # and the YAML file only bootstraps devices that have no published version.
+    config_management_enabled: bool = False
+    gateway_apply_timeout_seconds: float = 10.0
 
     @property
     def checkpoint_database_url(self) -> str:

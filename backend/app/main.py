@@ -3,6 +3,7 @@
 import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from datetime import UTC, datetime
 from typing import Any
 from uuid import uuid4
 
@@ -15,6 +16,8 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.api import (
     alarms,
+    assets,
+    configurations,
     connectivity,
     devices,
     diagnoses,
@@ -24,12 +27,18 @@ from app.api import (
     websockets,
     workflows,
 )
+from app.assetconfig.apply import GatewayDefinitionApplier, UnavailableApplier
+from app.assetconfig.errors import AssetConfigError
+from app.assetconfig.models import ApplyStatus, ConfigurationSource
+from app.assetconfig.repository import ConfigurationRepository
+from app.assetconfig.source import resolve_definitions
 from app.config import get_settings
 from app.core.context import trace_id_context
 from app.core.errors import AppError
 from app.core.logging import configure_logging
 from app.gateway import (
     DeviceRegistrationChecker,
+    DeviceRegistry,
     GatewayConfigurationError,
     GatewayIngestionSink,
     IndustrialProtocolGateway,
@@ -52,11 +61,97 @@ configure_logging(settings.log_level)
 logger = logging.getLogger(__name__)
 
 
-def _error_response(code: str, message: str, trace_id: str, status_code: int) -> JSONResponse:
-    return JSONResponse(
-        status_code=status_code,
-        content={"error": {"code": code, "message": message, "trace_id": trace_id}},
+def _error_response(
+    code: str,
+    message: str,
+    trace_id: str,
+    status_code: int,
+    details: dict[str, Any] | None = None,
+) -> JSONResponse:
+    error: dict[str, Any] = {"code": code, "message": message, "trace_id": trace_id}
+    if details:
+        error["details"] = details
+    return JSONResponse(status_code=status_code, content={"error": error})
+
+
+async def _build_managed_gateway(
+    *,
+    sessions: Any,
+    policy: RetryPolicy,
+    sink: GatewayIngestionSink,
+    registration: DeviceRegistrationChecker,
+    simulator_source: Any,
+    mqtt_connected: Any,
+) -> IndustrialProtocolGateway:
+    """Build the gateway from published database configurations.
+
+    Published configurations are authoritative. The YAML file only fills devices
+    that have no published version, so a restart can never fall back to a stale
+    file for a device that has a managed configuration.
+
+    Startup order preserves the Phase 6.7 reliability semantics: every runtime is
+    started first, so the bounded retry machinery keeps working, and readiness is
+    then recorded per device without tearing any runtime down.
+    """
+
+    resolved = await resolve_definitions(
+        sessions=sessions,
+        yaml_path=settings.gateway_config_path,
+        managed=True,
+        on_error=lambda message: logger.error(
+            "configuration_source_error", extra={"detail": message}
+        ),
     )
+    registry = DeviceRegistry()
+    if resolved:
+        registry.load([item.definition for item in resolved])
+    gateway = IndustrialProtocolGateway(
+        registry=registry,
+        sink=sink,
+        registration=registration,
+        enabled=True,
+        config_file=f"configuration-management ({len(resolved)} device(s))",
+        policy=policy,
+        simulator_source_factory=simulator_source,
+        mqtt_connected=mqtt_connected,
+    )
+    await gateway.start()
+    timeout = settings.gateway_apply_timeout_seconds
+    async with sessions() as session:
+        repository = ConfigurationRepository(session)
+        for item in resolved:
+            if item.source is ConfigurationSource.DATABASE:
+                result = await gateway.confirm_ready(
+                    item.device_id, version=item.version, timeout_seconds=timeout
+                )
+                apply_status = ApplyStatus.APPLIED if result.applied else ApplyStatus.FAILED
+            else:
+                result = None
+                apply_status = ApplyStatus.PENDING
+            await repository.upsert_runtime_status(
+                device_id=item.device_id,
+                desired_version=item.version,
+                applied_version=item.version if (result and result.applied) else None,
+                apply_status=apply_status,
+                source=item.source,
+                last_apply_at=datetime.now(UTC),
+                last_apply_error=result.error if result is not None else None,
+            )
+        await session.commit()
+    gateway.mark_loaded()
+    logger.info(
+        "gateway_managed_configuration_loaded",
+        extra={
+            "device_count": len(resolved),
+            "managed_device_count": sum(
+                1 for item in resolved if item.source is ConfigurationSource.DATABASE
+            ),
+            "bootstrap_device_count": sum(
+                1 for item in resolved if item.source is ConfigurationSource.BOOTSTRAP
+            ),
+        },
+    )
+    return gateway
 
 
 @asynccontextmanager
@@ -149,26 +244,43 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     gateway: IndustrialProtocolGateway | None = None
     gateway_error: str | None = None
     if settings.gateway_enabled:
-        try:
-            gateway = IndustrialProtocolGateway.from_config_file(
-                settings.gateway_config_path,
-                sink=GatewayIngestionSink(
-                    database.sessions, redis, websocket_manager, counters, diagnosis
-                ),
-                registration=DeviceRegistrationChecker(database.sessions),
-                policy=RetryPolicy(
-                    failure_threshold=settings.gateway_failure_threshold,
-                    reconnect_threshold=settings.gateway_reconnect_threshold,
-                    max_reconnect_attempts=settings.gateway_max_reconnect_attempts,
-                    backoff_initial_seconds=settings.gateway_backoff_initial_seconds,
-                    backoff_max_seconds=settings.gateway_backoff_max_seconds,
-                ),
-                simulator_source_factory=build_simulator_source_factory(),
+        policy = RetryPolicy(
+            failure_threshold=settings.gateway_failure_threshold,
+            reconnect_threshold=settings.gateway_reconnect_threshold,
+            max_reconnect_attempts=settings.gateway_max_reconnect_attempts,
+            backoff_initial_seconds=settings.gateway_backoff_initial_seconds,
+            backoff_max_seconds=settings.gateway_backoff_max_seconds,
+        )
+        sink = GatewayIngestionSink(
+            database.sessions, redis, websocket_manager, counters, diagnosis
+        )
+        registration = DeviceRegistrationChecker(database.sessions)
+        simulator_source = build_simulator_source_factory()
+        if settings.config_management_enabled:
+            gateway = await _build_managed_gateway(
+                sessions=database.sessions,
+                policy=policy,
+                sink=sink,
+                registration=registration,
+                simulator_source=simulator_source,
                 mqtt_connected=lambda: mqtt.connected,
             )
-        except GatewayConfigurationError as exc:
-            gateway_error = str(exc)
-            logger.error("gateway_unavailable", extra={"error": gateway_error})
+        else:
+            try:
+                gateway = IndustrialProtocolGateway.from_config_file(
+                    settings.gateway_config_path,
+                    sink=sink,
+                    registration=registration,
+                    policy=policy,
+                    simulator_source_factory=simulator_source,
+                    mqtt_connected=lambda: mqtt.connected,
+                )
+            except GatewayConfigurationError as exc:
+                gateway_error = str(exc)
+                logger.error("gateway_unavailable", extra={"error": gateway_error})
+    app.state.configuration_applier = (
+        GatewayDefinitionApplier(gateway) if gateway is not None else UnavailableApplier()
+    )
     app.state.database = database
     app.state.redis = redis
     app.state.websocket_manager = websocket_manager
@@ -185,7 +297,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     app.state.gateway_error = gateway_error
     if settings.mqtt_enabled:
         mqtt.start()
-    if gateway is not None:
+    if gateway is not None and not settings.config_management_enabled:
         await gateway.start()
     try:
         yield
@@ -217,6 +329,10 @@ app.include_router(observability.router, prefix="/api/v1")
 app.include_router(observability.router, prefix="/api")
 app.include_router(connectivity.router, prefix="/api/v1")
 app.include_router(connectivity.router, prefix="/api")
+app.include_router(assets.router, prefix="/api/v1")
+app.include_router(assets.router, prefix="/api")
+app.include_router(configurations.router, prefix="/api/v1")
+app.include_router(configurations.router, prefix="/api")
 app.include_router(websockets.router)
 
 
@@ -234,7 +350,16 @@ async def correlation_middleware(request: Request, call_next: Any) -> Any:
 
 @app.exception_handler(AppError)
 async def app_error_handler(request: Request, exc: AppError) -> JSONResponse:
-    return _error_response(exc.code, exc.message, trace_id_context.get(), exc.status_code)
+    return _error_response(
+        exc.code, exc.message, trace_id_context.get(), exc.status_code, exc.details
+    )
+
+
+@app.exception_handler(AssetConfigError)
+async def asset_config_error_handler(request: Request, exc: AssetConfigError) -> JSONResponse:
+    return _error_response(
+        exc.code, exc.message, trace_id_context.get(), exc.status_code, exc.details
+    )
 
 
 @app.exception_handler(RequestValidationError)
@@ -296,6 +421,7 @@ async def ready(request: Request) -> JSONResponse:
     else:
         dependencies["workflow"] = "disabled"
     dependencies["observability"] = "enabled" if settings.observability_enabled else "disabled"
+    dependencies["configuration"] = "enabled" if settings.config_management_enabled else "disabled"
     if settings.gateway_enabled:
         dependencies["connectivity"] = (
             "available" if request.app.state.gateway is not None else "unavailable"
