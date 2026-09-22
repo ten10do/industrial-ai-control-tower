@@ -1,0 +1,33 @@
+# Frontend build context exclusions.
+#
+# Docker reads .dockerignore only from the build context root. The frontend
+# image is built with the frontend/ directory as its context, so this file
+# governs it. Before this file existed the root .dockerignore was silently
+# ignored for that build, and the whole working tree was sent as context,
+# including host build artifacts that can mask a broken build.
+
+# Dependencies are installed inside the image by `npm ci`.
+node_modules
+
+# Build output, recreated inside the image by `npm run build`.
+dist
+
+# Vite/Vitest caches.
+.vite
+
+# TypeScript incremental build cache. A stale cache makes `tsc -b` consider the
+# project up to date and skip the type check, which hides real type errors and
+# was the mechanism behind a CI failure that appeared green locally.
+*.tsbuildinfo
+
+# Files emitted next to the source by the composite `tsconfig.node.json` build.
+# Vite resolves vite.config.js before vite.config.ts, so a stale emitted sibling
+# would silently take precedence over the real configuration. The TypeScript
+# source (vite.config.ts) is intentionally kept.
+vite.config.js
+vite.config.d.ts
+
+# Local logs.
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
