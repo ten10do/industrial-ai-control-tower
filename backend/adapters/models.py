@@ -73,3 +73,5 @@ class AdapterHealth(BaseModel):
     last_error: datetime | None = None
     message: str | None = None
     endpoint: str | None = None
+    host: str | None = None
+    port: int | None = None

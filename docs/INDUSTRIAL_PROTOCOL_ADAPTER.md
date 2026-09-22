@@ -7,8 +7,9 @@ and failure modes. Passing those details directly into diagnosis and workflow se
 the AI pipeline to every device protocol. The adapter foundation defines one boundary where a
 protocol-specific sample becomes validated `UnifiedTelemetry`.
 
-Phase 6.5-A added the abstraction and Simulator implementation. Phase 6.5-B adds a read-only OPC UA
-simulation adapter. The existing MQTT ingestion path remains unchanged:
+Phase 6.5-A added the abstraction and Simulator implementation. Phase 6.5-B added a read-only OPC UA
+simulation adapter, and Phase 6.5-C adds a read-only Modbus TCP simulation adapter. The existing
+MQTT ingestion path remains unchanged:
 
 ```text
 Simulator -> MQTT -> Backend ingestion -> Existing AI pipeline
@@ -36,7 +37,7 @@ ingestion contract; Phase 6.5-A does not reroute live traffic.
 | Simulator | Implemented |
 | MQTT | Existing ingestion path |
 | OPC UA | Read-only simulator adapter |
-| Modbus TCP | Planned |
+| Modbus TCP | Read-only simulator adapter |
 
 `ProtocolType` reserves identifiers for all four protocols. A reserved identifier means the schema
 can describe the source; it does not claim that a connection driver exists.
@@ -108,3 +109,7 @@ or change runtime configuration.
 [`configs/opcua_devices.example.yaml`](../configs/opcua_devices.example.yaml) documents a
 credential-free OPC UA endpoint and NodeId mapping. It is also an example: callers pass the parsed
 values into the registry, and no second configuration loader is introduced.
+
+[`configs/modbus_devices.example.yaml`](../configs/modbus_devices.example.yaml) documents a
+credential-free Modbus TCP endpoint and holding-register mapping. The same registry construction
+boundary applies; the example does not introduce another runtime configuration system.

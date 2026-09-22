@@ -70,7 +70,7 @@ It must not be interpreted as authorization to control a PLC or physical device.
 | Simulator | PASS |
 | MQTT | PASS (existing ingestion path) |
 | OPC UA | PASS (read-only simulation) |
-| Modbus TCP | Planned |
+| Modbus TCP | PASS (read-only simulation) |
 
 ## Local Test Usage
 

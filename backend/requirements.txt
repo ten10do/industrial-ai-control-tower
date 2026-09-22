@@ -8,6 +8,7 @@ alembic>=1.13.1
 redis>=5.0.4
 aiomqtt>=2.3.0
 asyncua==2.0.1
+pymodbus==3.15.0
 numpy==2.2.6
 scikit-learn==1.6.1
 joblib==1.4.2

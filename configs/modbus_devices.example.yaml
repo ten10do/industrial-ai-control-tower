@@ -1,0 +1,27 @@
+devices:
+  - id: MOTOR-001
+    protocol: modbus_tcp
+    endpoint:
+      host: localhost
+      port: 5020
+    registers:
+      temperature:
+        address: 40001
+        scale: 0.1
+        unit: celsius
+      current:
+        address: 40002
+        scale: 0.01
+        unit: ampere
+      vibration:
+        address: 40003
+        scale: 0.01
+        unit: mm_s
+      rpm:
+        address: 40004
+        scale: 1
+        unit: rpm
+      load:
+        address: 40005
+        scale: 0.1
+        unit: percent

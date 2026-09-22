@@ -7,6 +7,7 @@ from adapters.exceptions import (
     AdapterError,
     AdapterReadError,
 )
+from adapters.modbus_adapter import ModbusTcpAdapter
 from adapters.models import (
     AdapterHealth,
     AdapterStatus,
@@ -20,6 +21,7 @@ from adapters.simulator_adapter import SimulatorAdapter
 
 registry.register(ProtocolType.SIMULATOR, SimulatorAdapter)
 registry.register(ProtocolType.OPC_UA, OpcUaAdapter)
+registry.register(ProtocolType.MODBUS_TCP, ModbusTcpAdapter)
 
 __all__ = [
     "AdapterConfigurationError",
@@ -30,6 +32,7 @@ __all__ = [
     "AdapterRegistry",
     "AdapterStatus",
     "IndustrialProtocolAdapter",
+    "ModbusTcpAdapter",
     "OpcUaAdapter",
     "ProtocolType",
     "SignalQuality",
