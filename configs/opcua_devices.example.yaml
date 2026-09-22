@@ -1,0 +1,15 @@
+devices:
+  - id: MOTOR-001
+    protocol: opc_ua
+    endpoint: opc.tcp://localhost:4840/industrial-ai/
+    nodes:
+      temperature:
+        node_id: ns=2;s=MOTOR-001/Temperature
+      vibration:
+        node_id: ns=2;s=MOTOR-001/Vibration
+      current:
+        node_id: ns=2;s=MOTOR-001/Current
+      rpm:
+        node_id: ns=2;s=MOTOR-001/RPM
+      load:
+        node_id: ns=2;s=MOTOR-001/Load

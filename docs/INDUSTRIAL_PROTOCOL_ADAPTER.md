@@ -7,14 +7,14 @@ and failure modes. Passing those details directly into diagnosis and workflow se
 the AI pipeline to every device protocol. The adapter foundation defines one boundary where a
 protocol-specific sample becomes validated `UnifiedTelemetry`.
 
-Phase 6.5-A adds the abstraction and the Simulator implementation only. The existing production
-path remains unchanged:
+Phase 6.5-A added the abstraction and Simulator implementation. Phase 6.5-B adds a read-only OPC UA
+simulation adapter. The existing MQTT ingestion path remains unchanged:
 
 ```text
 Simulator -> MQTT -> Backend ingestion -> Existing AI pipeline
 ```
 
-MQTT, OPC UA, and Modbus TCP connection adapters are not implemented in this phase.
+The OPC UA path is an isolated development and test integration; it does not reroute live traffic.
 
 ## Architecture
 
@@ -34,8 +34,8 @@ ingestion contract; Phase 6.5-A does not reroute live traffic.
 | Protocol | Status |
 |---|---|
 | Simulator | Implemented |
-| MQTT | Planned |
-| OPC UA | Planned |
+| MQTT | Existing ingestion path |
+| OPC UA | Read-only simulator adapter |
 | Modbus TCP | Planned |
 
 `ProtocolType` reserves identifiers for all four protocols. A reserved identifier means the schema
@@ -76,10 +76,11 @@ so adding a future protocol does not require an `if protocol == ...` dispatch ch
 
 ```python
 registry.register(ProtocolType.OPC_UA, OpcUaAdapter)
-adapter = create_adapter("opcua", **configuration)
+adapter = create_adapter("opc_ua", **configuration)
 ```
 
-The example is illustrative; `OpcUaAdapter` is not part of Phase 6.5-A.
+`OpcUaAdapter` accepts its endpoint and node mapping through configuration. See the
+[OPC UA Adapter](OPC_UA_ADAPTER.md) guide for the implemented mapping and security boundary.
 
 ## Design Principles
 
@@ -103,3 +104,7 @@ protocols, and invalid construction parameters with `AdapterConfigurationError`.
 [`configs/devices.example.yaml`](../configs/devices.example.yaml) documents a credential-free
 Simulator device and its signal units. It is an example only; Phase 6.5-A does not add a YAML loader
 or change runtime configuration.
+
+[`configs/opcua_devices.example.yaml`](../configs/opcua_devices.example.yaml) documents a
+credential-free OPC UA endpoint and NodeId mapping. It is also an example: callers pass the parsed
+values into the registry, and no second configuration loader is introduced.

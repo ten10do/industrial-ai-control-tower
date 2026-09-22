@@ -20,7 +20,7 @@ class ProtocolType(StrEnum):
     """Protocols understood by the adapter foundation."""
 
     MQTT = "mqtt"
-    OPC_UA = "opcua"
+    OPC_UA = "opc_ua"
     MODBUS_TCP = "modbus_tcp"
     SIMULATOR = "simulator"
 
@@ -72,3 +72,4 @@ class AdapterHealth(BaseModel):
     last_success: datetime | None = None
     last_error: datetime | None = None
     message: str | None = None
+    endpoint: str | None = None

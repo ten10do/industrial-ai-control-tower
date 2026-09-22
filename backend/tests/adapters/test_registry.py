@@ -66,7 +66,7 @@ def test_registry_uses_configuration_errors() -> None:
         raise AssertionError("duplicate registration must fail")
 
     try:
-        local_registry.create("opcua")
+        local_registry.create("modbus_tcp")
     except AdapterConfigurationError:
         pass
     else:

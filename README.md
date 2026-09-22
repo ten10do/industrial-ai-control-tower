@@ -33,8 +33,12 @@ classification, retrieves cited maintenance evidence, and runs a typed LangGraph
 deterministic safety policy—not an LLM—controls whether a plan is blocked, allowed, or held for a
 human decision. The React Control Tower exposes the complete lifecycle over REST and WebSocket.
 
-The platform includes an extensible industrial protocol adapter layer for future MQTT, OPC UA and
-Modbus integration.
+The platform provides an extensible adapter architecture with OPC UA simulation support.
+
+Industrial protocol adapters:
+
+- MQTT (existing ingestion path)
+- OPC UA (read-only simulator adapter)
 
 ## Architecture
 
@@ -233,6 +237,8 @@ industrial-ai-control-tower/
 | [Knowledge RAG](docs/KNOWLEDGE_RAG.md) | Retrieval, citations, sufficiency, and failure contracts |
 | [Multi-Agent Architecture](docs/MULTI_AGENT_ARCHITECTURE.md) | Typed workflow, checkpoints, agents, provider boundary |
 | [Human Approval](docs/HUMAN_APPROVAL.md) | Interrupt/resume, identity, concurrency, exactly-once behavior |
+| [Industrial Protocol Adapters](docs/INDUSTRIAL_PROTOCOL_ADAPTER.md) | Unified telemetry contract and protocol extension boundary |
+| [OPC UA Adapter](docs/OPC_UA_ADAPTER.md) | Read-only simulator, node mapping, health, and security boundary |
 | [Evaluation Reports](docs/evaluation/) | ML, RAG, agent, blind-set, and error-analysis evidence |
 | [ADRs](docs/adr/) | Architecture decisions and trade-offs |
 

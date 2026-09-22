@@ -14,10 +14,12 @@ from adapters.models import (
     SignalQuality,
     UnifiedTelemetry,
 )
+from adapters.opcua_adapter import OpcUaAdapter
 from adapters.registry import AdapterRegistry, create_adapter, registry
 from adapters.simulator_adapter import SimulatorAdapter
 
 registry.register(ProtocolType.SIMULATOR, SimulatorAdapter)
+registry.register(ProtocolType.OPC_UA, OpcUaAdapter)
 
 __all__ = [
     "AdapterConfigurationError",
@@ -28,6 +30,7 @@ __all__ = [
     "AdapterRegistry",
     "AdapterStatus",
     "IndustrialProtocolAdapter",
+    "OpcUaAdapter",
     "ProtocolType",
     "SignalQuality",
     "SimulatorAdapter",

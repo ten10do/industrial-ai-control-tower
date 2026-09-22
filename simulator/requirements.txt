@@ -1,3 +1,4 @@
 pydantic>=2.7.0
 pydantic-settings>=2.2.0
 paho-mqtt>=2.0.0
+asyncua==2.0.1
