@@ -320,7 +320,13 @@ export type ObservabilityMetrics = {
 }
 
 export type ApiErrorPayload = {
-  error?: { code?: string; message?: string; trace_id?: string }
+  error?: {
+    code?: string
+    message?: string
+    trace_id?: string
+    /** Structured failure detail, currently used to carry validation issues. */
+    details?: { errors?: ValidationIssue[] }
+  }
   status?: string
   dependencies?: Record<string, string>
 }
@@ -355,4 +361,118 @@ export type ConnectivitySummary = {
   states: Record<string, number>
   total_samples_ingested: number
   total_samples_rejected: number
+}
+
+/**
+ * Asset hierarchy and versioned device configuration.
+ *
+ * Device identity is not duplicated here: `device_id` refers to the existing device
+ * registry. Only location, versioned configuration, and runtime apply state are
+ * represented, and desired and applied versions are separate fields on purpose.
+ */
+
+export type AssetType = 'SITE' | 'LINE'
+
+export type AssetNode = {
+  id: string
+  name: string
+  asset_type: string
+  parent_id: string | null
+  description: string
+  metadata: Record<string, unknown>
+  device_count: number
+  created_at: string
+  updated_at: string
+}
+
+/** A device registry row enriched with its configuration and apply state. */
+export type DeviceConfigurationState = {
+  device_id: string
+  name: string
+  device_type: string
+  status: string
+  asset_node_id: string | null
+  metadata: Record<string, unknown>
+  protocol: string | null
+  published_version: number | null
+  applied_version: number | null
+  apply_status: string
+  in_sync: boolean
+}
+
+export type AssetTreeNode = {
+  id: string
+  name: string
+  asset_type: string
+  parent_id: string | null
+  description: string
+  devices: DeviceConfigurationState[]
+  children: AssetTreeNode[]
+}
+
+export type AssetTree = {
+  sites: AssetTreeNode[]
+  unassigned_devices: DeviceConfigurationState[]
+}
+
+export type ValidationIssue = {
+  field: string
+  code: string
+  message: string
+}
+
+export type ValidationResult = {
+  valid: boolean
+  errors: ValidationIssue[]
+  checked_at: string | null
+}
+
+export type ConfigurationSummary = {
+  version: number
+  status: string
+  protocol: string
+  created_by: string
+  created_at: string
+  validated_at: string | null
+  published_at: string | null
+  archived_at: string | null
+}
+
+export type ConfigurationDetail = ConfigurationSummary & {
+  id: string
+  device_id: string
+  configuration: Record<string, unknown>
+  validation_result: Record<string, unknown>
+  validation_error: string | null
+  updated_at: string
+}
+
+/** Desired versus applied configuration. `in_sync` is false whenever they differ. */
+export type ConfigurationStatus = {
+  device_id: string
+  desired_version: number | null
+  applied_version: number | null
+  apply_status: string
+  source: string
+  last_apply_at: string | null
+  last_apply_error: string | null
+  in_sync: boolean
+  protocol: string | null
+  runtime_state: string | null
+}
+
+export type ConfigurationAuditEvent = {
+  event_id: string
+  device_id: string
+  event_type: string
+  config_version: number | null
+  timestamp: string
+  actor: string
+  status: string
+  summary: string
+}
+
+export type PublishResult = {
+  configuration: ConfigurationDetail
+  status: ConfigurationStatus
 }

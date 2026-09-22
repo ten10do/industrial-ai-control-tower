@@ -2,6 +2,12 @@ import type {
   Alarm,
   ApiErrorPayload,
   Approval,
+  AssetNode,
+  AssetTree,
+  ConfigurationAuditEvent,
+  ConfigurationDetail,
+  ConfigurationStatus,
+  ConfigurationSummary,
   ConnectivityDevice,
   ConnectivitySummary,
   Device,
@@ -12,8 +18,10 @@ import type {
   ObservabilityMetrics,
   ObservabilityRun,
   ObservabilityRunTrace,
+  PublishResult,
   ReadyStatus,
   Telemetry,
+  ValidationResult,
   Workflow,
   WorkflowSummary,
   WorkflowTrace,
@@ -106,6 +114,87 @@ export const api = {
     request<ConnectivityDevice>(`/api/v1/connectivity/devices/${encodeURIComponent(id)}/stop`, {
       method: 'POST',
     }),
+  assetTree: () => request<AssetTree>('/api/v1/assets/tree'),
+  assets: () => request<AssetNode[]>('/api/v1/assets'),
+  createAsset: (payload: { name: string; asset_type: string; parent_id?: string | null }) =>
+    request<AssetNode>('/api/v1/assets', { method: 'POST', body: JSON.stringify(payload) }),
+  deleteAsset: (assetId: string) =>
+    request<void>(`/api/v1/assets/${encodeURIComponent(assetId)}`, { method: 'DELETE' }),
+  attachDevice: (assetId: string, deviceId: string) =>
+    request<void>(
+      `/api/v1/assets/${encodeURIComponent(assetId)}/devices/${encodeURIComponent(deviceId)}`,
+      { method: 'PUT' },
+    ),
+  detachDevice: (assetId: string, deviceId: string) =>
+    request<void>(
+      `/api/v1/assets/${encodeURIComponent(assetId)}/devices/${encodeURIComponent(deviceId)}`,
+      { method: 'DELETE' },
+    ),
+  deviceConfigurations: (deviceId: string) =>
+    request<ConfigurationSummary[]>(
+      `/api/v1/devices/${encodeURIComponent(deviceId)}/configurations`,
+    ),
+  deviceConfiguration: (deviceId: string, version: number) =>
+    request<ConfigurationDetail>(
+      `/api/v1/devices/${encodeURIComponent(deviceId)}/configurations/${version}`,
+    ),
+  createDeviceConfiguration: (deviceId: string, payload: Record<string, unknown>, actor: string) =>
+    request<ConfigurationDetail>(
+      `/api/v1/devices/${encodeURIComponent(deviceId)}/configurations`,
+      { method: 'POST', body: JSON.stringify(payload), headers: actorHeader(actor) },
+    ),
+  updateDeviceConfiguration: (
+    deviceId: string,
+    version: number,
+    payload: Record<string, unknown>,
+    actor: string,
+  ) =>
+    request<ConfigurationDetail>(
+      `/api/v1/devices/${encodeURIComponent(deviceId)}/configurations/${version}`,
+      { method: 'PATCH', body: JSON.stringify(payload), headers: actorHeader(actor) },
+    ),
+  deleteDeviceConfiguration: (deviceId: string, version: number) =>
+    request<void>(
+      `/api/v1/devices/${encodeURIComponent(deviceId)}/configurations/${version}`,
+      { method: 'DELETE' },
+    ),
+  validateDeviceConfiguration: (deviceId: string, version: number) =>
+    request<ValidationResult>(
+      `/api/v1/devices/${encodeURIComponent(deviceId)}/configurations/${version}/validate`,
+      { method: 'POST' },
+    ),
+  cloneDeviceConfiguration: (deviceId: string, version: number, actor: string) =>
+    request<ConfigurationDetail>(
+      `/api/v1/devices/${encodeURIComponent(deviceId)}/configurations/${version}/clone`,
+      { method: 'POST', headers: actorHeader(actor) },
+    ),
+  publishDeviceConfiguration: (deviceId: string, version: number, actor: string) =>
+    request<PublishResult>(
+      `/api/v1/devices/${encodeURIComponent(deviceId)}/configurations/${version}/publish`,
+      { method: 'POST', headers: actorHeader(actor) },
+    ),
+  configurationStatus: (deviceId: string) =>
+    request<ConfigurationStatus>(
+      `/api/v1/devices/${encodeURIComponent(deviceId)}/configuration-status`,
+    ),
+  applyConfiguration: (deviceId: string, actor: string) =>
+    request<ConfigurationStatus>(
+      `/api/v1/devices/${encodeURIComponent(deviceId)}/configuration-status/apply`,
+      { method: 'POST', headers: actorHeader(actor) },
+    ),
+  configurationAudit: (deviceId: string) =>
+    request<ConfigurationAuditEvent[]>(
+      `/api/v1/devices/${encodeURIComponent(deviceId)}/configuration-audit?limit=100`,
+    ),
+}
+
+/**
+ * Descriptive actor metadata only. The backend treats this as a label, never as
+ * authentication, and an absent header defaults to `system`.
+ */
+function actorHeader(actor: string): Record<string, string> {
+  const trimmed = actor.trim()
+  return trimmed ? { 'X-Actor': trimmed } : {}
 }
 
 export function websocketUrl(deviceId: string): string {

@@ -11,6 +11,7 @@ import type {
   SensorEvidence,
   Telemetry,
   TokenUsage,
+  ValidationIssue,
   Workflow,
 } from './types'
 
@@ -255,6 +256,35 @@ export function AgentStepTrack({ steps }: { steps: AgentStep[] }) {
 
 export function KeyValue({ label, value }: { label: string; value: ReactNode }) {
   return <div className="key-value"><span>{label}</span><strong>{value}</strong></div>
+}
+
+/**
+ * Structured validation failures, rendered field by field.
+ *
+ * A rejected configuration is never reduced to a single sentence: the operator needs
+ * to know which field failed, under which code, and why.
+ */
+export function ValidationIssueList({ issues }: { issues: ValidationIssue[] }) {
+  if (!issues.length) return null
+  return (
+    <div className="validation-issues" role="alert">
+      <strong>{issues.length} validation issue{issues.length === 1 ? '' : 's'}</strong>
+      <ul>
+        {issues.map((issue, index) => (
+          <li key={`${issue.field}-${issue.code}-${index}`}>
+            <code>{issue.code}</code>
+            <span>{issue.field}</span>
+            <p>{issue.message}</p>
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+
+/** Extract structured validation issues from a failed request, if it carried any. */
+export function validationIssues(error: unknown): ValidationIssue[] {
+  return error instanceof ApiError ? error.details?.error?.details?.errors ?? [] : []
 }
 
 export function TagList({ values }: { values: string[] }) {

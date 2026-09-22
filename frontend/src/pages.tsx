@@ -19,9 +19,21 @@ import {
   StatusBadge,
   TagList,
   TelemetryChart,
+  ValidationIssueList,
+  validationIssues,
   WorkflowPanel,
 } from './components'
-import type { Approval, ConnectivityDevice, Device, ObservabilityRun } from './types'
+import type {
+  Approval,
+  AssetNode,
+  AssetTreeNode,
+  AssetType,
+  ConnectivityDevice,
+  Device,
+  DeviceConfigurationState,
+  ObservabilityRun,
+  ValidationIssue,
+} from './types'
 import { useTelemetryStream } from './useTelemetryStream'
 
 const activeIncident = (status: string) => !['WORK_ORDER_CREATED', 'REJECTED', 'CANCELLED'].includes(status)
@@ -297,4 +309,287 @@ export function ConnectivityPage() {
 
 export function NotFoundPage() {
   return <section className="fatal-error"><p className="eyebrow">404</p><h1>Resource not found</h1><p>The requested Control Tower route or resource does not exist.</p><Link to="/">Return to overview</Link></section>
+}
+
+function AssetDeviceRow({ device, selected, onSelect }: { device: DeviceConfigurationState; selected: boolean; onSelect: (deviceId: string) => void }) {
+  const desired = device.published_version
+  return <button className={`asset-device${selected ? ' is-selected' : ''}`} type="button" aria-pressed={selected} onClick={() => onSelect(device.device_id)}>
+    <span><strong>{device.device_id}</strong><small>{device.name}</small></span>
+    <span className="asset-device-state">
+      <StatusBadge value={desired == null ? 'NOT CONFIGURED' : device.apply_status} />
+      <small>{desired == null ? 'No published configuration' : `desired v${desired} · applied ${device.applied_version == null ? 'none' : `v${device.applied_version}`}`}</small>
+    </span>
+  </button>
+}
+
+function AssetNodeView({ node, depth, selectedDeviceId, onSelectDevice }: { node: AssetTreeNode; depth: number; selectedDeviceId: string | null; onSelectDevice: (deviceId: string) => void }) {
+  return <div className="asset-node" data-depth={depth}>
+    <div className="asset-node-head"><StatusBadge value={node.asset_type} /><strong>{node.name}</strong><small>{node.devices.length} device{node.devices.length === 1 ? '' : 's'}</small></div>
+    {node.description && <p className="asset-node-note">{node.description}</p>}
+    {node.devices.map((device) => <AssetDeviceRow key={device.device_id} device={device} selected={device.device_id === selectedDeviceId} onSelect={onSelectDevice} />)}
+    {node.children.map((child) => <AssetNodeView key={child.id} node={child} depth={depth + 1} selectedDeviceId={selectedDeviceId} onSelectDevice={onSelectDevice} />)}
+  </div>
+}
+
+function AssetCreateForm({ sites, onCreated }: { sites: AssetNode[]; onCreated: () => Promise<void> }) {
+  const [name, setName] = useState('')
+  const [assetType, setAssetType] = useState<AssetType>('SITE')
+  const [parentId, setParentId] = useState('')
+  const create = useMutation({
+    mutationFn: () => api.createAsset({ name: name.trim(), asset_type: assetType, parent_id: assetType === 'LINE' ? parentId || null : null }),
+    onSuccess: async () => { setName(''); setParentId(''); await onCreated() },
+  })
+  return <section className="panel asset-create">
+    <div className="panel-heading"><div><p className="eyebrow">Asset hierarchy</p><h2>Add a location</h2></div></div>
+    <form onSubmit={(event) => { event.preventDefault(); if (name.trim()) create.mutate() }}>
+      <label>Name<input value={name} onChange={(event) => setName(event.target.value)} placeholder="Plant A or Line 1" /></label>
+      <label>Type<select value={assetType} onChange={(event) => setAssetType(event.target.value as AssetType)}><option value="SITE">SITE</option><option value="LINE">LINE</option></select></label>
+      {assetType === 'LINE' && <label>Parent site<select value={parentId} onChange={(event) => setParentId(event.target.value)}><option value="">Select a site</option>{sites.map((site) => <option key={site.id} value={site.id}>{site.name}</option>)}</select></label>}
+      <button className="button-primary" type="submit" disabled={create.isPending || !name.trim()}>Add {assetType === 'SITE' ? 'site' : 'line'}</button>
+    </form>
+    {create.error && <ApiErrorPanel error={create.error} title="Location was not created" />}
+  </section>
+}
+
+type DriftTextArgs = { desired: number | null; applied: number | null; applyStatus: string; error: string | null }
+
+function driftText({ desired, applied, applyStatus, error }: DriftTextArgs) {
+  if (desired == null) return 'No version is published for this device, so the runtime has nothing to converge on.'
+  const running = applied == null ? 'no version' : `v${applied}`
+  if (applyStatus === 'FAILED') return `v${desired} is published but the runtime is running ${running}. ${error || 'The runtime rejected the configuration.'}`
+  if (applyStatus === 'APPLYING') return `v${desired} is being applied. The runtime still reports ${running} until the attempt settles.`
+  if (applyStatus === 'PENDING') return `v${desired} is published and has not been applied in this process. ${error || ''}`.trim()
+  return `v${desired} is published and the runtime reports ${running}.`
+}
+
+function DeviceConfigurationPanel({ deviceId, attachedNodeId, lines, onChanged }: { deviceId: string; attachedNodeId: string | null; lines: AssetNode[]; onChanged: () => Promise<void> }) {
+  const queryClient = useQueryClient()
+  const [actor, setActor] = useState('control-tower-operator')
+  const [selectedVersion, setSelectedVersion] = useState<number | null>(null)
+  const [editor, setEditor] = useState<string | null>(null)
+  const [payloadError, setPayloadError] = useState('')
+  const [notice, setNotice] = useState('')
+  const [attachTarget, setAttachTarget] = useState('')
+
+  const configurations = useQuery({ queryKey: ['configurations', deviceId], queryFn: () => api.deviceConfigurations(deviceId), refetchInterval: 15_000 })
+  const status = useQuery({ queryKey: ['configuration-status', deviceId], queryFn: () => api.configurationStatus(deviceId), refetchInterval: 15_000 })
+  const audit = useQuery({ queryKey: ['configuration-audit', deviceId], queryFn: () => api.configurationAudit(deviceId), refetchInterval: 15_000 })
+
+  const rows = configurations.data ?? []
+  const draft = rows.find((row) => row.status === 'DRAFT' || row.status === 'VALIDATED')
+  const published = rows.find((row) => row.status === 'PUBLISHED')
+  const activeVersion = selectedVersion ?? draft?.version ?? published?.version ?? rows[0]?.version ?? null
+  const detail = useQuery({ queryKey: ['configuration', deviceId, activeVersion], queryFn: () => api.deviceConfiguration(deviceId, activeVersion as number), enabled: activeVersion !== null })
+
+  const refresh = async () => {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ['configurations', deviceId] }),
+      queryClient.invalidateQueries({ queryKey: ['configuration-status', deviceId] }),
+      queryClient.invalidateQueries({ queryKey: ['configuration-audit', deviceId] }),
+      queryClient.invalidateQueries({ queryKey: ['configuration', deviceId] }),
+      onChanged(),
+    ])
+  }
+  const editorText = editor ?? (detail.data ? JSON.stringify(detail.data.configuration, null, 2) : '')
+
+  const parsePayload = (): Record<string, unknown> | null => {
+    try {
+      const parsed = JSON.parse(editorText) as unknown
+      if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+        setPayloadError('The configuration payload must be a JSON object.')
+        return null
+      }
+      setPayloadError('')
+      return parsed as Record<string, unknown>
+    } catch (error) {
+      setPayloadError(`Invalid JSON: ${(error as Error).message}`)
+      return null
+    }
+  }
+
+  const createDraft = useMutation({
+    mutationFn: (payload: Record<string, unknown>) => api.createDeviceConfiguration(deviceId, payload, actor),
+    onSuccess: async (created) => { setSelectedVersion(created.version); setEditor(null); setNotice(`Draft v${created.version} created.`); await refresh() },
+  })
+  const saveDraft = useMutation({
+    mutationFn: (args: { version: number; payload: Record<string, unknown> }) => api.updateDeviceConfiguration(deviceId, args.version, args.payload, actor),
+    onSuccess: async (updated) => { setNotice(`Draft v${updated.version} saved.`); await refresh() },
+  })
+  const validateVersion = useMutation({
+    mutationFn: (version: number) => api.validateDeviceConfiguration(deviceId, version),
+    onSuccess: async (result) => { setNotice(result.valid ? `v${activeVersion} passed validation.` : `v${activeVersion} failed validation with ${result.errors.length} issue(s).`); await refresh() },
+  })
+  const publishVersion = useMutation({
+    mutationFn: (version: number) => api.publishDeviceConfiguration(deviceId, version, actor),
+    onSuccess: async (result) => { setNotice(result.status.in_sync ? `v${result.configuration.version} published and applied.` : `v${result.configuration.version} published, but the runtime is not running it.`); await refresh() },
+  })
+  const cloneVersion = useMutation({
+    mutationFn: (version: number) => api.cloneDeviceConfiguration(deviceId, version, actor),
+    onSuccess: async (created) => { setSelectedVersion(created.version); setEditor(null); setNotice(`Draft v${created.version} cloned from the selected snapshot.`); await refresh() },
+  })
+  const deleteVersion = useMutation({
+    mutationFn: (version: number) => api.deleteDeviceConfiguration(deviceId, version),
+    onSuccess: async () => { setSelectedVersion(null); setEditor(null); setNotice('Draft deleted.'); await refresh() },
+  })
+  const applyPublished = useMutation({
+    mutationFn: () => api.applyConfiguration(deviceId, actor),
+    onSuccess: async (result) => { setNotice(result.in_sync ? 'Runtime reconverged with the published version.' : 'Apply attempt finished without converging.'); await refresh() },
+  })
+  const attach = useMutation({
+    mutationFn: (nodeId: string) => api.attachDevice(nodeId, deviceId),
+    onSuccess: async () => { setNotice('Device attached to the asset.'); await refresh() },
+  })
+  const detach = useMutation({
+    mutationFn: (nodeId: string) => api.detachDevice(nodeId, deviceId),
+    onSuccess: async () => { setNotice('Device detached from the asset.'); await refresh() },
+  })
+
+  const busy = createDraft.isPending || saveDraft.isPending || validateVersion.isPending || publishVersion.isPending || cloneVersion.isPending || deleteVersion.isPending || applyPublished.isPending || attach.isPending || detach.isPending
+  const canEdit = !!draft
+  const state = status.data
+  const inlineIssues = (detail.data?.validation_result as { errors?: ValidationIssue[] } | undefined)?.errors ?? []
+  const savingError = createDraft.error || saveDraft.error
+  const actionError = validateVersion.error || publishVersion.error || cloneVersion.error || deleteVersion.error || applyPublished.error || attach.error || detach.error
+  const submitting = (event: FormEvent, action: 'create' | 'save' | 'validate' | 'publish' | 'clone' | 'delete' | 'apply') => {
+    event.preventDefault()
+    // Only the two actions that write the editor buffer consume it. Validating,
+    // publishing, cloning, and deleting act on a stored version, so they must not be
+    // blocked by the state of the editor.
+    if (action === 'apply') { applyPublished.mutate(); return }
+    if (action === 'validate') { if (activeVersion != null) validateVersion.mutate(activeVersion); return }
+    if (action === 'delete') { if (draft) deleteVersion.mutate(draft.version); return }
+    if (action === 'clone') { if (activeVersion != null) cloneVersion.mutate(activeVersion); return }
+    if (action === 'publish') { if (draft) publishVersion.mutate(draft.version); return }
+    const payload = parsePayload()
+    if (!payload) return
+    if (action === 'create') createDraft.mutate(payload)
+    if (action === 'save' && draft) saveDraft.mutate({ version: draft.version, payload })
+  }
+
+  return <>
+    <section className="panel">
+      <div className="panel-heading">
+        <div><p className="eyebrow">Device configuration</p><h2>{deviceId}</h2></div>
+        <StatusBadge value={state ? (state.in_sync ? 'IN SYNC' : state.apply_status) : 'NOT CONFIGURED'} />
+      </div>
+      <div className="detail-grid">
+        <KeyValue label="Desired version" value={state?.desired_version ?? 'None published'} />
+        <KeyValue label="Applied version" value={state?.applied_version ?? 'Not applied'} />
+        <KeyValue label="Apply status" value={<StatusBadge value={state?.apply_status} />} />
+        <KeyValue label="Source of truth" value={state?.source ?? 'none'} />
+        <KeyValue label="Protocol" value={state?.protocol ?? 'Not published'} />
+        <KeyValue label="Runtime state" value={state?.runtime_state ?? 'Unknown in this process'} />
+        <KeyValue label="Last apply attempt" value={formatTime(state?.last_apply_at)} />
+        <KeyValue label="Asset" value={attachedNodeId ? lines.find((node) => node.id === attachedNodeId)?.name || attachedNodeId : 'Unassigned'} />
+      </div>
+      {state && !state.in_sync && <div className="notice notice-warning" role="status"><strong>Desired and applied differ</strong><span>{driftText({ desired: state.desired_version, applied: state.applied_version, applyStatus: state.apply_status, error: state.last_apply_error })}</span></div>}
+      <div className="button-row">
+        <button className="button-primary" type="button" disabled={busy || !state?.desired_version} onClick={(event) => submitting(event, 'apply')}>Retry apply</button>
+      </div>
+      <form className="asset-attach" onSubmit={(event) => { event.preventDefault(); if (attachTarget) attach.mutate(attachTarget) }}>
+        <label>Attach to line<select value={attachTarget} onChange={(event) => setAttachTarget(event.target.value)}><option value="">Select a line</option>{lines.map((line) => <option key={line.id} value={line.id}>{line.name}</option>)}</select></label>
+        <button className="button-primary" type="submit" disabled={busy || !attachTarget}>Attach</button>
+        <button className="button-danger" type="button" disabled={busy || !attachedNodeId} onClick={() => attachedNodeId && detach.mutate(attachedNodeId)}>Detach</button>
+      </form>
+    </section>
+
+    <section className="panel">
+      <div className="panel-heading">
+        <div><p className="eyebrow">Draft workflow</p><h2>{draft ? `Editing draft v${draft.version}` : activeVersion ? `Snapshot v${activeVersion} (read-only)` : 'No configuration yet'}</h2></div>
+        <span>{detail.data ? `Protocol ${detail.data.protocol} · ${detail.data.status}` : 'Select a version'}</span>
+      </div>
+      <label>Operator identity<input value={actor} onChange={(event) => setActor(event.target.value)} disabled={busy} /></label>
+      <label>Configuration payload (JSON)<textarea className="config-editor" value={editorText} onChange={(event) => setEditor(event.target.value)} spellCheck={false} aria-describedby="config-payload-error" disabled={busy} /></label>
+      {payloadError && <span className="field-error" id="config-payload-error" role="alert">{payloadError}</span>}
+      <div className="button-row">
+        <button className="button-primary" type="button" disabled={busy || !editorText} onClick={(event) => submitting(event, 'create')}>New draft from editor</button>
+        <button className="button-primary" type="button" disabled={busy || !canEdit} onClick={(event) => submitting(event, 'save')}>Save draft</button>
+        <button className="button-primary" type="button" disabled={busy || activeVersion == null} onClick={(event) => submitting(event, 'validate')}>Validate</button>
+        <button className="button-primary" type="button" disabled={busy || activeVersion == null} onClick={(event) => submitting(event, 'clone')}>Clone into new draft</button>
+        <button className="button-primary" type="button" disabled={busy || !canEdit} onClick={(event) => submitting(event, 'publish')}>Publish</button>
+        <button className="button-danger" type="button" disabled={busy || !canEdit} onClick={(event) => submitting(event, 'delete')}>Delete draft</button>
+      </div>
+      <p className="footnote">Published and archived versions are immutable. A change is always a new version, and rolling back means cloning an older snapshot into a new draft and publishing that. A new draft is created from the editor buffer, so when no version exists yet the payload has to be supplied here rather than generated.</p>
+      {notice && <div className="notice" role="status"><strong>Result</strong><span>{notice}</span></div>}
+      {savingError && <><ApiErrorPanel error={savingError} title="Configuration was not stored" /><ValidationIssueList issues={validationIssues(savingError)} /></>}
+      {actionError && <><ApiErrorPanel error={actionError} title="Action was not accepted" /><ValidationIssueList issues={validationIssues(actionError)} /></>}
+      {!actionError && inlineIssues.length > 0 && <ValidationIssueList issues={inlineIssues} />}
+    </section>
+
+    <section className="panel">
+      <div className="panel-heading"><div><p className="eyebrow">Version history</p><h2>Immutable snapshots</h2></div><span>{rows.length} version(s)</span></div>
+      {rows.length ? <div className="table-wrap"><table><thead><tr><th>Version</th><th>Status</th><th>Protocol</th><th>Created by</th><th>Created</th><th>Published</th><th>Inspect</th></tr></thead><tbody>
+        {rows.map((row) => <tr key={row.version} className={row.version === activeVersion ? 'is-selected' : undefined}>
+          <td><strong>v{row.version}</strong></td>
+          <td><StatusBadge value={row.status} /></td>
+          <td>{row.protocol}</td>
+          <td>{row.created_by}</td>
+          <td>{formatTime(row.created_at)}</td>
+          <td>{formatTime(row.published_at)}</td>
+          <td><button className="link-button" type="button" aria-pressed={row.version === activeVersion} onClick={() => { setSelectedVersion(row.version); setEditor(null); setNotice('') }}>Open</button></td>
+        </tr>)}
+      </tbody></table></div> : <div className="panel-state">This device has no configuration versions.</div>}
+    </section>
+
+    <section className="panel">
+      <div className="panel-heading"><div><p className="eyebrow">Audit history</p><h2>Configuration lifecycle</h2></div><span>{audit.data?.length ?? 0} events</span></div>
+      {audit.data?.length ? <div className="table-wrap"><table><thead><tr><th>Event</th><th>Version</th><th>Status</th><th>Actor</th><th>Time</th><th>Detail</th></tr></thead><tbody>
+        {audit.data.map((event) => <tr key={event.event_id}>
+          <td><strong>{event.event_type.replace('CONFIG_', '').replace(/_/g, ' ')}</strong></td>
+          <td>{event.config_version == null ? '—' : `v${event.config_version}`}</td>
+          <td><StatusBadge value={event.status} /></td>
+          <td>{event.actor}</td>
+          <td>{formatTime(event.timestamp)}</td>
+          <td>{event.summary}</td>
+        </tr>)}
+      </tbody></table></div> : <div className="panel-state">No configuration events recorded.</div>}
+    </section>
+  </>
+}
+
+export function AssetsConfigPage() {
+  const queryClient = useQueryClient()
+  const [selectedDeviceId, setSelectedDeviceId] = useState<string | null>(null)
+  const tree = useQuery({ queryKey: ['asset-tree'], queryFn: api.assetTree, refetchInterval: 15_000 })
+  const assets = useQuery({ queryKey: ['assets'], queryFn: api.assets })
+  const treeData = tree.data
+  const inventory = useMemo(() => {
+    const collected: DeviceConfigurationState[] = []
+    const walk = (node: AssetTreeNode) => { collected.push(...node.devices); node.children.forEach(walk) }
+    treeData?.sites.forEach(walk)
+    return [...collected, ...(treeData?.unassigned_devices ?? [])]
+  }, [treeData])
+  const sites = (assets.data ?? []).filter((node) => node.asset_type === 'SITE')
+  const lines = (assets.data ?? []).filter((node) => node.asset_type === 'LINE')
+  const activeDeviceId = selectedDeviceId ?? inventory[0]?.device_id ?? null
+  const activeDevice = inventory.find((device) => device.device_id === activeDeviceId)
+  const refreshTree = async () => {
+    await Promise.all([queryClient.invalidateQueries({ queryKey: ['asset-tree'] }), queryClient.invalidateQueries({ queryKey: ['assets'] })])
+  }
+  const totalConfigured = inventory.filter((device) => device.published_version != null).length
+  const totalDrifted = inventory.filter((device) => device.published_version != null && !device.in_sync).length
+  return <>
+    <PageHeader eyebrow="Assets and configuration" title="Asset and device configuration" detail="Versioned device configuration with an explicit desired-versus-applied split. Publishing records intent; the runtime reports what it is actually running." />
+    <AsyncPanel loading={tree.isPending || assets.isPending} error={tree.error || assets.error}>
+      <section className="metrics-grid">
+        <MetricCard label="Asset nodes" value={(assets.data ?? []).length} detail={`${sites.length} sites · ${lines.length} lines`} />
+        <MetricCard label="Devices in hierarchy" value={inventory.length} detail={`${treeData?.unassigned_devices.length ?? 0} unassigned`} />
+        <MetricCard label="Configured devices" value={totalConfigured} detail={`${inventory.length - totalConfigured} without a published version`} />
+        <MetricCard label="Runtime drift" value={totalDrifted} detail={totalDrifted ? 'Published version not running' : 'Every published version is applied'} />
+      </section>
+      <div className="dashboard-grid">
+        <section className="panel">
+          <div className="panel-heading"><div><p className="eyebrow">Asset hierarchy</p><h2>Sites, lines, and devices</h2></div><span>{inventory.length} devices</span></div>
+          {treeData?.sites.length ? treeData.sites.map((site) => <AssetNodeView key={site.id} node={site} depth={0} selectedDeviceId={activeDeviceId} onSelectDevice={setSelectedDeviceId} />) : <div className="panel-state">No site has been created yet.</div>}
+          <div className="asset-unassigned">
+            <p className="eyebrow">Unassigned devices</p>
+            {treeData?.unassigned_devices.length ? treeData.unassigned_devices.map((device) => <AssetDeviceRow key={device.device_id} device={device} selected={device.device_id === activeDeviceId} onSelect={setSelectedDeviceId} />) : <div className="panel-state">Every registered device is attached to a line.</div>}
+          </div>
+        </section>
+        <AssetCreateForm sites={sites} onCreated={refreshTree} />
+      </div>
+      {activeDeviceId ? <DeviceConfigurationPanel key={activeDeviceId} deviceId={activeDeviceId} attachedNodeId={activeDevice?.asset_node_id ?? null} lines={lines} onChanged={refreshTree} /> : <section className="panel"><div className="panel-state">No device is registered yet, so there is nothing to configure. Devices are registered through the device registry, not from this page.</div></section>}
+      <section className="panel"><div className="panel-heading"><div><p className="eyebrow">Scope</p><h2>What this page does and does not do</h2></div></div><div className="detail-grid"><KeyValue label="Device identity" value="Device master records live in the existing device registry. This page attaches them to locations and versions their acquisition configuration; it never creates a second device identity." /><KeyValue label="Configuration" value="Only the acquisition definition the gateway already consumes is versioned. Publishing asks the runtime to apply it and reports the outcome truthfully, including failure." /><KeyValue label="Control" value="No PLC write, register write, or actuator command exists anywhere on this path." /></div></section>
+    </AsyncPanel>
+  </>
 }
