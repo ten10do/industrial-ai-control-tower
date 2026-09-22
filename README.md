@@ -135,6 +135,17 @@ outside the Phase 6 boundary, and approved plans produce only a `DRAFT` work ord
 
 Added Agent Observability layer for workflow tracing, metrics collection and execution analysis.
 
+### 6. Asset and Device Configuration
+
+- Minimal SITE → LINE asset hierarchy over the existing device registry, with no second identity
+- Versioned, immutable device configurations with `DRAFT → VALIDATED → PUBLISHED → ARCHIVED`
+- Exactly one published version per device, enforced by a database partial unique index
+- Desired versus applied version with honest drift reporting; a failed apply is never shown as success
+- Controlled reload scoped to one device, with restart recovery from the published database record
+- Side-effect-free typed validation reusing the Phase 6.7 `DeviceDefinition` and canonical 8-signal contract
+
+See [Asset and Device Configuration](docs/ASSET_DEVICE_CONFIGURATION.md).
+
 ## Evaluation Results
 
 All values below are copied from the repository's frozen or one-shot evaluation reports. They were
@@ -243,6 +254,7 @@ industrial-ai-control-tower/
 | [Human Approval](docs/HUMAN_APPROVAL.md) | Interrupt/resume, identity, concurrency, exactly-once behavior |
 | [Industrial Protocol Adapters](docs/INDUSTRIAL_PROTOCOL_ADAPTER.md) | Unified telemetry contract and protocol extension boundary |
 | [Industrial Protocol Gateway](docs/INDUSTRIAL_PROTOCOL_GATEWAY.md) | Declarative device onboarding, adapter lifecycle, and connectivity status |
+| [Asset and Device Configuration](docs/ASSET_DEVICE_CONFIGURATION.md) | Asset hierarchy, versioned configuration lifecycle, desired versus applied state |
 | [OPC UA Adapter](docs/OPC_UA_ADAPTER.md) | Read-only simulator, node mapping, health, and security boundary |
 | [Modbus TCP Adapter](docs/MODBUS_ADAPTER.md) | Read-only register mapping, simulator, health, and security boundary |
 | [Evaluation Reports](docs/evaluation/) | ML, RAG, agent, blind-set, and error-analysis evidence |
@@ -270,6 +282,7 @@ cd ../frontend && npm test && npm run lint && npm run build
 - Deterministic policy and evidence checks can block model output.
 - Risky plans require an accountable human decision.
 - Work orders represent planned work, not completed physical maintenance.
+- Device configuration changes affect telemetry acquisition only, and no PLC, Modbus, or OPC UA write path exists.
 - Phase 6 is complete; Phase 7 has not started.
 
 ## License

@@ -14,6 +14,7 @@
 | `/approvals/:approvalId` | Full decision context and real Approve/Reject mutation | Approval APIs |
 | `/work-orders` | Real non-executing maintenance plans | Work-order query API |
 | `/work-orders/:workOrderId` | Plan, grounding, safety requirements, approval audit | Work-order detail API |
+| `/assets-config` | Asset hierarchy, device configuration versions, desired/applied drift | Asset + configuration APIs |
 
 ## Operator semantics
 
@@ -31,6 +32,22 @@ idempotency remain authoritative.
 
 Work-order pages explicitly state that a `DRAFT` is planned work and is not evidence of physical
 execution, repair, resolution, or completion.
+
+## Assets and Configuration
+
+The `/assets-config` route presents the SITE → LINE hierarchy with devices grouped under their line
+and an explicit unassigned section for devices with no location. It never hides a device to make the
+tree look tidy.
+
+Each device row shows protocol, published version, applied version, and apply status as text plus a
+shape, never color alone. When applied differs from desired, or the last apply attempt failed, a
+drift banner states what is desired, what is running, and the recorded failure cause. A failed
+apply is never rendered as success.
+
+The version panel exposes the immutable snapshot as raw JSON, with validate, publish, clone, delete,
+and retry-apply actions. A published version is read-only; changing it requires cloning into a new
+draft. The page states that device identity comes from the existing equipment registry and that a
+published configuration changes telemetry acquisition settings only, not control of the equipment.
 
 ## Configuration
 
