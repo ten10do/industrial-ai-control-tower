@@ -1,0 +1,127 @@
+# Phase 6.7 industrial protocol gateway — example device definitions.
+#
+# This file documents the gateway's own onboarding format. It is an example: copy it
+# to configs/gateway_devices.yaml and set GATEWAY_ENABLED=true to load it.
+#
+# The protocol-specific files (devices.example.yaml, modbus_devices.example.yaml,
+# opcua_devices.example.yaml) document raw adapter constructor inputs at the adapter
+# layer. This file documents what the gateway accepts.
+#
+# Two rules are enforced at load time:
+#   1. Every polled device must map all eight canonical signals. The canonical
+#      telemetry contract has no optional measurements and its storage columns are
+#      NOT NULL, so a partial mapping is rejected rather than backfilled.
+#   2. operating_state and fault_state are required. No adapter can emit a string
+#      signal, so the honest source is configuration. Optional `derived` rules may
+#      override them from real measurements.
+#
+# Devices must already exist in the `devices` table. The gateway verifies
+# registration and never creates device rows.
+
+version: 1
+
+devices:
+  - device_id: MOTOR-001
+    protocol: simulator
+    enabled: true
+    poll_interval_ms: 1000
+    state:
+      operating_state: RUNNING
+      fault_state: NORMAL
+      derived:
+        - target: operating_state
+          signal: rpm
+          operator: lte
+          threshold: 0
+          then: STOPPED
+    simulator: {}
+
+  - device_id: MOTOR-002
+    protocol: modbus_tcp
+    enabled: true
+    poll_interval_ms: 1000
+    state:
+      operating_state: RUNNING
+      fault_state: NORMAL
+    modbus_tcp:
+      host: localhost
+      port: 5020
+      unit_id: 1
+      timeout_seconds: 3.0
+      registers:
+        temperature:
+          address: 40001
+          scale: 0.1
+          unit: celsius
+        bearing_temperature:
+          address: 40002
+          scale: 0.1
+          unit: celsius
+        vibration:
+          address: 40003
+          scale: 0.01
+          unit: mm_s
+        current:
+          address: 40004
+          scale: 0.01
+          unit: ampere
+        voltage:
+          address: 40005
+          scale: 0.1
+          unit: volt
+        rpm:
+          address: 40006
+          scale: 1
+          unit: rpm
+        load:
+          address: 40007
+          scale: 0.1
+          unit: percent
+        power:
+          address: 40008
+          scale: 0.01
+          unit: kilowatt
+
+  - device_id: MOTOR-003
+    protocol: opc_ua
+    enabled: true
+    poll_interval_ms: 1000
+    state:
+      operating_state: RUNNING
+      fault_state: NORMAL
+      derived:
+        - target: fault_state
+          signal: vibration
+          operator: gt
+          threshold: 7
+          then: HIGH_VIBRATION
+    opc_ua:
+      endpoint: opc.tcp://localhost:4840/industrial-ai/
+      timeout_seconds: 4.0
+      nodes:
+        temperature:
+          node_id: ns=2;s=MOTOR-003/Temperature
+        bearing_temperature:
+          node_id: ns=2;s=MOTOR-003/BearingTemperature
+        vibration:
+          node_id: ns=2;s=MOTOR-003/Vibration
+        current:
+          node_id: ns=2;s=MOTOR-003/Current
+        voltage:
+          node_id: ns=2;s=MOTOR-003/Voltage
+        rpm:
+          node_id: ns=2;s=MOTOR-003/RPM
+        load:
+          node_id: ns=2;s=MOTOR-003/Load
+        power:
+          node_id: ns=2;s=MOTOR-003/Power
+
+  - device_id: MOTOR-004
+    protocol: mqtt
+    enabled: true
+    poll_interval_ms: 1000
+    state:
+      operating_state: RUNNING
+      fault_state: NORMAL
+    mqtt:
+      topic: industrial/devices/MOTOR-004/telemetry

@@ -21,7 +21,7 @@ import {
   TelemetryChart,
   WorkflowPanel,
 } from './components'
-import type { Approval, Device, ObservabilityRun } from './types'
+import type { Approval, ConnectivityDevice, Device, ObservabilityRun } from './types'
 import { useTelemetryStream } from './useTelemetryStream'
 
 const activeIncident = (status: string) => !['WORK_ORDER_CREATED', 'REJECTED', 'CANCELLED'].includes(status)
@@ -233,6 +233,64 @@ export function ObservabilityPage() {
         </>}
       </AsyncPanel>}
       {summary && summary.by_agent.length > 0 && <section className="panel"><div className="panel-heading"><div><p className="eyebrow">Execution analysis</p><h2>Per-agent aggregation</h2></div><span>Step status: {Object.entries(summary.step_status_counts).map(([key, value]) => `${key} ${value}`).join(' · ') || 'No steps recorded'}</span></div><div className="table-wrap"><table><thead><tr><th>Agent</th><th>Steps</th><th>Failures</th><th>Avg latency</th><th>p95 latency</th><th>Tokens</th><th>Schema retries</th></tr></thead><tbody>{summary.by_agent.map((item) => <tr key={item.agent_name}><td><strong>{item.agent_name.replace(/_/g, ' ')}</strong></td><td>{item.steps_total}</td><td>{item.failures}</td><td>{formatLatency(item.avg_latency_ms)}</td><td>{formatLatency(item.p95_latency_ms)}</td><td>{item.total_tokens == null ? 'Not reported' : item.total_tokens}</td><td>{item.schema_retries == null ? 'Not reported' : item.schema_retries}</td></tr>)}</tbody></table></div></section>}
+    </AsyncPanel>
+  </>
+}
+
+function ConnectivityRow({
+  device,
+  busy,
+  onStart,
+  onStop,
+}: {
+  device: ConnectivityDevice
+  busy: boolean
+  onStart: (deviceId: string) => void
+  onStop: (deviceId: string) => void
+}) {
+  const controllable = device.enabled && device.polled
+  const failures = device.read_errors + device.samples_rejected
+  return <tr>
+    <td><strong>{device.device_id}</strong><small>{device.endpoint || (device.polled ? 'No endpoint configured' : 'Push ingestion')}</small></td>
+    <td>{device.protocol}</td>
+    <td><StatusBadge value={device.state} /></td>
+    <td>{device.polled ? `${device.poll_interval_ms} ms` : 'Not polled'}<small>{device.state_mode === 'derived' ? 'Derived state labels' : 'Static state labels'}</small></td>
+    <td>{formatTime(device.last_success)}</td>
+    <td>{device.samples_ingested} ingested<small>{failures} failed · {device.reconnect_attempts} reconnects</small></td>
+    <td>{device.message || (device.polled ? 'No recent error' : 'Handled by the MQTT consumer')}</td>
+    <td><div className="button-row"><button className="button-primary" type="button" disabled={busy || !controllable} onClick={() => onStart(device.device_id)}>Start</button><button className="button-danger" type="button" disabled={busy || !controllable} onClick={() => onStop(device.device_id)}>Stop</button></div></td>
+  </tr>
+}
+
+export function ConnectivityPage() {
+  const queryClient = useQueryClient()
+  const summary = useQuery({ queryKey: ['connectivity-summary'], queryFn: api.connectivitySummary, refetchInterval: 10_000 })
+  const devices = useQuery({ queryKey: ['connectivity-devices'], queryFn: api.connectivityDevices, refetchInterval: 10_000 })
+  const invalidate = async () => {
+    await Promise.all([queryClient.invalidateQueries({ queryKey: ['connectivity-summary'] }), queryClient.invalidateQueries({ queryKey: ['connectivity-devices'] })])
+  }
+  const start = useMutation({ mutationFn: api.startConnectivityDevice, onSuccess: invalidate })
+  const stop = useMutation({ mutationFn: api.stopConnectivityDevice, onSuccess: invalidate })
+  const busy = start.isPending || stop.isPending
+  const data = summary.data
+  const states = data?.states ?? {}
+  return <>
+    <PageHeader eyebrow="Industrial connectivity" title="Protocol gateway" detail="Adapter lifecycle and ingestion health for every configured industrial device. Start and stop change gateway polling only; nothing here commands plant equipment." />
+    {data && !data.gateway_available && <div className="notice notice-warning" role="status"><strong>Gateway unavailable</strong><span>{data.gateway_error || 'The protocol gateway is disabled in this deployment. Set GATEWAY_ENABLED to load a device definition file.'}</span></div>}
+    <AsyncPanel loading={summary.isPending} error={summary.error}>
+      {data && <section className="metrics-grid">
+        <MetricCard label="Configured devices" value={data.device_count} detail={`${data.enabled_device_count} enabled`} />
+        <MetricCard label="Connected" value={states.CONNECTED ?? 0} detail={`${states.DEGRADED ?? 0} degraded · ${states.RECONNECTING ?? 0} reconnecting`} />
+        <MetricCard label="Failed" value={states.ERROR ?? 0} detail={`${states.DISABLED ?? 0} disabled · ${states.STOPPED ?? 0} stopped`} />
+        <MetricCard label="Samples ingested" value={data.total_samples_ingested} detail={`${data.total_samples_rejected} rejected by the contract`} />
+        <MetricCard label="Configuration" value={data.config_file || 'Not loaded'} detail={data.loaded_at ? `Loaded ${formatTime(data.loaded_at)}` : 'Gateway disabled'} />
+      </section>}
+      <AsyncPanel loading={devices.isPending} error={devices.error} empty={!devices.data?.length} emptyText="No devices are configured for the protocol gateway.">
+        <section className="panel"><div className="panel-heading"><div><p className="eyebrow">Device connectivity</p><h2>Adapter lifecycle</h2></div><span>{devices.data?.length || 0} devices · read-only adapters</span></div><div className="table-wrap"><table><thead><tr><th>Device</th><th>Protocol</th><th>State</th><th>Polling</th><th>Last success</th><th>Samples</th><th>Last message</th><th>Polling control</th></tr></thead><tbody>{devices.data?.map((device) => <ConnectivityRow key={device.device_id} device={device} busy={busy} onStart={(id) => start.mutate(id)} onStop={(id) => stop.mutate(id)} />)}</tbody></table></div></section>
+      </AsyncPanel>
+      {start.error && <ApiErrorPanel error={start.error} title="Start was not accepted" />}
+      {stop.error && <ApiErrorPanel error={stop.error} title="Stop was not accepted" />}
+      <section className="panel"><div className="panel-heading"><div><p className="eyebrow">Scope</p><h2>What this page does and does not do</h2></div></div><div className="detail-grid"><KeyValue label="Protocol reading" value="OPC UA, Modbus TCP, and simulator devices are polled by the gateway; MQTT keeps its existing push path." /><KeyValue label="Ingestion" value="Every polled sample is normalized and submitted to the same ingestion boundary the MQTT consumer uses." /><KeyValue label="Control" value="Start and stop toggle gateway polling. No write, setpoint, or actuator command exists in the adapter registry." /></div></section>
     </AsyncPanel>
   </>
 }

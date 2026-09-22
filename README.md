@@ -242,6 +242,7 @@ industrial-ai-control-tower/
 | [Multi-Agent Architecture](docs/MULTI_AGENT_ARCHITECTURE.md) | Typed workflow, checkpoints, agents, provider boundary |
 | [Human Approval](docs/HUMAN_APPROVAL.md) | Interrupt/resume, identity, concurrency, exactly-once behavior |
 | [Industrial Protocol Adapters](docs/INDUSTRIAL_PROTOCOL_ADAPTER.md) | Unified telemetry contract and protocol extension boundary |
+| [Industrial Protocol Gateway](docs/INDUSTRIAL_PROTOCOL_GATEWAY.md) | Declarative device onboarding, adapter lifecycle, and connectivity status |
 | [OPC UA Adapter](docs/OPC_UA_ADAPTER.md) | Read-only simulator, node mapping, health, and security boundary |
 | [Modbus TCP Adapter](docs/MODBUS_ADAPTER.md) | Read-only register mapping, simulator, health, and security boundary |
 | [Evaluation Reports](docs/evaluation/) | ML, RAG, agent, blind-set, and error-analysis evidence |

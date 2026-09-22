@@ -113,3 +113,14 @@ values into the registry, and no second configuration loader is introduced.
 [`configs/modbus_devices.example.yaml`](../configs/modbus_devices.example.yaml) documents a
 credential-free Modbus TCP endpoint and holding-register mapping. The same registry construction
 boundary applies; the example does not introduce another runtime configuration system.
+
+## Runtime ownership
+
+Phase 6.7 added the runtime owner this boundary anticipated. The
+[Industrial Protocol Gateway](INDUSTRIAL_PROTOCOL_GATEWAY.md) loads declarative device
+definitions, drives `connect` and `read` for the polled protocols, and hands each normalized
+`UnifiedTelemetry` to the existing ingestion boundary through
+`TelemetryService.ingest_payload`. MQTT keeps its push semantics and is never polled.
+
+The protocol files above remain adapter-constructor references. The gateway's own onboarding
+format is documented in [`configs/gateway_devices.example.yaml`](../configs/gateway_devices.example.yaml).

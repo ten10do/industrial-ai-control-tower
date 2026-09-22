@@ -324,3 +324,35 @@ export type ApiErrorPayload = {
   status?: string
   dependencies?: Record<string, string>
 }
+
+export type ConnectivityDevice = {
+  device_id: string
+  protocol: string
+  enabled: boolean
+  state: string
+  state_mode: 'static' | 'derived'
+  polled: boolean
+  poll_interval_ms: number
+  endpoint: string | null
+  last_success: string | null
+  last_error: string | null
+  message: string | null
+  consecutive_failures: number
+  reconnect_attempts: number
+  samples_ingested: number
+  samples_rejected: number
+  read_errors: number
+}
+
+export type ConnectivitySummary = {
+  gateway_enabled: boolean
+  gateway_available: boolean
+  gateway_error: string | null
+  config_file: string | null
+  loaded_at: string | null
+  device_count: number
+  enabled_device_count: number
+  states: Record<string, number>
+  total_samples_ingested: number
+  total_samples_rejected: number
+}

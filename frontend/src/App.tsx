@@ -6,6 +6,7 @@ import { ErrorBoundary } from './components'
 import {
   ApprovalDetailPage,
   ApprovalsPage,
+  ConnectivityPage,
   DeviceDetailPage,
   DevicesPage,
   IncidentDetailPage,
@@ -42,6 +43,7 @@ function App() {
               <Route path="incidents/:incidentId" element={<IncidentDetailPage />} />
               <Route path="workflows/:workflowRunId" element={<WorkflowDetailPage />} />
               <Route path="observability" element={<ObservabilityPage />} />
+              <Route path="connectivity" element={<ConnectivityPage />} />
               <Route path="approvals" element={<ApprovalsPage />} />
               <Route path="approvals/:approvalId" element={<ApprovalDetailPage />} />
               <Route path="work-orders" element={<WorkOrdersPage />} />

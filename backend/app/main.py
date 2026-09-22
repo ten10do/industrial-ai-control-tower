@@ -15,6 +15,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.api import (
     alarms,
+    connectivity,
     devices,
     diagnoses,
     knowledge,
@@ -27,6 +28,14 @@ from app.config import get_settings
 from app.core.context import trace_id_context
 from app.core.errors import AppError
 from app.core.logging import configure_logging
+from app.gateway import (
+    DeviceRegistrationChecker,
+    GatewayConfigurationError,
+    GatewayIngestionSink,
+    IndustrialProtocolGateway,
+    RetryPolicy,
+)
+from app.gateway.simulator_source import build_simulator_source_factory
 from app.infrastructure.database.session import Database
 from app.infrastructure.mqtt.consumer import MqttTelemetryConsumer
 from app.knowledge.retrieval import KnowledgeIndex
@@ -137,6 +146,29 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     mqtt = MqttTelemetryConsumer(
         settings, database.sessions, redis, websocket_manager, counters, diagnosis
     )
+    gateway: IndustrialProtocolGateway | None = None
+    gateway_error: str | None = None
+    if settings.gateway_enabled:
+        try:
+            gateway = IndustrialProtocolGateway.from_config_file(
+                settings.gateway_config_path,
+                sink=GatewayIngestionSink(
+                    database.sessions, redis, websocket_manager, counters, diagnosis
+                ),
+                registration=DeviceRegistrationChecker(database.sessions),
+                policy=RetryPolicy(
+                    failure_threshold=settings.gateway_failure_threshold,
+                    reconnect_threshold=settings.gateway_reconnect_threshold,
+                    max_reconnect_attempts=settings.gateway_max_reconnect_attempts,
+                    backoff_initial_seconds=settings.gateway_backoff_initial_seconds,
+                    backoff_max_seconds=settings.gateway_backoff_max_seconds,
+                ),
+                simulator_source_factory=build_simulator_source_factory(),
+                mqtt_connected=lambda: mqtt.connected,
+            )
+        except GatewayConfigurationError as exc:
+            gateway_error = str(exc)
+            logger.error("gateway_unavailable", extra={"error": gateway_error})
     app.state.database = database
     app.state.redis = redis
     app.state.websocket_manager = websocket_manager
@@ -148,11 +180,18 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     app.state.knowledge_error = knowledge_error
     app.state.workflow_service = workflow_service
     app.state.workflow_error = workflow_error
+    app.state.gateway = gateway
+    app.state.gateway_enabled = settings.gateway_enabled
+    app.state.gateway_error = gateway_error
     if settings.mqtt_enabled:
         mqtt.start()
+    if gateway is not None:
+        await gateway.start()
     try:
         yield
     finally:
+        if gateway is not None:
+            await gateway.stop()
         await mqtt.stop()
         if checkpoint_context is not None:
             await checkpoint_context.__aexit__(None, None, None)
@@ -176,6 +215,8 @@ app.include_router(knowledge.router)
 app.include_router(workflows.router)
 app.include_router(observability.router, prefix="/api/v1")
 app.include_router(observability.router, prefix="/api")
+app.include_router(connectivity.router, prefix="/api/v1")
+app.include_router(connectivity.router, prefix="/api")
 app.include_router(websockets.router)
 
 
@@ -255,6 +296,12 @@ async def ready(request: Request) -> JSONResponse:
     else:
         dependencies["workflow"] = "disabled"
     dependencies["observability"] = "enabled" if settings.observability_enabled else "disabled"
+    if settings.gateway_enabled:
+        dependencies["connectivity"] = (
+            "available" if request.app.state.gateway is not None else "unavailable"
+        )
+    else:
+        dependencies["connectivity"] = "disabled"
     ready_state = all(dependencies[name] == "ok" for name in ("postgres", "redis"))
     if settings.diagnosis_enabled:
         ready_state = ready_state and dependencies["diagnosis"] == "loaded"
@@ -262,6 +309,8 @@ async def ready(request: Request) -> JSONResponse:
         ready_state = ready_state and dependencies["knowledge"] == "indexed"
     if settings.workflow_enabled:
         ready_state = ready_state and dependencies["workflow"] == "available"
+    if settings.gateway_enabled:
+        ready_state = ready_state and dependencies["connectivity"] == "available"
     return JSONResponse(
         status_code=200 if ready_state else 503,
         content={"status": "ready" if ready_state else "not_ready", "dependencies": dependencies},

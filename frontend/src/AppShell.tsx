@@ -10,6 +10,7 @@ const navigation = [
   ['Approvals', '/approvals'],
   ['Work Orders', '/work-orders'],
   ['Agent Observability', '/observability'],
+  ['Connectivity', '/connectivity'],
 ] as const
 
 export function AppShell() {
@@ -29,7 +30,7 @@ export function AppShell() {
         <header className="topbar">
           <div><p className="eyebrow">Operational status</p><StatusBadge value={overall} /></div>
           <div className="dependency-strip" aria-label="System dependencies">
-            {['postgres', 'redis', 'mqtt', 'diagnosis', 'knowledge', 'workflow'].map((name) => <span key={name}><b>{name === 'workflow' ? 'Agent Runtime' : name}</b><StatusBadge value={dependencies?.[name] || (ready.isPending ? 'CHECKING' : 'UNAVAILABLE')} /></span>)}
+            {['postgres', 'redis', 'mqtt', 'diagnosis', 'knowledge', 'workflow', 'connectivity'].map((name) => <span key={name}><b>{name === 'workflow' ? 'Agent Runtime' : name}</b><StatusBadge value={dependencies?.[name] || (ready.isPending ? 'CHECKING' : 'UNAVAILABLE')} /></span>)}
             <span><b>Backend</b><StatusBadge value={ready.data ? 'HEALTHY' : ready.isPending ? 'CHECKING' : 'UNAVAILABLE'} /></span>
           </div>
         </header>

@@ -52,6 +52,13 @@ class Settings(BaseSettings):
     agent_backoff_seconds: float = 0.5
     agent_schema_max_attempts: int = 2
     observability_enabled: bool = True
+    gateway_enabled: bool = False
+    gateway_config_path: Path = Path("configs/gateway_devices.yaml")
+    gateway_failure_threshold: int = 3
+    gateway_reconnect_threshold: int = 6
+    gateway_max_reconnect_attempts: int = 5
+    gateway_backoff_initial_seconds: float = 1.0
+    gateway_backoff_max_seconds: float = 30.0
 
     @property
     def checkpoint_database_url(self) -> str:

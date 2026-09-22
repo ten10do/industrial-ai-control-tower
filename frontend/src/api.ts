@@ -2,6 +2,8 @@ import type {
   Alarm,
   ApiErrorPayload,
   Approval,
+  ConnectivityDevice,
+  ConnectivitySummary,
   Device,
   Diagnosis,
   IncidentDetail,
@@ -94,6 +96,16 @@ export const api = {
   observabilityMetrics: () => request<ObservabilityMetrics>('/api/observability/metrics'),
   observabilityRun: (id: string) =>
     request<ObservabilityRunTrace>(`/api/observability/runs/${encodeURIComponent(id)}`),
+  connectivitySummary: () => request<ConnectivitySummary>('/api/v1/connectivity/summary'),
+  connectivityDevices: () => request<ConnectivityDevice[]>('/api/v1/connectivity/devices'),
+  startConnectivityDevice: (id: string) =>
+    request<ConnectivityDevice>(`/api/v1/connectivity/devices/${encodeURIComponent(id)}/start`, {
+      method: 'POST',
+    }),
+  stopConnectivityDevice: (id: string) =>
+    request<ConnectivityDevice>(`/api/v1/connectivity/devices/${encodeURIComponent(id)}/stop`, {
+      method: 'POST',
+    }),
 }
 
 export function websocketUrl(deviceId: string): string {
