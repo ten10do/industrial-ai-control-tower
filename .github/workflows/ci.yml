@@ -142,9 +142,43 @@ jobs:
           test -f docs/ROADMAP.md
           test -f docs/SIMULATOR.md
           test -f docs/ML_PIPELINE.md
-          adr_count=$(ls docs/adr/ADR-*.md 2>/dev/null | wc -l)
-          if [ "$adr_count" -ne 10 ]; then
-            echo "Expected 10 ADRs, found $adr_count"
+          # ADR validation is structural rather than a hard-coded exact count,
+          # so adding a legitimate ADR cannot break this job again. It checks
+          # that ADR files exist, are numbered contiguously from ADR-001, and
+          # each carries a matching "# ADR-NNN" heading. ADR_MIN_COUNT is a
+          # floor, not an expectation: additions need no edit here, while an
+          # accidental deletion still fails.
+          ADR_MIN_COUNT=11
+          adr_count=0
+          adr_expected=1
+          for adr in docs/adr/ADR-*.md; do
+            if [ ! -e "$adr" ]; then
+              echo "No ADR files found under docs/adr"
+              exit 1
+            fi
+            adr_number=$(basename "$adr" .md | sed 's/^ADR-//')
+            case "$adr_number" in
+              [0-9][0-9][0-9]) ;;
+              *)
+                echo "ADR filename must use a three-digit number: $adr"
+                exit 1
+                ;;
+            esac
+            adr_padded=$(printf '%03d' "$adr_expected")
+            if [ "$adr_number" != "$adr_padded" ]; then
+              echo "ADR numbering is not contiguous: expected ADR-$adr_padded.md, found $adr"
+              exit 1
+            fi
+            if ! head -n 1 "$adr" | grep -q "^# ADR-$adr_number"; then
+              echo "ADR $adr must start with a '# ADR-$adr_number' heading"
+              exit 1
+            fi
+            adr_expected=$((adr_expected + 1))
+            adr_count=$((adr_count + 1))
+          done
+          if [ "$adr_count" -lt "$ADR_MIN_COUNT" ]; then
+            echo "Expected at least $ADR_MIN_COUNT ADRs, found $adr_count"
             exit 1
           fi
+          echo "ADR validation passed ($adr_count ADRs, ADR-001..ADR-$(printf '%03d' "$adr_count"))"
           echo "Documentation validation passed"
