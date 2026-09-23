@@ -62,6 +62,9 @@ export type Alarm = {
   message: string
   started_at: string
   cleared_at: string | null
+  acknowledged_at: string | null
+  last_triggered_at: string | null
+  occurrence_count: number
 }
 
 export type IncidentSummary = {
@@ -84,6 +87,49 @@ export type IncidentSummary = {
 export type IncidentDetail = IncidentSummary & {
   description: string
   diagnosis: Diagnosis
+  alarms?: Alarm[]
+  device?: { device_id: string; device_type: string; name: string; status: string } | null
+  asset?: { id: string; name: string; asset_type: string; parent_id: string | null } | null
+  workflow?: { workflow_run_id: string; status: string; current_stage: string } | null
+}
+
+export type IncidentDashboardSummary = {
+  active: number
+  critical: number
+  unacknowledged: number
+}
+
+export type IncidentDashboardItem = {
+  incident_id: string
+  title: string
+  status: string
+  severity: string | null
+  priority: string
+  device_id: string | null
+  asset_name: string | null
+  workflow_status: string | null
+  created_at: string
+  last_alarm_at: string | null
+  resolved_at: string | null
+}
+
+export type IncidentDashboard = {
+  summary: IncidentDashboardSummary
+  incidents: IncidentDashboardItem[]
+}
+
+export type IncidentWorkflowBridge = {
+  incident_id: string
+  workflow_exists: boolean
+  workflow_run_id: string | null
+  workflow_status: string | null
+  approval_required: boolean
+}
+
+export type IncidentMetrics = {
+  mtta_seconds: number
+  mttr_seconds: number
+  alarm_compression: number
 }
 
 export type KnowledgeEvidence = {

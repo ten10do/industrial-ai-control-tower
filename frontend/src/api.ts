@@ -12,8 +12,11 @@ import type {
   ConnectivitySummary,
   Device,
   Diagnosis,
+  IncidentDashboard,
   IncidentDetail,
+  IncidentMetrics,
   IncidentSummary,
+  IncidentWorkflowBridge,
   KnowledgeDocument,
   ObservabilityMetrics,
   ObservabilityRun,
@@ -83,9 +86,26 @@ export const api = {
     request<Diagnosis>(`/api/v1/devices/${encodeURIComponent(id)}/diagnoses/latest`),
   alarms: (id?: string) =>
     request<Alarm[]>(`/api/v1/alarms?limit=200${id ? `&device_id=${encodeURIComponent(id)}` : ''}`),
-  incidents: (status?: string) =>
-    request<IncidentSummary[]>(`/api/v1/incidents?limit=100${status ? `&status=${status}` : ''}`),
+  incidents: (status?: string, severity?: string, deviceId?: string) => {
+    const params = new URLSearchParams({ limit: '100' })
+    if (status) params.set('status', status)
+    if (severity) params.set('severity', severity)
+    if (deviceId) params.set('device_id', deviceId)
+    return request<IncidentSummary[]>(`/api/v1/incidents?${params.toString()}`)
+  },
   incident: (id: string) => request<IncidentDetail>(`/api/v1/incidents/${id}`),
+  incidentDashboard: () => request<IncidentDashboard>('/api/v1/incidents/dashboard'),
+  incidentMetrics: () => request<IncidentMetrics>('/api/v1/incidents/metrics'),
+  incidentWorkflowContext: (id: string) =>
+    request<IncidentWorkflowBridge>(`/api/v1/incidents/${id}/workflow-context`),
+  acknowledgeIncident: (id: string) =>
+    request<unknown>(`/api/v1/incidents/${id}/acknowledge`, { method: 'POST', body: '{}' }),
+  startInvestigation: (id: string) =>
+    request<unknown>(`/api/v1/incidents/${id}/investigate`, { method: 'POST' }),
+  resolveIncident: (id: string) =>
+    request<unknown>(`/api/v1/incidents/${id}/resolve`, { method: 'POST' }),
+  startIncidentWorkflow: (id: string) =>
+    request<Workflow>(`/api/v1/incidents/${id}/start-workflow`, { method: 'POST' }),
   workflows: () => request<WorkflowSummary[]>('/api/v1/workflows?limit=100'),
   workflow: (id: string) => request<Workflow>(`/api/v1/workflows/${id}`),
   workflowTrace: (id: string) => request<WorkflowTrace>(`/api/v1/workflows/${id}/trace`),

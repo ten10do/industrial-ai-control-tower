@@ -253,12 +253,17 @@ class IncidentDetailContextRead(IncidentDetailRead):
     Purely additive over ``IncidentDetailRead``: existing consumers see the same
     fields and new consumers get the alarm instances, the device and asset
     nodes, and the incident-scoped audit timeline.
+
+    Phase 6.9-C adds ``workflow``: the summary of the incident's newest
+    workflow run (or ``None`` when none was started). It reuses
+    ``workflow_runs`` — no new entity, no new association table.
     """
 
     alarms: list[AlarmRead] = Field(default_factory=list)
     device: DeviceContextRead | None = None
     asset: AssetContextRead | None = None
     audit: list[AuditEntryRead] = Field(default_factory=list)
+    workflow: WorkflowSummaryRead | None = None
 
 
 class WorkflowSummaryRead(BaseModel):
@@ -273,6 +278,11 @@ class WorkflowSummaryRead(BaseModel):
     model: str
     created_at: datetime
     updated_at: datetime
+
+
+#: ``IncidentDetailContextRead`` forward-references ``WorkflowSummaryRead``,
+#: which is defined below it. Both are final now, so resolve the reference.
+IncidentDetailContextRead.model_rebuild()
 
 
 class ApprovalRead(BaseModel):

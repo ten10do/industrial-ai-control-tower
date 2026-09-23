@@ -1,35 +1,124 @@
-"""Incident lifecycle command API.
+"""Incident lifecycle command API and Incident Operations Center endpoints.
 
 The five operator commands move an incident through its state machine. Every
 route is a guarded transition through ``IncidentLifecycleService``; an illegal
 move returns 409 with the legal targets named in the error payload.
 
-There is deliberately no creation endpoint here and no alarm-to-incident entry
-point. Incidents are created by the existing operator flow (``POST /incidents``
-in the workflow API, from a diagnosis) and internally by the correlation
-service; exposing an automatic creation route would let callers bypass the
-deterministic strategy, and that boundary belongs to a later phase.
+Phase 6.9-C adds the read side of the Incident Operations Center (dashboard,
+workflow bridge, operational metrics) and the one new write: starting the
+existing decision workflow from an incident. The start route only gates and
+delegates — the workflow engine's graph, policy, and approval flow are reused
+untouched, and no work order is ever created on this path.
+
+There is deliberately no incident creation endpoint here and no
+alarm-to-incident entry point. Incidents are created by the existing operator
+flow (``POST /incidents`` in the workflow API, from a diagnosis) and
+internally by the correlation service.
 """
 
-from typing import Annotated
+from typing import Annotated, cast
 from uuid import UUID
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies import get_actor, get_session
+from app.core.context import trace_id_context
+from app.core.errors import AppError
 from app.incidents.contracts import (
     IncidentContextRead,
+    IncidentDashboardItemRead,
+    IncidentDashboardRead,
+    IncidentDashboardSummaryRead,
     IncidentLifecycleAcknowledgeRead,
     IncidentLifecycleRead,
+    IncidentMetricsRead,
     IncidentNoteRequest,
+    IncidentWorkflowBridgeRead,
 )
 from app.incidents.incident_service import IncidentContextService, IncidentLifecycleService
+from app.incidents.operations import IncidentOperationsService, IncidentWorkflowGate
+from app.workflow.contracts import WorkflowRead
+from app.workflow.service import WorkflowService
 
 router = APIRouter(prefix="/incidents", tags=["incidents"])
 
 Actor = Annotated[str, Depends(get_actor)]
 Session = Annotated[AsyncSession, Depends(get_session)]
+
+
+def _workflow_service(request: Request) -> WorkflowService:
+    service = cast(WorkflowService | None, request.app.state.workflow_service)
+    if service is None:
+        raise AppError("WORKFLOW_NOT_AVAILABLE", "Workflow service is not available.", 503)
+    return service
+
+
+@router.get("/dashboard", response_model=IncidentDashboardRead)
+async def incident_dashboard(
+    session: Session,
+    status: str | None = None,
+    severity: str | None = None,
+    device_id: str | None = None,
+) -> IncidentDashboardRead:
+    """Incident Operations Center payload: header counters plus the table.
+
+    The counters describe the whole incident population; ``incidents`` is the
+    newest page matching the filters. Read-only — nothing here mutates state.
+    """
+
+    summary, rows = await IncidentOperationsService(session).dashboard(
+        status=status, severity=severity, device_id=device_id
+    )
+    return IncidentDashboardRead(
+        summary=IncidentDashboardSummaryRead.model_validate(summary),
+        incidents=[IncidentDashboardItemRead.model_validate(row) for row in rows],
+    )
+
+
+@router.get("/metrics", response_model=IncidentMetricsRead)
+async def incident_metrics(session: Session) -> IncidentMetricsRead:
+    """Operational metrics: MTTA, MTTR, and the alarm compression ratio."""
+
+    return IncidentMetricsRead.model_validate(await IncidentOperationsService(session).metrics())
+
+
+@router.get("/{incident_id}/workflow-context", response_model=IncidentWorkflowBridgeRead)
+async def incident_workflow_context(
+    incident_id: UUID, session: Session
+) -> IncidentWorkflowBridgeRead:
+    """Where this incident stands in the existing decision workflow.
+
+    ``approval_required`` is true only while the latest run is actually waiting
+    on a human decision. Read-only.
+    """
+
+    return IncidentWorkflowBridgeRead.model_validate(
+        await IncidentOperationsService(session).workflow_context(incident_id)
+    )
+
+
+@router.post("/{incident_id}/start-workflow", response_model=WorkflowRead)
+async def start_incident_workflow(
+    incident_id: UUID, session: Session, request: Request
+) -> WorkflowRead:
+    """Enter the existing decision workflow from the Incident Center.
+
+    The gate refuses incidents whose status cannot legally reach the
+    workflow-owned ``UNDER_ANALYSIS`` and incidents without a usable diagnosis
+    (409 ``INCIDENT_NOT_READY``). On pass, the pre-existing
+    ``WorkflowService.start`` creates the run — idempotently — and the graph
+    runs exactly as it always has: triage, planning, safety review, then the
+    human approval interrupt. No work order is created here and the approval
+    flow cannot be bypassed from this endpoint.
+    """
+
+    gate = IncidentWorkflowGate(session)
+    incident, diagnosis = await gate.ensure_ready(incident_id)
+    gate.record_gate_pass(incident, diagnosis)
+    await session.commit()
+    service = _workflow_service(request)
+    return await service.start(incident_id, diagnosis.id, trace_id_context.get())
 
 
 @router.post("/{incident_id}/acknowledge", response_model=IncidentLifecycleAcknowledgeRead)

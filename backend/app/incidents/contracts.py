@@ -266,6 +266,66 @@ class IncidentContextRead(BaseModel):
     audit: list[AuditEntryRead] = Field(default_factory=list)
 
 
+class IncidentDashboardSummaryRead(BaseModel):
+    """Header counters for the Incident Operations Center."""
+
+    active: int = 0
+    critical: int = 0
+    unacknowledged: int = 0
+
+
+class IncidentDashboardItemRead(BaseModel):
+    """One row of the incident center table.
+
+    ``asset_name`` and ``workflow_status`` are resolved by the dashboard query
+    in bulk; an incident without a device, without an attached asset, or
+    without a workflow run simply carries ``None`` there instead of being
+    dropped from the view.
+    """
+
+    incident_id: UUID
+    title: str
+    status: str
+    severity: str | None = None
+    priority: str
+    device_id: str | None = None
+    asset_name: str | None = None
+    workflow_status: str | None = None
+    created_at: datetime
+    last_alarm_at: datetime | None = None
+    resolved_at: datetime | None = None
+
+
+class IncidentDashboardRead(BaseModel):
+    """The dashboard payload: header counters plus the incident table."""
+
+    summary: IncidentDashboardSummaryRead
+    incidents: list[IncidentDashboardItemRead] = Field(default_factory=list)
+
+
+class IncidentWorkflowBridgeRead(BaseModel):
+    """The workflow bridge for one incident.
+
+    ``approval_required`` is true only when the latest run is actually waiting
+    on a human: status ``WAITING_APPROVAL`` with an approval that is still
+    ``PENDING``. A decided or cancelled run never reports a pending gate.
+    """
+
+    incident_id: UUID
+    workflow_exists: bool = False
+    workflow_run_id: UUID | None = None
+    workflow_status: str | None = None
+    approval_required: bool = False
+
+
+class IncidentMetricsRead(BaseModel):
+    """Operational response metrics over incident lifecycle timestamps."""
+
+    mtta_seconds: float
+    mttr_seconds: float
+    alarm_compression: float
+
+
 __all__ = [
     "AlarmAcknowledgeRequest",
     "AlarmClearRequest",
@@ -279,7 +339,12 @@ __all__ = [
     "DeviceContextRead",
     "DiagnosisContextRead",
     "IncidentContextRead",
+    "IncidentDashboardItemRead",
+    "IncidentDashboardRead",
+    "IncidentDashboardSummaryRead",
     "IncidentLifecycleAcknowledgeRead",
     "IncidentLifecycleRead",
+    "IncidentMetricsRead",
     "IncidentNoteRequest",
+    "IncidentWorkflowBridgeRead",
 ]

@@ -116,23 +116,81 @@ export function DeviceDetailPage() {
 
 export function IncidentsPage() {
   const [status, setStatus] = useState('ALL')
-  const query = useQuery({ queryKey: ['incidents', status], queryFn: () => api.incidents(status === 'ALL' ? undefined : status) })
-  return <><PageHeader eyebrow="Decision lifecycle" title="Incidents" detail="Abnormal diagnoses linked to evidence, workflows, approvals, and maintenance plans." /><div className="filters"><label>Status<select value={status} onChange={(event) => setStatus(event.target.value)}><option>ALL</option><option>OPEN</option><option>UNDER_ANALYSIS</option><option>ACTION_PENDING</option><option>WORK_ORDER_CREATED</option></select></label></div><AsyncPanel loading={query.isPending} error={query.error} empty={!query.data?.length} emptyText="No incidents in this lifecycle state."><div className="table-wrap"><table><thead><tr><th>Incident</th><th>Device</th><th>Status</th><th>Created</th><th>Diagnosis / severity</th><th>Workflow</th></tr></thead><tbody>{query.data?.map((item) => <tr key={item.incident_id}><td><Link to={`/incidents/${item.incident_id}`}><strong>{item.title}</strong></Link><small>{item.incident_id}</small></td><td>{item.device_id}</td><td><StatusBadge value={item.status} /></td><td>{formatTime(item.created_at)}</td><td>{item.fault_type || 'Unclassified'} <StatusBadge value={item.severity} /></td><td><StatusBadge value={item.workflow_status || 'NOT STARTED'} /></td></tr>)}</tbody></table></div></AsyncPanel></>
+  const [severity, setSeverity] = useState('ALL')
+  const [device, setDevice] = useState('')
+  const dashboard = useQuery({ queryKey: ['incident-dashboard'], queryFn: api.incidentDashboard, refetchInterval: 15_000 })
+  const metrics = useQuery({ queryKey: ['incident-metrics'], queryFn: api.incidentMetrics, refetchInterval: 30_000 })
+  const rows = dashboard.data?.incidents ?? []
+  const filtered = rows.filter((item) =>
+    (status === 'ALL' || item.status === status) &&
+    (severity === 'ALL' || item.severity === severity) &&
+    (!device || (item.device_id ?? '').toLowerCase().includes(device.toLowerCase())),
+  )
+  const summary = dashboard.data?.summary
+  const waitingApproval = rows.filter((item) => item.workflow_status === 'WAITING_APPROVAL').length
+  const today = new Date().toISOString().slice(0, 10)
+  const resolvedToday = rows.filter((item) => (item.resolved_at ?? '').slice(0, 10) === today).length
+  const m = metrics.data
+  return <>
+    <PageHeader eyebrow="Incident Operations Center" title="Incident Center" detail="Observation and decision support: correlated alarms, diagnoses, and the human decision path into the existing approval flow. This center never executes equipment control." />
+    <AsyncPanel loading={dashboard.isPending} error={dashboard.error}>
+      <section className="metrics-grid">
+        <MetricCard label="Active Incident" value={summary?.active ?? 0} detail={`${summary?.unacknowledged ?? 0} unacknowledged`} />
+        <MetricCard label="Critical" value={summary?.critical ?? 0} detail="Active incidents at CRITICAL severity" />
+        <MetricCard label="Waiting Approval" value={waitingApproval} detail="Held by safety policy for a human decision" />
+        <MetricCard label="Resolved Today" value={resolvedToday} detail="Incidents reaching RESOLVED today" />
+      </section>
+      <div className="filters">
+        <label>Status<select value={status} onChange={(event) => setStatus(event.target.value)}><option>ALL</option><option>OPEN</option><option>ACKNOWLEDGED</option><option>INVESTIGATING</option><option>UNDER_ANALYSIS</option><option>ACTION_PENDING</option><option>WORK_ORDER_CREATED</option><option>MITIGATED</option><option>RESOLVED</option><option>CLOSED</option></select></label>
+        <label>Severity<select value={severity} onChange={(event) => setSeverity(event.target.value)}><option>ALL</option><option>CRITICAL</option><option>MAJOR</option><option>WARNING</option><option>MINOR</option><option>INFO</option></select></label>
+        <label>Device<input value={device} onChange={(event) => setDevice(event.target.value)} placeholder="Device ID contains…" /></label>
+      </div>
+      <AsyncPanel loading={false} error={metrics.error} >
+        {m && <section className="panel"><div className="panel-heading"><div><p className="eyebrow">Operational metrics</p><h2>Response performance</h2></div><span>Computed over incident lifecycle timestamps</span></div><div className="detail-grid"><KeyValue label="MTTA (mean time to acknowledge)" value={`${Math.round(m.mtta_seconds)} s`} /><KeyValue label="MTTR (mean time to resolve)" value={`${Math.round(m.mttr_seconds)} s`} /><KeyValue label="Alarm compression (alarms per incident)" value={m.alarm_compression.toFixed(1)} /></div></section>}
+      </AsyncPanel>
+      <AsyncPanel loading={false} error={undefined} empty={!filtered.length} emptyText="No incidents match the selected filters.">
+        <div className="table-wrap"><table><thead><tr><th>Incident</th><th>Severity</th><th>Device</th><th>Asset</th><th>Status</th><th>Created</th><th>Last Alarm</th><th>Workflow</th></tr></thead><tbody>{filtered.map((item) => <tr key={item.incident_id}><td><Link to={`/incidents/${item.incident_id}`}><strong>{item.title}</strong></Link><small>{item.incident_id}</small></td><td><StatusBadge value={item.severity || 'UNKNOWN'} /></td><td>{item.device_id || '—'}</td><td>{item.asset_name || '—'}</td><td><StatusBadge value={item.status} /></td><td>{formatTime(item.created_at)}</td><td>{item.last_alarm_at ? formatTime(item.last_alarm_at) : '—'}</td><td><StatusBadge value={item.workflow_status || 'NOT STARTED'} /></td></tr>)}</tbody></table></div>
+      </AsyncPanel>
+    </AsyncPanel>
+  </>
 }
+
+const canAcknowledge = (status: string) => status === 'OPEN'
+const canInvestigate = (status: string) => status === 'ACKNOWLEDGED' || status === 'REOPENED'
+const canStartWorkflow = (status: string) => ['OPEN', 'ACKNOWLEDGED', 'INVESTIGATING'].includes(status)
+const canResolve = (status: string) => status === 'MITIGATED'
 
 export function IncidentDetailPage() {
   const { incidentId = '' } = useParams()
+  const queryClient = useQueryClient()
   const incident = useQuery({ queryKey: ['incident', incidentId], queryFn: () => api.incident(incidentId) })
+  const bridge = useQuery({ queryKey: ['incident-bridge', incidentId], queryFn: () => api.incidentWorkflowContext(incidentId), refetchInterval: 10_000 })
   const workflowId = incident.data?.workflow_run_id
   const workflow = useQuery({ queryKey: ['workflow', workflowId], queryFn: () => api.workflow(workflowId!), enabled: !!workflowId, refetchInterval: (query) => query.state.data?.status === 'WAITING_APPROVAL' ? 10_000 : false })
   const trace = useQuery({ queryKey: ['workflow-trace', workflowId], queryFn: () => api.workflowTrace(workflowId!), enabled: !!workflowId })
   const documents = useQuery({ queryKey: ['knowledge-documents'], queryFn: api.knowledgeDocuments, retry: false })
+  const refresh = async () => {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ['incident', incidentId] }),
+      queryClient.invalidateQueries({ queryKey: ['incident-bridge', incidentId] }),
+      queryClient.invalidateQueries({ queryKey: ['incident-dashboard'] }),
+    ])
+  }
+  const acknowledge = useMutation({ mutationFn: () => api.acknowledgeIncident(incidentId), onSuccess: refresh })
+  const investigate = useMutation({ mutationFn: () => api.startInvestigation(incidentId), onSuccess: refresh })
+  const resolve = useMutation({ mutationFn: () => api.resolveIncident(incidentId), onSuccess: refresh })
+  const startWorkflow = useMutation({ mutationFn: () => api.startIncidentWorkflow(incidentId), onSuccess: refresh })
+  const actionError = acknowledge.error || investigate.error || resolve.error || startWorkflow.error
+  const busy = acknowledge.isPending || investigate.isPending || resolve.isPending || startWorkflow.isPending
   const data = incident.data
+  const status = data?.status ?? ''
+  const workflowStarted = !!workflowId || (bridge.data?.workflow_exists ?? false)
   return <><PageHeader eyebrow="Incident detail" title={data?.title || 'Incident'} detail={incidentId} /><AsyncPanel loading={incident.isPending} error={incident.error}>{data && <>
-    <section className="panel"><div className="panel-heading"><div><p className="eyebrow">Incident header</p><h2>{data.device_id}</h2></div><StatusBadge value={data.status} /></div><div className="detail-grid"><KeyValue label="Priority" value={<StatusBadge value={data.priority} />} /><KeyValue label="Created" value={formatTime(data.created_at)} /><KeyValue label="Updated" value={formatTime(data.updated_at)} /><KeyValue label="Description" value={data.description || 'No operator description.'} /></div><ResourceLink to={`/devices/${data.device_id}`}>Open device context</ResourceLink></section>
-    <DiagnosisPanel diagnosis={data.diagnosis} />
-    <SensorEvidencePanel evidence={data.diagnosis.evidence} />
-    {workflow.data ? <><EvidencePanel evidence={workflow.data.state.knowledge_context.evidence} documents={documents.data || []} /><WorkflowPanel workflow={workflow.data} agentRuns={trace.data?.agent_runs || []} />{workflow.data.state.approval && <ResourceLink to={`/approvals/${workflow.data.state.approval.approval_id}`}>Open approval decision</ResourceLink>}{workflow.data.state.work_order_id && <ResourceLink to={`/work-orders/${workflow.data.state.work_order_id}`}>Open work order</ResourceLink>}</> : workflowId ? <AsyncPanel loading={workflow.isPending} error={workflow.error}><span /></AsyncPanel> : <section className="panel"><div className="panel-state">No Agent workflow has been started for this incident.</div></section>}
+    <section className="panel"><div className="panel-heading"><div><p className="eyebrow">Overview</p><h2>{data.device_id || 'Unassigned device'}</h2></div><StatusBadge value={data.status} /></div><div className="detail-grid"><KeyValue label="Status" value={<StatusBadge value={data.status} />} /><KeyValue label="Severity" value={<StatusBadge value={data.severity || 'UNKNOWN'} />} /><KeyValue label="Priority" value={<StatusBadge value={data.priority} />} /><KeyValue label="Device" value={data.device_id || '—'} /><KeyValue label="Asset" value={data.asset?.name || 'Unassigned'} /><KeyValue label="Created" value={formatTime(data.created_at)} /><KeyValue label="Updated" value={formatTime(data.updated_at)} /><KeyValue label="Description" value={data.description || 'No operator description.'} /></div><div className="button-row"><button className="button-primary" type="button" disabled={busy || !canAcknowledge(status)} onClick={() => acknowledge.mutate()}>Acknowledge</button><button className="button-primary" type="button" disabled={busy || !canInvestigate(status)} onClick={() => investigate.mutate()}>Start Investigation</button><button className="button-primary" type="button" disabled={busy || !canStartWorkflow(status) || workflowStarted} onClick={() => startWorkflow.mutate()}>Start Workflow</button><button className="button-primary" type="button" disabled={busy || !canResolve(status)} onClick={() => resolve.mutate()}>Resolve</button></div>{startWorkflow.error && <ApiErrorPanel error={startWorkflow.error} title="Workflow was not started" />}{actionError && !startWorkflow.error && <ApiErrorPanel error={actionError} title="Action was not accepted" />}{bridge.data?.approval_required && <div className="notice notice-warning" role="status"><strong>Waiting approval</strong><span>The decision workflow is holding for a human decision. The system recommends; the operator approves.</span></div>}<ResourceLink to={`/devices/${data.device_id}`}>Open device context</ResourceLink></section>
+    <section className="panel"><div className="panel-heading"><div><p className="eyebrow">Alarm timeline</p><h2>Correlated alarm instances</h2></div><span>{data.alarms?.length ?? 0} linked · newest first</span></div>{data.alarms?.length ? <ol className="alarm-list">{data.alarms.map((alarm, index) => <li key={alarm.id} className="alarm-timeline-row"><span className="alarm-timeline-index">{index + 1}</span><StatusBadge value={alarm.severity} /><div><strong>{alarm.rule_id}</strong><span>{alarm.message}</span></div><KeyValue label="Started" value={formatTime(alarm.started_at)} /><KeyValue label="Occurrences" value={alarm.occurrence_count ?? 1} /><StatusBadge value={alarm.status} /></li>)}</ol> : <div className="panel-state">No alarms are linked to this incident.</div>}</section>
+    <section className="panel"><div className="panel-heading"><div><p className="eyebrow">Diagnosis evidence</p><h2>Machine diagnosis</h2></div><StatusBadge value={data.diagnosis.status || 'UNKNOWN'} /></div><div className="detail-grid"><KeyValue label="Fault type" value={data.diagnosis.fault_type || 'Unclassified'} /><KeyValue label="Confidence" value={data.diagnosis.confidence == null ? 'Not reported' : formatPercent(data.diagnosis.confidence)} /><KeyValue label="Severity" value={<StatusBadge value={data.diagnosis.severity || 'UNKNOWN'} />} /><KeyValue label="Diagnosed at" value={formatTime(data.diagnosis.created_at)} /></div><p className="footnote">Read-only. Diagnosis records are produced by the ML pipeline and are never edited from the Incident Center.</p></section>
+    {data.diagnosis?.evidence?.length ? <SensorEvidencePanel evidence={data.diagnosis.evidence} /> : null}
+    {workflow.data ? <><EvidencePanel evidence={workflow.data.state.knowledge_context.evidence} documents={documents.data || []} /><WorkflowPanel workflow={workflow.data} agentRuns={trace.data?.agent_runs || []} />{workflow.data.state.approval && <ResourceLink to={`/approvals/${workflow.data.state.approval.approval_id}`}>Open approval decision</ResourceLink>}{workflow.data.state.work_order_id && <ResourceLink to={`/work-orders/${workflow.data.state.work_order_id}`}>Open work order</ResourceLink>}</> : workflowId ? <AsyncPanel loading={workflow.isPending} error={workflow.error}><span /></AsyncPanel> : <section className="panel"><div className="panel-state">No Agent workflow has been started for this incident. Starting one creates a workflow run and runs the existing decision graph; a work order is only ever created after a human approval.</div></section>}
   </>}</AsyncPanel></>
 }
 

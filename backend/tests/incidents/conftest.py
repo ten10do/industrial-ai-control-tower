@@ -42,7 +42,17 @@ from sqlalchemy.ext.asyncio import (
 
 from app.assetconfig.models import AssetNode
 from app.incidents.models import AlarmRule, IncidentAlarm
-from app.models import Alarm, AuditEvent, Device, Diagnosis, Incident, Telemetry
+from app.models import (
+    Alarm,
+    Approval,
+    AuditEvent,
+    Device,
+    Diagnosis,
+    Incident,
+    MaintenancePlan,
+    Telemetry,
+)
+from app.models import WorkflowRun as WorkflowRunModel
 
 TEST_DATABASE_ENV = "ALARM_TEST_DATABASE_URL"
 ADMIN_DATABASE = "postgres"
@@ -83,6 +93,13 @@ def _tables() -> list[Any]:
         Diagnosis.__table__,
         IncidentAlarm.__table__,
         AuditEvent.__table__,
+        # Phase 6.9-C: workflow bridge and gate tests need the run and approval
+        # tables. approvals.maintenance_plan_id references maintenance_plans, so
+        # the plan table is created too even though no test writes a plan row.
+        # WorkOrder is deliberately left out — the gate tests never reach it.
+        WorkflowRunModel.__table__,
+        MaintenancePlan.__table__,
+        Approval.__table__,
     ]
 
 

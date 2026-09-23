@@ -214,6 +214,12 @@ async def get_incident(
     alarms = await context.linked_alarms(incident_id)
     device, asset = await context.device_with_asset(incident)
     timeline = await context.audit_timeline(incident_id)
+    latest_workflow = await session.scalar(
+        select(WorkflowRun)
+        .where(WorkflowRun.incident_id == incident_id)
+        .order_by(WorkflowRun.created_at.desc())
+        .limit(1)
+    )
     return IncidentDetailContextRead(
         **summary.model_dump(),
         description=incident.description,
@@ -239,6 +245,7 @@ async def get_incident(
         device=DeviceContextRead.model_validate(device) if device else None,
         asset=AssetContextRead.model_validate(asset) if asset else None,
         audit=[AuditEntryRead.model_validate(entry) for entry in timeline],
+        workflow=_workflow_summary(latest_workflow) if latest_workflow is not None else None,
     )
 
 

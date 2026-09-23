@@ -196,3 +196,10 @@ button:disabled { cursor: not-allowed; opacity: .55; }
   .agent-step-track { grid-auto-flow: row; }
   .dependency-strip > span b { display: none; }
 }
+
+/* Phase 6.9-C: incident detail alarm timeline */
+ol.alarm-list { list-style: none; margin: 0; padding: 0; counter-reset: alarm-step; }
+.alarm-timeline-row { display: grid; grid-template-columns: auto auto 1fr 190px auto auto; gap: 12px; align-items: center; padding: 12px; background: #0d161c; border-left: 3px solid var(--danger); }
+.alarm-timeline-row + .alarm-timeline-row { margin-top: 8px; }
+.alarm-timeline-row > div { display: grid; gap: 4px; }
+.alarm-timeline-index { width: 28px; height: 28px; display: grid; place-items: center; border-radius: 50%; background: var(--danger); color: #fff; font-weight: 700; font-size: 13px; }
