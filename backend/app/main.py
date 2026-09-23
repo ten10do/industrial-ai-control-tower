@@ -28,6 +28,9 @@ from app.api import (
     websockets,
     workflows,
 )
+from app.api import (
+    incidents as incident_commands,
+)
 from app.assetconfig.apply import GatewayDefinitionApplier, UnavailableApplier
 from app.assetconfig.errors import AssetConfigError
 from app.assetconfig.models import ApplyStatus, ConfigurationSource
@@ -327,6 +330,8 @@ app.include_router(alarms.router, prefix="/api/v1")
 app.include_router(alarms.router, prefix="/api")
 app.include_router(alarm_rules.router, prefix="/api/v1")
 app.include_router(alarm_rules.router, prefix="/api")
+app.include_router(incident_commands.router, prefix="/api/v1")
+app.include_router(incident_commands.router, prefix="/api")
 app.include_router(diagnoses.router)
 app.include_router(knowledge.router)
 app.include_router(workflows.router)

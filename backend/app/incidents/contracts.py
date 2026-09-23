@@ -8,6 +8,7 @@ read-only client sees the same shape with additive fields.
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Any
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, computed_field
@@ -154,6 +155,117 @@ class AlarmRuleUpdate(BaseModel):
     enabled: bool | None = None
 
 
+MAX_INCIDENT_NOTE = 500
+
+
+class IncidentNoteRequest(BaseModel):
+    """Optional body of an incident acknowledgement."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    note: str | None = Field(default=None, max_length=MAX_INCIDENT_NOTE)
+
+
+class IncidentLifecycleRead(BaseModel):
+    """One incident instance after a lifecycle command."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    device_id: str | None
+    title: str
+    description: str
+    status: str
+    severity: str | None = None
+    priority: str
+    acknowledged_at: datetime | None = None
+    acknowledged_by: str | None = None
+    resolved_at: datetime | None = None
+    closed_at: datetime | None = None
+    last_alarm_at: datetime | None = None
+    created_at: datetime
+    updated_at: datetime
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def open(self) -> bool:
+        """Whether this incident still absorbs new evidence."""
+
+        return self.status not in {"RESOLVED", "CLOSED", "CANCELLED"}
+
+
+class IncidentLifecycleAcknowledgeRead(IncidentLifecycleRead):
+    """Acknowledge result, echoing the recorded actor and note."""
+
+    note: str | None = None
+
+
+class DeviceContextRead(BaseModel):
+    """The device an incident belongs to."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    device_id: str
+    device_type: str
+    name: str
+    status: str
+
+
+class AssetContextRead(BaseModel):
+    """The asset node the device hangs from, when one is assigned."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    name: str
+    asset_type: str
+    parent_id: UUID | None = None
+
+
+class DiagnosisContextRead(BaseModel):
+    """The newest diagnosis associated through ``diagnoses.incident_id``."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    status: str | None = None
+    fault_type: str | None = None
+    severity: str | None = None
+    confidence: float | None = None
+    anomaly_score: float | None = None
+    model_version: str | None = None
+    created_at: datetime
+
+
+class AuditEntryRead(BaseModel):
+    """One incident-scoped audit record."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    timestamp: datetime
+    actor: str
+    action: str
+    status: str
+    details: dict[str, Any] = Field(default_factory=dict)
+    trace_id: str
+
+
+class IncidentContextRead(BaseModel):
+    """Read-only bundle around one incident.
+
+    This is the shape a later agent-facing phase will consume. It is built from
+    persisted state only: no model call, no workflow invocation.
+    """
+
+    incident: IncidentLifecycleRead
+    alarms: list[AlarmRead] = Field(default_factory=list)
+    device: DeviceContextRead | None = None
+    asset: AssetContextRead | None = None
+    diagnosis: DiagnosisContextRead | None = None
+    audit: list[AuditEntryRead] = Field(default_factory=list)
+
+
 __all__ = [
     "AlarmAcknowledgeRequest",
     "AlarmClearRequest",
@@ -162,4 +274,12 @@ __all__ = [
     "AlarmRuleCreate",
     "AlarmRuleRead",
     "AlarmRuleUpdate",
+    "AssetContextRead",
+    "AuditEntryRead",
+    "DeviceContextRead",
+    "DiagnosisContextRead",
+    "IncidentContextRead",
+    "IncidentLifecycleAcknowledgeRead",
+    "IncidentLifecycleRead",
+    "IncidentNoteRequest",
 ]

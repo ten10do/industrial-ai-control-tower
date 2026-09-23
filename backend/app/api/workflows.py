@@ -12,12 +12,19 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.dependencies import get_session
 from app.core.context import trace_id_context
 from app.core.errors import AppError
+from app.incidents.contracts import (
+    AlarmRead,
+    AssetContextRead,
+    AuditEntryRead,
+    DeviceContextRead,
+)
+from app.incidents.incident_service import IncidentContextService
 from app.models import Approval, Diagnosis, Incident, WorkflowRun, WorkOrder
 from app.workflow.contracts import (
     ApprovalDecisionRequest,
     ApprovalRead,
     IncidentCreateRequest,
-    IncidentDetailRead,
+    IncidentDetailContextRead,
     IncidentRead,
     IncidentSummaryRead,
     WorkflowCreateRequest,
@@ -81,8 +88,8 @@ async def _incident_summary(
             .order_by(Diagnosis.created_at.desc())
             .limit(1)
         )
-    if diagnosis is None or incident.device_id is None:
-        raise AppError("INCIDENT_DATA_INCOMPLETE", "Incident has no diagnosis.", 409)
+    if incident.device_id is None:
+        raise AppError("INCIDENT_DATA_INCOMPLETE", "Incident has no device.", 409)
     workflow = await session.scalar(
         select(WorkflowRun)
         .where(WorkflowRun.incident_id == incident.id)
@@ -174,19 +181,25 @@ async def create_incident(
 async def list_incidents(
     session: Annotated[AsyncSession, Depends(get_session)],
     status: str | None = None,
+    severity: str | None = None,
+    device_id: str | None = None,
     limit: Annotated[int, Query(ge=1, le=200)] = 100,
 ) -> list[IncidentSummaryRead]:
     statement = select(Incident).order_by(Incident.created_at.desc()).limit(limit)
     if status:
         statement = statement.where(Incident.status == status)
+    if severity:
+        statement = statement.where(Incident.severity == severity)
+    if device_id:
+        statement = statement.where(Incident.device_id == device_id)
     incidents = list(await session.scalars(statement))
     return [await _incident_summary(session, incident) for incident in incidents]
 
 
-@router.get("/incidents/{incident_id}", response_model=IncidentDetailRead)
+@router.get("/incidents/{incident_id}", response_model=IncidentDetailContextRead)
 async def get_incident(
     incident_id: UUID, session: Annotated[AsyncSession, Depends(get_session)]
-) -> IncidentDetailRead:
+) -> IncidentDetailContextRead:
     incident = await session.get(Incident, incident_id)
     if incident is None:
         raise AppError("INCIDENT_NOT_FOUND", "Incident was not found.", 404)
@@ -197,8 +210,11 @@ async def get_incident(
         .limit(1)
     )
     summary = await _incident_summary(session, incident, diagnosis)
-    assert diagnosis is not None
-    return IncidentDetailRead(
+    context = IncidentContextService(session)
+    alarms = await context.linked_alarms(incident_id)
+    device, asset = await context.device_with_asset(incident)
+    timeline = await context.audit_timeline(incident_id)
+    return IncidentDetailContextRead(
         **summary.model_dump(),
         description=incident.description,
         diagnosis={
@@ -216,7 +232,13 @@ async def get_incident(
             "feature_version": diagnosis.feature_version,
             "trace_id": diagnosis.trace_id,
             "created_at": diagnosis.created_at,
-        },
+        }
+        if diagnosis is not None
+        else {},
+        alarms=[AlarmRead.model_validate(alarm) for alarm in alarms],
+        device=DeviceContextRead.model_validate(device) if device else None,
+        asset=AssetContextRead.model_validate(asset) if asset else None,
+        audit=[AuditEntryRead.model_validate(entry) for entry in timeline],
     )
 
 

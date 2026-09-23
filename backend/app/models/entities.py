@@ -140,12 +140,24 @@ class Alarm(Base):
 
 class Incident(TimestampMixin, Base):
     __tablename__ = "incidents"
+    __table_args__ = (Index("ix_incidents_device_status", "device_id", "status"),)
+
     id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
     device_id: Mapped[str | None] = mapped_column(ForeignKey("devices.device_id"), index=True)
     title: Mapped[str] = mapped_column(String(200), nullable=False)
     description: Mapped[str] = mapped_column(Text, default="")
     status: Mapped[str] = mapped_column(String(30), nullable=False, default="OPEN")
     priority: Mapped[str] = mapped_column(String(20), nullable=False, default="MEDIUM")
+    #: Technical impact, using the same ordered vocabulary as alarms. Nullable
+    #: because incidents created before Phase 6.9-B carry no severity.
+    severity: Mapped[str | None] = mapped_column(String(20))
+    acknowledged_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    acknowledged_by: Mapped[str | None] = mapped_column(String(100))
+    resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    closed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    #: Most recent linked-alarm activity. The correlation window is anchored
+    #: here, so a stream of alarms on one device keeps one incident alive.
+    last_alarm_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class Diagnosis(TimestampMixin, Base):

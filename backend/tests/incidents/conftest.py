@@ -42,7 +42,7 @@ from sqlalchemy.ext.asyncio import (
 
 from app.assetconfig.models import AssetNode
 from app.incidents.models import AlarmRule, IncidentAlarm
-from app.models import Alarm, AuditEvent, Device, Incident, Telemetry
+from app.models import Alarm, AuditEvent, Device, Diagnosis, Incident, Telemetry
 
 TEST_DATABASE_ENV = "ALARM_TEST_DATABASE_URL"
 ADMIN_DATABASE = "postgres"
@@ -80,6 +80,7 @@ def _tables() -> list[Any]:
         Alarm.__table__,
         AlarmRule.__table__,
         Incident.__table__,
+        Diagnosis.__table__,
         IncidentAlarm.__table__,
         AuditEvent.__table__,
     ]

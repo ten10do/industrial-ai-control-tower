@@ -9,6 +9,13 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field
 
+from app.incidents.contracts import (
+    AlarmRead,
+    AssetContextRead,
+    AuditEntryRead,
+    DeviceContextRead,
+)
+
 
 class WorkflowStatus(StrEnum):
     CREATED = "CREATED"
@@ -224,7 +231,10 @@ class IncidentRead(BaseModel):
 class IncidentSummaryRead(IncidentRead):
     created_at: datetime
     updated_at: datetime
-    diagnosis_status: str
+    #: Nullable since Phase 6.9-B: correlated incidents exist before any
+    #: diagnosis is attached, and the list endpoint no longer refuses them.
+    diagnosis_id: UUID | None = None  # type: ignore[assignment]
+    diagnosis_status: str | None = None
     fault_type: str | None
     severity: str | None
     workflow_run_id: UUID | None = None
@@ -235,6 +245,20 @@ class IncidentSummaryRead(IncidentRead):
 class IncidentDetailRead(IncidentSummaryRead):
     description: str
     diagnosis: dict[str, Any]
+
+
+class IncidentDetailContextRead(IncidentDetailRead):
+    """Incident detail plus the read-only context Phase 6.9-B assembles.
+
+    Purely additive over ``IncidentDetailRead``: existing consumers see the same
+    fields and new consumers get the alarm instances, the device and asset
+    nodes, and the incident-scoped audit timeline.
+    """
+
+    alarms: list[AlarmRead] = Field(default_factory=list)
+    device: DeviceContextRead | None = None
+    asset: AssetContextRead | None = None
+    audit: list[AuditEntryRead] = Field(default_factory=list)
 
 
 class WorkflowSummaryRead(BaseModel):
