@@ -15,6 +15,7 @@ from sqlalchemy import text
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.api import (
+    alarm_rules,
     alarms,
     assets,
     configurations,
@@ -45,6 +46,7 @@ from app.gateway import (
     RetryPolicy,
 )
 from app.gateway.simulator_source import build_simulator_source_factory
+from app.incidents.errors import AlarmLifecycleError
 from app.infrastructure.database.session import Database
 from app.infrastructure.mqtt.consumer import MqttTelemetryConsumer
 from app.knowledge.retrieval import KnowledgeIndex
@@ -321,7 +323,10 @@ app = FastAPI(
 )
 app.include_router(devices.router)
 app.include_router(telemetry.router)
-app.include_router(alarms.router)
+app.include_router(alarms.router, prefix="/api/v1")
+app.include_router(alarms.router, prefix="/api")
+app.include_router(alarm_rules.router, prefix="/api/v1")
+app.include_router(alarm_rules.router, prefix="/api")
 app.include_router(diagnoses.router)
 app.include_router(knowledge.router)
 app.include_router(workflows.router)
@@ -357,6 +362,13 @@ async def app_error_handler(request: Request, exc: AppError) -> JSONResponse:
 
 @app.exception_handler(AssetConfigError)
 async def asset_config_error_handler(request: Request, exc: AssetConfigError) -> JSONResponse:
+    return _error_response(
+        exc.code, exc.message, trace_id_context.get(), exc.status_code, exc.details
+    )
+
+
+@app.exception_handler(AlarmLifecycleError)
+async def alarm_lifecycle_error_handler(request: Request, exc: AlarmLifecycleError) -> JSONResponse:
     return _error_response(
         exc.code, exc.message, trace_id_context.get(), exc.status_code, exc.details
     )

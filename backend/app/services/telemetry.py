@@ -12,8 +12,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.context import trace_id_context
 from app.core.errors import AppError
+from app.incidents.service import AlarmLifecycleService
 from app.infrastructure.redis.latest import LatestTelemetryCache
-from app.repositories.alarm import AlarmRepository
+from app.models import Device
 from app.repositories.audit import AuditRepository
 from app.repositories.device import DeviceRepository
 from app.repositories.telemetry import TelemetryRepository
@@ -50,7 +51,7 @@ class TelemetryService:
         self.session = session
         self.telemetry = TelemetryRepository(session)
         self.devices = DeviceRepository(session)
-        self.alarms = AlarmRepository(session)
+        self.alarms = AlarmLifecycleService(session)
         self.audit = AuditRepository(session)
         self.cache = LatestTelemetryCache(redis)
         self.websocket_manager = websocket_manager
@@ -74,7 +75,8 @@ class TelemetryService:
                 await self._reject(topic, "DEVICE_TOPIC_MISMATCH", data.device_id)
                 return IngestionResult("REJECTED")
 
-            if await self.devices.get(data.device_id) is None:
+            device = await self.devices.get(data.device_id)
+            if device is None:
                 await self._reject(topic, "UNKNOWN_DEVICE", data.device_id)
                 return IngestionResult("REJECTED")
 
@@ -85,7 +87,7 @@ class TelemetryService:
                 logger.info("telemetry_duplicate", extra={"device_id": data.device_id})
                 return IngestionResult("DUPLICATE")
 
-            alarm_count = await self._apply_alarm_rules(model.id, data)
+            alarm_count = await self._apply_alarm_rules(device, model.id, data)
             await self.session.commit()
             response = TelemetryRead.model_validate(model)
             self.counters.persisted += 1
@@ -130,28 +132,43 @@ class TelemetryService:
             await self.websocket_manager.broadcast(telemetry.device_id, telemetry.model_dump_json())
         return is_latest
 
-    async def _apply_alarm_rules(self, telemetry_id: UUID, data: TelemetryIn) -> int:
-        rules: list[tuple[str, str, str]] = []
-        if data.temperature_c > 90:
-            rules.append(("HIGH_TEMPERATURE", "CRITICAL", "Temperature exceeds 90 °C."))
-        if data.vibration_mm_s > 7:
-            rules.append(("HIGH_VIBRATION", "WARNING", "Vibration exceeds 7 mm/s RMS."))
-        for rule_id, severity, message in rules:
-            await self.alarms.create(
-                device_id=data.device_id,
-                telemetry_id=telemetry_id,
-                rule_id=rule_id,
-                severity=severity,
-                message=message,
-            )
+    async def _apply_alarm_rules(
+        self, device: Device, telemetry_id: UUID, data: TelemetryIn
+    ) -> int:
+        """Evaluate the rule registry and fold the breaches into alarm state.
+
+        The rule set is data now rather than two string literals, so a threshold
+        change no longer needs a release. What did not change is the position of
+        this call: it still runs before the ingestion commit, so a persisted
+        measurement cannot exist without the alarm it raised.
+
+        A rule fault is contained rather than propagated. Losing a raw
+        measurement is the more serious failure of the two, so a broken rule
+        produces a missing alarm and an auditable record instead of a rejected
+        sample. The savepoint is what makes that containment honest: only the
+        alarm work is rolled back, and the telemetry row still commits.
+        """
+
+        try:
+            async with self.session.begin_nested():
+                touched = await self.alarms.record_breaches(
+                    device_id=device.device_id,
+                    device_type=device.device_type,
+                    telemetry_id=telemetry_id,
+                    payload=data.model_dump(),
+                    triggered_at=data.timestamp,
+                )
+        except Exception:
+            logger.exception("alarm_evaluation_failed", extra={"device_id": device.device_id})
             self.audit.add(
                 trace_id=trace_id_context.get(),
-                action="ALARM_CREATED",
-                resource=data.device_id,
-                status="SUCCESS",
-                details={"rule_id": rule_id},
+                action="ALARM_EVALUATION_FAILED",
+                resource=device.device_id,
+                status="FAILED",
+                details={"reason": "rule evaluation raised", "telemetry_id": str(telemetry_id)},
             )
-        return len(rules)
+            return 0
+        return len(touched)
 
     async def _reject(self, topic: str, reason: str, detail: str) -> None:
         self.counters.rejected += 1

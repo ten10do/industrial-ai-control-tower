@@ -16,6 +16,7 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
     Uuid,
+    text,
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
@@ -82,10 +83,43 @@ class Telemetry(Base):
 
 
 class Alarm(Base):
+    """One alarm instance for an active condition on one device.
+
+    Phase 6.9 promoted this table from a per-sample rule trigger log to an
+    instance registry. The distinction is the whole point of the change: a
+    condition that persists for an hour no longer produces one row per telemetry
+    sample. It produces one row whose ``occurrence_count`` counts the breaches,
+    whose ``started_at`` records the first one, and whose ``last_triggered_at``
+    records the most recent one.
+
+    History is preserved rather than rewritten. Every row that existed before the
+    promotion still exists afterwards, and ``uq_alarm_telemetry_rule`` is kept so
+    the original per-sample uniqueness guarantee still holds. What is added is a
+    partial unique index over the open statuses, which makes "at most one open
+    instance per device and rule" a database invariant rather than a hope.
+
+    An alarm instance is never reopened. A recurrence after ``CLEARED`` creates a
+    new row, so which incident an earlier occurrence belonged to stays
+    attributable.
+    """
+
     __tablename__ = "alarms"
     __table_args__ = (
         UniqueConstraint("telemetry_id", "rule_id", name="uq_alarm_telemetry_rule"),
         Index("ix_alarm_device_started", "device_id", "started_at"),
+        Index(
+            "uq_alarms_open_device_rule",
+            "device_id",
+            "rule_id",
+            unique=True,
+            postgresql_where=text("status <> 'CLEARED'"),
+        ),
+        Index("ix_alarms_open_status_device", "status", "device_id"),
+        CheckConstraint(
+            "status IN ('ACTIVE', 'ACKNOWLEDGED', 'CLEARED')",
+            name="ck_alarms_status",
+        ),
+        CheckConstraint("occurrence_count >= 1", name="ck_alarms_occurrence_count"),
     )
 
     id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
@@ -97,6 +131,11 @@ class Alarm(Base):
     message: Mapped[str] = mapped_column(Text, nullable=False)
     started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
     cleared_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    acknowledged_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    acknowledged_by: Mapped[str | None] = mapped_column(String(100))
+    clear_reason: Mapped[str | None] = mapped_column(Text)
+    occurrence_count: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    last_triggered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class Incident(TimestampMixin, Base):

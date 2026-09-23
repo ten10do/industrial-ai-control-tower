@@ -14,6 +14,7 @@ from app.assetconfig.models import (
     DeviceConfiguration,
     DeviceConfigurationRuntimeStatus,
 )
+from app.incidents.models import AlarmRule, IncidentAlarm
 from app.models.entities import (
     AgentRun,
     Alarm,
@@ -40,6 +41,7 @@ from app.observability.models import (
 __all__ = [
     "AgentRun",
     "Alarm",
+    "AlarmRule",
     "ApplyStatus",
     "Approval",
     "AssetNode",
@@ -53,6 +55,7 @@ __all__ = [
     "Diagnosis",
     "Evidence",
     "Incident",
+    "IncidentAlarm",
     "KnowledgeChunk",
     "KnowledgeDocument",
     "MaintenancePlan",
