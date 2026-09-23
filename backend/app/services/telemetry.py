@@ -1,7 +1,10 @@
 """Telemetry ingestion, validation, caching, alarm rules, and fan-out."""
 
+import functools
 import json
 import logging
+import time
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import Any
 from uuid import UUID, uuid4
@@ -15,6 +18,11 @@ from app.core.errors import AppError
 from app.incidents.service import AlarmLifecycleService
 from app.infrastructure.redis.latest import LatestTelemetryCache
 from app.models import Device
+from app.platform_observability.metrics import (
+    telemetry_ingest_failed_total,
+    telemetry_ingest_total,
+    telemetry_processing_latency_seconds,
+)
 from app.repositories.audit import AuditRepository
 from app.repositories.device import DeviceRepository
 from app.repositories.telemetry import TelemetryRepository
@@ -39,6 +47,37 @@ class IngestionResult:
     telemetry: TelemetryRead | None = None
 
 
+def _instrument_ingestion(
+    func: Callable[..., Awaitable[IngestionResult]],
+) -> Callable[..., Awaitable[IngestionResult]]:
+    """Add platform metrics around one ingestion attempt.
+
+    Purely observational: the wrapped method's behaviour, results, and error
+    propagation are unchanged. A rejection is counted inside ``_reject`` where
+    the concrete reason is known; the wrapper counts accepted payloads, times
+    every outcome, and counts unexpected exceptions as failures.
+    """
+
+    @functools.wraps(func)
+    async def wrapper(*args: Any, **kwargs: Any) -> IngestionResult:
+        telemetry_ingest_total.inc()
+        started = time.perf_counter()
+        try:
+            result = await func(*args, **kwargs)
+        except Exception:
+            telemetry_ingest_failed_total.labels(reason="EXCEPTION").inc()
+            telemetry_processing_latency_seconds.labels(outcome="ERROR").observe(
+                time.perf_counter() - started
+            )
+            raise
+        telemetry_processing_latency_seconds.labels(outcome=result.status).observe(
+            time.perf_counter() - started
+        )
+        return result
+
+    return wrapper
+
+
 class TelemetryService:
     def __init__(
         self,
@@ -58,6 +97,7 @@ class TelemetryService:
         self.counters = counters
         self.diagnosis = diagnosis
 
+    @_instrument_ingestion
     async def ingest_payload(self, topic: str, payload: bytes) -> IngestionResult:
         self.counters.consumed += 1
         trace_id = str(uuid4())
@@ -171,6 +211,7 @@ class TelemetryService:
         return len(touched)
 
     async def _reject(self, topic: str, reason: str, detail: str) -> None:
+        telemetry_ingest_failed_total.labels(reason=reason).inc()
         self.counters.rejected += 1
         self.audit.add(
             trace_id=trace_id_context.get(),

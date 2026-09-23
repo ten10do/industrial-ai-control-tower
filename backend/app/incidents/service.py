@@ -57,6 +57,7 @@ from app.incidents.states import (
 )
 from app.infrastructure.database.base import utc_now
 from app.models import Alarm
+from app.platform_observability.metrics import alarm_cleared_total, alarm_created_total
 from app.repositories.alarm import AlarmRepository
 from app.repositories.alarm_rule import AlarmRuleRepository
 from app.repositories.audit import AuditRepository
@@ -307,6 +308,7 @@ class AlarmLifecycleService:
             await self.session.flush()
             return existing, False
 
+        alarm_created_total.labels(rule_id=breach.rule_id, severity=breach.severity).inc()
         self._audit(
             action="ALARM_CREATED",
             resource=device_id,
@@ -378,6 +380,7 @@ class AlarmLifecycleService:
         alarm.cleared_at = utc_now()
         alarm.clear_reason = reason
         await self.session.flush()
+        alarm_cleared_total.labels(rule_id=alarm.rule_id, severity=alarm.severity).inc()
         self._audit(
             action="ALARM_CLEARED",
             resource=alarm.device_id,

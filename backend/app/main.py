@@ -1,6 +1,7 @@
 """FastAPI application entry point and managed infrastructure lifecycle."""
 
 import logging
+import time
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
@@ -31,6 +32,9 @@ from app.api import (
 from app.api import (
     incidents as incident_commands,
 )
+from app.api import (
+    platform as platform_api,
+)
 from app.assetconfig.apply import GatewayDefinitionApplier, UnavailableApplier
 from app.assetconfig.errors import AssetConfigError
 from app.assetconfig.models import ApplyStatus, ConfigurationSource
@@ -55,6 +59,7 @@ from app.infrastructure.mqtt.consumer import MqttTelemetryConsumer
 from app.knowledge.retrieval import KnowledgeIndex
 from app.ml.runtime import ModelCompatibilityError, ModelRuntime
 from app.observability.tracer import ObservableWorkflowService, WorkflowTracer
+from app.platform_observability.resilience import default_database_retry
 from app.services.diagnosis import OnlineDiagnosisCoordinator
 from app.services.telemetry import IngestionCounters
 from app.websocket.manager import WebSocketManager
@@ -163,6 +168,7 @@ async def _build_managed_gateway(
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 
+    app.state.process_started_monotonic = time.monotonic()
     database = Database(settings)
     redis = Redis.from_url(settings.redis_url, decode_responses=False)
     websocket_manager = WebSocketManager(settings.websocket_queue_size)
@@ -344,6 +350,9 @@ app.include_router(assets.router, prefix="/api")
 app.include_router(configurations.router, prefix="/api/v1")
 app.include_router(configurations.router, prefix="/api")
 app.include_router(websockets.router)
+app.include_router(platform_api.router)
+app.include_router(platform_api.platform_router, prefix="/api/v1")
+app.include_router(platform_api.platform_router, prefix="/api")
 
 
 @app.middleware("http")
@@ -407,9 +416,16 @@ async def health() -> dict[str, str]:
 @app.get("/ready")
 async def ready(request: Request) -> JSONResponse:
     dependencies: dict[str, str] = {}
-    try:
+    retry = default_database_retry()
+
+    async def _probe_database() -> None:
         async with request.app.state.database.sessions() as session:
             await session.execute(text("SELECT 1"))
+
+    try:
+        # Bounded retry (3 attempts, 1s/2s/4s): a readiness probe tolerates a
+        # transient blip but never hangs — exhaustion surfaces as an error.
+        await retry.run(_probe_database)
         dependencies["postgres"] = "ok"
     except Exception:
         dependencies["postgres"] = "unavailable"
@@ -454,7 +470,21 @@ async def ready(request: Request) -> JSONResponse:
         ready_state = ready_state and dependencies["workflow"] == "available"
     if settings.gateway_enabled:
         ready_state = ready_state and dependencies["connectivity"] == "available"
+    checks: dict[str, str] = {
+        "database": dependencies["postgres"],
+        "redis": dependencies["redis"],
+        "mqtt": dependencies["mqtt"],
+        "model": (
+            "available"
+            if request.app.state.diagnosis is not None
+            else ("missing" if settings.diagnosis_enabled else "disabled")
+        ),
+    }
     return JSONResponse(
         status_code=200 if ready_state else 503,
-        content={"status": "ready" if ready_state else "not_ready", "dependencies": dependencies},
+        content={
+            "status": "ready" if ready_state else "not_ready",
+            "dependencies": dependencies,
+            "checks": checks,
+        },
     )

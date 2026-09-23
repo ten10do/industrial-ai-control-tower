@@ -1,5 +1,6 @@
 services:
   postgres:
+    restart: unless-stopped
     image: industrial-ai-control-tower-postgres:16-pgvector-0.8.1
     build:
       context: ./infra/postgres
@@ -18,6 +19,7 @@ services:
       retries: 5
 
   redis:
+    restart: unless-stopped
     image: redis:7-alpine
     ports:
       - "${REDIS_PORT_PUBLISHED:-6379}:6379"
@@ -28,6 +30,7 @@ services:
       retries: 5
 
   mosquitto:
+    restart: unless-stopped
     image: eclipse-mosquitto:2
     ports:
       - "${MQTT_PORT_PUBLISHED:-1883}:1883"
@@ -41,6 +44,7 @@ services:
       retries: 5
 
   backend:
+    restart: unless-stopped
     build: ./backend
     ports:
       - "${BACKEND_PORT_PUBLISHED:-8000}:8000"
@@ -97,11 +101,17 @@ services:
         condition: service_healthy
 
   frontend:
+    restart: unless-stopped
     build: ./frontend
     ports:
       - "${FRONTEND_PORT_PUBLISHED:-80}:80"
     depends_on:
       - backend
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://localhost:80/"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
 volumes:
   postgres-data:

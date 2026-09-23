@@ -28,6 +28,13 @@ from adapters.registry import create_adapter
 from app.gateway.errors import GatewayConfigurationError
 from app.gateway.ingestion import IngestionOutcome, RegistrationChecker, TelemetrySink
 from app.gateway.models import DeviceDefinition, DeviceState, DeviceStatusRead
+from app.platform_observability.metrics import (
+    adapter_connect_failure_total,
+    adapter_connect_success_total,
+    adapter_last_success_timestamp,
+    adapter_read_latency_seconds,
+)
+from app.platform_observability.tasks import monitor_background_task
 
 logger = logging.getLogger(__name__)
 
@@ -139,7 +146,10 @@ class DeviceRuntime:
             return
         self._state = DeviceState.STARTING
         self._message = None
-        self._task = asyncio.create_task(self._run(), name=f"gateway-{self.device_id}")
+        self._task = monitor_background_task(
+            asyncio.create_task(self._run(), name=f"gateway-{self.device_id}"),
+            name=f"gateway-{self.device_id}",
+        )
 
     async def stop(self) -> None:
         """Stop this device gracefully and release its connection.
@@ -275,6 +285,9 @@ class DeviceRuntime:
                 except Exception as exc:
                     self._last_error = _now()
                     self._message = f"connection failed: {exc}"
+                    adapter_connect_failure_total.labels(
+                        device_id=self.device_id, protocol=definition.protocol.value
+                    ).inc()
                     logger.warning(
                         "gateway_connect_failed",
                         extra={"device_id": self.device_id, "error": str(exc)},
@@ -286,6 +299,9 @@ class DeviceRuntime:
                 self._reconnect_attempts = 0
                 self._state = DeviceState.CONNECTED
                 self._message = None
+                adapter_connect_success_total.labels(
+                    device_id=self.device_id, protocol=definition.protocol.value
+                ).inc()
                 logger.info(
                     "gateway_device_connected",
                     extra={"device_id": self.device_id, "protocol": definition.protocol.value},
@@ -313,18 +329,29 @@ class DeviceRuntime:
         """
 
         interval = self._definition.poll_interval_ms / 1000.0
+        protocol = self._definition.protocol.value
         while True:
+            started = time.perf_counter()
             try:
                 telemetry = await adapter.read()
             except asyncio.CancelledError:
                 raise
             except Exception as exc:
+                adapter_read_latency_seconds.labels(
+                    device_id=self.device_id, protocol=protocol, result="error"
+                ).observe(time.perf_counter() - started)
                 self._read_errors += 1
                 self._last_error = _now()
                 self._message = f"read failed: {exc}"
                 if self._record_failure():
                     return
             else:
+                adapter_read_latency_seconds.labels(
+                    device_id=self.device_id, protocol=protocol, result="ok"
+                ).observe(time.perf_counter() - started)
+                adapter_last_success_timestamp.labels(
+                    device_id=self.device_id, protocol=protocol
+                ).set(_now().timestamp())
                 if await self._publish(telemetry) and self._record_failure():
                     return
             await asyncio.sleep(interval)

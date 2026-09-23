@@ -50,6 +50,7 @@ from app.models import (
     Diagnosis,
     Incident,
     MaintenancePlan,
+    RetrievalRun,
     Telemetry,
 )
 from app.models import WorkflowRun as WorkflowRunModel
@@ -98,6 +99,7 @@ def _tables() -> list[Any]:
         # the plan table is created too even though no test writes a plan row.
         # WorkOrder is deliberately left out — the gate tests never reach it.
         WorkflowRunModel.__table__,
+        RetrievalRun.__table__,
         MaintenancePlan.__table__,
         Approval.__table__,
     ]

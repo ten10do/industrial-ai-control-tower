@@ -27,6 +27,12 @@ from app.models import (
     WorkflowRun,
     WorkOrder,
 )
+from app.platform_observability.metrics import (
+    workflow_failed_total,
+    workflow_started_total,
+    workflow_waiting_approval_total,
+)
+from app.repositories.audit import AuditRepository
 from app.workflow.contracts import (
     ApprovalSnapshot,
     DiagnosisSnapshot,
@@ -347,6 +353,19 @@ class WorkflowService:
                 plan_version=1,
             )
             session.add(row)
+            AuditRepository(session).add(
+                trace_id=trace_id,
+                actor="workflow-engine",
+                action="WORKFLOW_STARTED",
+                resource=str(incident_id),
+                status="SUCCESS",
+                details={
+                    "workflow_run_id": str(workflow_id),
+                    "diagnosis_id": str(diagnosis_id),
+                    "workflow_version": WORKFLOW_VERSION,
+                },
+            )
+            workflow_started_total.inc()
             incident.status = "UNDER_ANALYSIS"
             await session.commit()
 
@@ -362,6 +381,7 @@ class WorkflowService:
         if interrupted:
             final_state.status = WorkflowStatus.WAITING_APPROVAL
             final_state.current_stage = WorkflowStatus.WAITING_APPROVAL
+            workflow_waiting_approval_total.inc()
         return await self._persist_result(final_state, interrupted=interrupted)
 
     async def _mark_failed(self, workflow_id: UUID, code: str, message: str) -> None:
@@ -385,6 +405,7 @@ class WorkflowService:
             row.current_stage = state.current_stage
             row.errors = [item.model_dump(mode="json") for item in state.errors]
             row.state = state.model_dump(mode="json")
+            workflow_failed_total.inc()
             await session.commit()
 
     async def _persist_result(

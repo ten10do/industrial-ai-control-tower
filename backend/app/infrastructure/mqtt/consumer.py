@@ -8,6 +8,8 @@ from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.config import Settings
+from app.platform_observability.metrics import mqtt_reconnect_total
+from app.platform_observability.tasks import monitor_background_task
 from app.services.diagnosis import OnlineDiagnosisCoordinator
 from app.services.telemetry import IngestionCounters, TelemetryService
 from app.websocket.manager import WebSocketManager
@@ -36,7 +38,10 @@ class MqttTelemetryConsumer:
 
     def start(self) -> None:
         if self._task is None:
-            self._task = asyncio.create_task(self._run(), name="mqtt-telemetry-consumer")
+            self._task = monitor_background_task(
+                asyncio.create_task(self._run(), name="mqtt-telemetry-consumer"),
+                name="mqtt-telemetry-consumer",
+            )
 
     async def stop(self) -> None:
         if self._task is None:
@@ -92,6 +97,7 @@ class MqttTelemetryConsumer:
                 raise
             except Exception:
                 self.connected = False
+                mqtt_reconnect_total.inc()
                 logger.exception("mqtt_connection_failed")
                 await asyncio.sleep(2)
             finally:

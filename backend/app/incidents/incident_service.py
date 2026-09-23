@@ -54,6 +54,7 @@ from app.incidents.states import (
 )
 from app.infrastructure.database.base import utc_now
 from app.models import Alarm, AssetNode, AuditEvent, Device, Diagnosis, Incident
+from app.platform_observability.metrics import incident_created_total, incident_resolved_total
 from app.repositories.audit import AuditRepository
 from app.repositories.incident import IncidentRepository
 from app.repositories.incident_alarm import IncidentAlarmRepository
@@ -168,6 +169,7 @@ class IncidentLifecycleService:
         incident.status = IncidentStatus.RESOLVED.value
         incident.resolved_at = utc_now()
         await self.session.flush()
+        incident_resolved_total.inc()
         self._audit(
             action="INCIDENT_RESOLVED",
             incident_id=incident.id,
@@ -370,6 +372,7 @@ class IncidentCorrelationService:
         )
         self.session.add(incident)
         await self.session.flush()
+        incident_created_total.inc()
         self.audit.add(
             trace_id=trace_id_context.get(),
             actor=actor,

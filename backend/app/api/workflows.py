@@ -20,6 +20,7 @@ from app.incidents.contracts import (
 )
 from app.incidents.incident_service import IncidentContextService
 from app.models import Approval, Diagnosis, Incident, WorkflowRun, WorkOrder
+from app.platform_observability.metrics import incident_created_total
 from app.workflow.contracts import (
     ApprovalDecisionRequest,
     ApprovalRead,
@@ -165,6 +166,7 @@ async def create_incident(
         )
         session.add(incident)
         await session.flush()
+        incident_created_total.inc()
         diagnosis.incident_id = incident.id
         await session.commit()
     return IncidentRead(
