@@ -1,6 +1,11 @@
 services:
   postgres:
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1g
     image: industrial-ai-control-tower-postgres:16-pgvector-0.8.1
     build:
       context: ./infra/postgres
@@ -20,7 +25,15 @@ services:
 
   redis:
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 512m
     image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis-data:/data
     ports:
       - "${REDIS_PORT_PUBLISHED:-6379}:6379"
     healthcheck:
@@ -31,6 +44,11 @@ services:
 
   mosquitto:
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: 256m
     image: eclipse-mosquitto:2
     ports:
       - "${MQTT_PORT_PUBLISHED:-1883}:1883"
@@ -45,6 +63,11 @@ services:
 
   backend:
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "1.5"
+          memory: 2g
     build: ./backend
     ports:
       - "${BACKEND_PORT_PUBLISHED:-8000}:8000"
@@ -102,6 +125,11 @@ services:
 
   frontend:
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: 256m
     build: ./frontend
     ports:
       - "${FRONTEND_PORT_PUBLISHED:-80}:80"
@@ -115,4 +143,5 @@ services:
 
 volumes:
   postgres-data:
+  redis-data:
   mosquitto-data:

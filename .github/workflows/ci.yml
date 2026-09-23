@@ -125,6 +125,59 @@ jobs:
       - name: Unit and tiny-training smoke tests
         run: pytest
 
+  deployment:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Docker daemon availability
+        run: |
+          if docker info > /dev/null 2>&1; then
+            echo "Docker daemon available"
+          else
+            echo "DOCKER_DAEMON_UNAVAILABLE"
+          fi
+
+      - name: Compose config validation
+        run: |
+          docker compose config --quiet || docker-compose config --quiet
+
+      - name: Env template scan
+        run: python scripts/validate_env.py .env.example --mode example
+
+      - name: Dockerfile lint
+        run: |
+          test -f backend/Dockerfile
+          test -f frontend/Dockerfile
+          # Base images must be pinned to a version tag, never :latest.
+          if grep -rEi '^FROM .*:latest' backend/Dockerfile frontend/Dockerfile; then
+            echo "unpinned base image found"
+            exit 1
+          fi
+          echo "Dockerfile lint passed"
+
+      - name: Deployment scripts smoke test
+        run: |
+          bash -n scripts/backup_database.sh
+          bash -n scripts/restore_database.sh
+          # restore refuses to run without the explicit --yes flag
+          if bash scripts/restore_database.sh /nonexistent.sql 2>/dev/null; then
+            echo "restore must refuse without --yes"
+            exit 1
+          fi
+          echo "scripts smoke test passed"
+
+      - name: Deployment check unit tests
+        run: |
+          pip install -r backend/requirements.txt > /dev/null
+          python -m pytest backend/tests/test_deployment_foundation.py -q
+
   docs:
     runs-on: ubuntu-latest
 
