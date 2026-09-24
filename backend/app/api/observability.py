@@ -3,6 +3,10 @@
 Exposes the persisted trace projection: recent runs, the full trace of one run,
 and aggregate execution metrics. No endpoint mutates workflow state.
 
+Phase 6.13-A brings the surface inside the governed perimeter: every read
+requires ``observability.read``. The projection may name operators and decision
+outcomes, so it is no longer readable without an identity.
+
 The router is declared without a prefix and mounted twice by the application as
 ``/api/v1/observability`` (the repository-wide API contract namespace) and
 ``/api/observability`` (the shorthand used by the Phase 6.6 specification).
@@ -32,8 +36,12 @@ from app.observability.models import (
     ObservabilityStep,
 )
 from app.observability.repository import ObservabilityRepository
+from app.security.dependencies import require_permission
+from app.security.rbac import OBSERVABILITY_READ, Principal
 
 router = APIRouter(tags=["observability"])
+
+ReadObservability = Annotated[Principal, Depends(require_permission(OBSERVABILITY_READ))]
 
 
 def _run_read(row: ObservabilityRun, *, step_count: int, total_tokens: int | None) -> AgentRunRead:
@@ -96,6 +104,7 @@ def _step_read(step: ObservabilityStep, metric: ObservabilityMetric | None) -> A
 @router.get("/observability/runs", response_model=list[AgentRunRead])
 async def list_runs(
     session: Annotated[AsyncSession, Depends(get_session)],
+    principal: ReadObservability,
     status: ObservabilityStatus | None = None,
     workflow_name: str | None = None,
     limit: Annotated[int, Query(ge=1, le=200)] = 50,
@@ -122,6 +131,7 @@ async def list_runs(
 @router.get("/observability/metrics", response_model=ObservabilityMetricsRead)
 async def observability_metrics(
     session: Annotated[AsyncSession, Depends(get_session)],
+    principal: ReadObservability,
 ) -> ObservabilityMetricsRead:
     today_start = datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0)
     repository = ObservabilityRepository(session)
@@ -130,7 +140,9 @@ async def observability_metrics(
 
 @router.get("/observability/runs/{run_id}", response_model=AgentRunTrace)
 async def get_run(
-    run_id: UUID, session: Annotated[AsyncSession, Depends(get_session)]
+    run_id: UUID,
+    session: Annotated[AsyncSession, Depends(get_session)],
+    principal: ReadObservability,
 ) -> AgentRunTrace:
     repository = ObservabilityRepository(session)
     row = await repository.get_run(run_id)

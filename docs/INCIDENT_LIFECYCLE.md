@@ -149,8 +149,9 @@ It is the input a later agent-facing phase will consume.
 
 ## API Surface
 
-The lifecycle commands are registered under both `/api/v1` and `/api`; the write
-path records the `X-Actor` header (default `system`).
+The lifecycle commands are registered under both `/api/v1` and `/api`; since
+Phase 6.12 the write path records the authenticated caller, and Phase 6.13-A
+keeps any legacy `X-Actor` header only as audit metadata.
 
 | Method | Path | Behaviour |
 | --- | --- | --- |

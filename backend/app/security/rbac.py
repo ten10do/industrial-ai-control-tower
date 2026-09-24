@@ -50,6 +50,29 @@ APPROVAL_REVIEW: Final[str] = "approval.review"
 
 WORKORDER_READ: Final[str] = "workorder.read"
 
+# Phase 6.13-A extends the governed surface to the alarm, asset-configuration,
+# connectivity, and observability domains. The naming follows the same
+# ``resource.action`` shape; ``alarmrule`` is one word to match ``workorder``.
+ALARM_READ: Final[str] = "alarm.read"
+ALARM_ACK: Final[str] = "alarm.ack"
+ALARM_CLEAR: Final[str] = "alarm.clear"
+
+ALARM_RULE_READ: Final[str] = "alarmrule.read"
+ALARM_RULE_CREATE: Final[str] = "alarmrule.create"
+ALARM_RULE_UPDATE: Final[str] = "alarmrule.update"
+
+ASSET_READ: Final[str] = "asset.read"
+ASSET_MANAGE: Final[str] = "asset.manage"
+
+CONFIG_READ: Final[str] = "config.read"
+CONFIG_WRITE: Final[str] = "config.write"
+CONFIG_PUBLISH: Final[str] = "config.publish"
+
+CONNECTIVITY_READ: Final[str] = "connectivity.read"
+CONNECTIVITY_CONTROL: Final[str] = "connectivity.control"
+
+OBSERVABILITY_READ: Final[str] = "observability.read"
+
 USER_MANAGE: Final[str] = "user.manage"
 
 ADMIN: Final[str] = "ADMIN"
@@ -82,6 +105,20 @@ ROLE_PERMISSIONS: Final[dict[str, tuple[str, ...]]] = {
         APPROVAL_READ,
         APPROVAL_REVIEW,
         WORKORDER_READ,
+        ALARM_READ,
+        ALARM_ACK,
+        ALARM_CLEAR,
+        ALARM_RULE_READ,
+        ALARM_RULE_CREATE,
+        ALARM_RULE_UPDATE,
+        ASSET_READ,
+        ASSET_MANAGE,
+        CONFIG_READ,
+        CONFIG_WRITE,
+        CONFIG_PUBLISH,
+        CONNECTIVITY_READ,
+        CONNECTIVITY_CONTROL,
+        OBSERVABILITY_READ,
     ),
     VIEWER: (
         TELEMETRY_READ,
@@ -90,6 +127,12 @@ ROLE_PERMISSIONS: Final[dict[str, tuple[str, ...]]] = {
         WORKFLOW_READ,
         APPROVAL_READ,
         WORKORDER_READ,
+        ALARM_READ,
+        ALARM_RULE_READ,
+        ASSET_READ,
+        CONFIG_READ,
+        CONNECTIVITY_READ,
+        OBSERVABILITY_READ,
     ),
 }
 

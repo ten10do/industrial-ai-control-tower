@@ -19,7 +19,7 @@ from typing import Annotated, Any
 from fastapi import APIRouter, Body, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.dependencies import get_actor, get_configuration_applier, get_session
+from app.api.dependencies import get_configuration_applier, get_session
 from app.assetconfig.apply import DefinitionApplier
 from app.assetconfig.contracts import (
     AuditEventRead,
@@ -30,11 +30,17 @@ from app.assetconfig.contracts import (
     ValidationResultRead,
 )
 from app.assetconfig.service import ConfigurationService
+from app.security.dependencies import require_permission
+from app.security.rbac import CONFIG_PUBLISH, CONFIG_READ, CONFIG_WRITE, Principal
 
 router = APIRouter(tags=["configuration"])
 
-Actor = Annotated[str, Depends(get_actor)]
 Applier = Annotated[DefinitionApplier, Depends(get_configuration_applier)]
+
+#: Every route below declares its own permission. The dependency returns the
+#: authenticated principal, so draft and publish operations record the real
+#: identity as the actor instead of a caller-supplied header.
+ReadConfiguration = Annotated[Principal, Depends(require_permission(CONFIG_READ))]
 
 
 def _service(session: AsyncSession, applier: DefinitionApplier) -> ConfigurationService:
@@ -49,6 +55,7 @@ async def list_configurations(
     device_id: str,
     session: Annotated[AsyncSession, Depends(get_session)],
     applier: Applier,
+    principal: ReadConfiguration,
 ) -> list[ConfigurationSummaryRead]:
     rows = await _service(session, applier).list_configurations(device_id)
     return [ConfigurationSummaryRead.model_validate(row) for row in rows]
@@ -64,9 +71,9 @@ async def create_configuration(
     payload: Annotated[dict[str, Any], Body()],
     session: Annotated[AsyncSession, Depends(get_session)],
     applier: Applier,
-    actor: Actor,
+    principal: Annotated[Principal, Depends(require_permission(CONFIG_WRITE))],
 ) -> ConfigurationDetailRead:
-    row = await _service(session, applier).create_draft(device_id, payload, actor)
+    row = await _service(session, applier).create_draft(device_id, payload, principal.username)
     return ConfigurationDetailRead.model_validate(row)
 
 
@@ -79,6 +86,7 @@ async def get_configuration(
     version: int,
     session: Annotated[AsyncSession, Depends(get_session)],
     applier: Applier,
+    principal: ReadConfiguration,
 ) -> ConfigurationDetailRead:
     row = await _service(session, applier).get_configuration(device_id, version)
     return ConfigurationDetailRead.model_validate(row)
@@ -94,9 +102,11 @@ async def update_configuration(
     payload: Annotated[dict[str, Any], Body()],
     session: Annotated[AsyncSession, Depends(get_session)],
     applier: Applier,
-    actor: Actor,
+    principal: Annotated[Principal, Depends(require_permission(CONFIG_WRITE))],
 ) -> ConfigurationDetailRead:
-    row = await _service(session, applier).update_draft(device_id, version, payload, actor)
+    row = await _service(session, applier).update_draft(
+        device_id, version, payload, principal.username
+    )
     return ConfigurationDetailRead.model_validate(row)
 
 
@@ -109,6 +119,7 @@ async def delete_configuration(
     version: int,
     session: Annotated[AsyncSession, Depends(get_session)],
     applier: Applier,
+    principal: Annotated[Principal, Depends(require_permission(CONFIG_WRITE))],
 ) -> None:
     await _service(session, applier).delete_draft(device_id, version)
 
@@ -122,6 +133,7 @@ async def validate_configuration(
     version: int,
     session: Annotated[AsyncSession, Depends(get_session)],
     applier: Applier,
+    principal: Annotated[Principal, Depends(require_permission(CONFIG_WRITE))],
 ) -> ValidationResultRead:
     result = await _service(session, applier).validate_version(device_id, version)
     return ValidationResultRead.model_validate(result)
@@ -137,9 +149,9 @@ async def clone_configuration(
     version: int,
     session: Annotated[AsyncSession, Depends(get_session)],
     applier: Applier,
-    actor: Actor,
+    principal: Annotated[Principal, Depends(require_permission(CONFIG_WRITE))],
 ) -> ConfigurationDetailRead:
-    row = await _service(session, applier).clone_version(device_id, version, actor)
+    row = await _service(session, applier).clone_version(device_id, version, principal.username)
     return ConfigurationDetailRead.model_validate(row)
 
 
@@ -152,9 +164,11 @@ async def publish_configuration(
     version: int,
     session: Annotated[AsyncSession, Depends(get_session)],
     applier: Applier,
-    actor: Actor,
+    principal: Annotated[Principal, Depends(require_permission(CONFIG_PUBLISH))],
 ) -> PublishResultRead:
-    row, status_row = await _service(session, applier).publish(device_id, version, actor)
+    row, status_row = await _service(session, applier).publish(
+        device_id, version, principal.username
+    )
     return PublishResultRead(
         configuration=ConfigurationDetailRead.model_validate(row),
         status=ConfigurationStatusRead.model_validate(status_row),
@@ -169,6 +183,7 @@ async def configuration_status(
     device_id: str,
     session: Annotated[AsyncSession, Depends(get_session)],
     applier: Applier,
+    principal: ReadConfiguration,
 ) -> ConfigurationStatusRead:
     return ConfigurationStatusRead.model_validate(
         await _service(session, applier).status(device_id)
@@ -183,12 +198,12 @@ async def apply_configuration(
     device_id: str,
     session: Annotated[AsyncSession, Depends(get_session)],
     applier: Applier,
-    actor: Actor,
+    principal: Annotated[Principal, Depends(require_permission(CONFIG_PUBLISH))],
 ) -> ConfigurationStatusRead:
     """Retry applying the currently published version."""
 
     return ConfigurationStatusRead.model_validate(
-        await _service(session, applier).apply_current(device_id, actor)
+        await _service(session, applier).apply_current(device_id, principal.username)
     )
 
 
@@ -200,6 +215,7 @@ async def configuration_audit(
     device_id: str,
     session: Annotated[AsyncSession, Depends(get_session)],
     applier: Applier,
+    principal: ReadConfiguration,
     limit: Annotated[int, Query(ge=1, le=500)] = 100,
 ) -> list[AuditEventRead]:
     rows = await _service(session, applier).audit_history(device_id, limit)

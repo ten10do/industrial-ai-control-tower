@@ -61,6 +61,17 @@ class AuditRepository:
             if user_agent is not None
             else (context.user_agent if context is not None else None)
         )
+        resolved_details = dict(details) if details else {}
+        # Phase 6.13-A: the legacy ``X-Actor`` header survives only as
+        # metadata. It never overrides ``actor`` or ``actor_user_id``; it is
+        # recorded so a pre-migration client's claim stays visible next to the
+        # identity that actually acted.
+        if (
+            context is not None
+            and context.legacy_actor is not None
+            and "legacy_x_actor" not in resolved_details
+        ):
+            resolved_details["legacy_x_actor"] = context.legacy_actor
         self.session.add(
             AuditEvent(
                 trace_id=trace_id,
@@ -70,7 +81,7 @@ class AuditRepository:
                 resource=resource,
                 resource_id=resource_id,
                 status=status,
-                details=details or {},
+                details=resolved_details,
                 ip_address=resolved_ip,
                 user_agent=resolved_agent,
             )

@@ -9,9 +9,10 @@ against the documented matrix.
 
 Four properties are checked.
 
-1. The governed surface (incidents, workflows, approvals, work orders) matches
-   the matrix exactly. A route added without a permission, or with the wrong
-   one, fails the build rather than shipping an open door.
+1. The governed surface (incidents, workflows, approvals, work orders, alarms,
+   alarm rules, assets, device configuration, connectivity, observability)
+   matches the matrix exactly. A route added without a permission, or with the
+   wrong one, fails the build rather than shipping an open door.
 2. The walk below sees every path the OpenAPI schema advertises, so the
    introspection cannot quietly miss routes and pass by omission.
 3. The legacy ``/api`` mirror enforces exactly what ``/api/v1`` enforces, so a
@@ -28,9 +29,22 @@ from fastapi.routing import APIRoute
 
 from app.main import app
 from app.security.rbac import (
+    ALARM_ACK,
+    ALARM_CLEAR,
+    ALARM_READ,
+    ALARM_RULE_CREATE,
+    ALARM_RULE_READ,
+    ALARM_RULE_UPDATE,
     ALL_PERMISSIONS,
     APPROVAL_READ,
     APPROVAL_REVIEW,
+    ASSET_MANAGE,
+    ASSET_READ,
+    CONFIG_PUBLISH,
+    CONFIG_READ,
+    CONFIG_WRITE,
+    CONNECTIVITY_CONTROL,
+    CONNECTIVITY_READ,
     INCIDENT_ACK,
     INCIDENT_CLOSE,
     INCIDENT_CREATE,
@@ -38,6 +52,7 @@ from app.security.rbac import (
     INCIDENT_READ,
     INCIDENT_REOPEN,
     INCIDENT_RESOLVE,
+    OBSERVABILITY_READ,
     WILDCARD,
     WORKFLOW_CANCEL,
     WORKFLOW_READ,
@@ -47,15 +62,32 @@ from app.security.rbac import (
 
 #: Prefixes whose routes operate on governed objects. Matching is by prefix
 #: rather than by exact path so ``/api/v1/workflow-metrics`` is covered too.
+#: Phase 6.13-A extends the governed surface to alarms, alarm rules, assets,
+#: device configuration, connectivity, and observability. The configuration
+#: prefix is deliberately the long ``.../configuration`` form: the plain
+#: ``/api/v1/devices`` prefix would also sweep in the device master-data
+#: routes, which are outside this phase's scope.
 GOVERNED_PREFIXES = (
     "/api/v1/incident",
     "/api/v1/workflow",
     "/api/v1/approval",
     "/api/v1/work-order",
+    "/api/v1/alarms",
+    "/api/v1/alarm-rules",
+    "/api/v1/assets",
+    "/api/v1/devices/{device_id}/configuration",
+    "/api/v1/connectivity",
+    "/api/v1/observability",
     "/api/incident",
     "/api/workflow",
     "/api/approval",
     "/api/work-order",
+    "/api/alarms",
+    "/api/alarm-rules",
+    "/api/assets",
+    "/api/devices/{device_id}/configuration",
+    "/api/connectivity",
+    "/api/observability",
 )
 
 #: The documented matrix. Written out in full rather than derived from the code,
@@ -90,6 +122,47 @@ EXPECTED: dict[tuple[str, str], str] = {
     # Maintenance outcome.
     ("GET", "/api/v1/work-orders"): WORKORDER_READ,
     ("GET", "/api/v1/work-orders/{work_order_id}"): WORKORDER_READ,
+    # Alarm instances (Phase 6.13-A).
+    ("GET", "/api/v1/alarms"): ALARM_READ,
+    ("GET", "/api/v1/alarms/related"): ALARM_READ,
+    ("GET", "/api/v1/alarms/{alarm_id}"): ALARM_READ,
+    ("POST", "/api/v1/alarms/{alarm_id}/acknowledge"): ALARM_ACK,
+    ("POST", "/api/v1/alarms/{alarm_id}/clear"): ALARM_CLEAR,
+    # Alarm rule registry (Phase 6.13-A).
+    ("GET", "/api/v1/alarm-rules"): ALARM_RULE_READ,
+    ("GET", "/api/v1/alarm-rules/{rule_id}"): ALARM_RULE_READ,
+    ("POST", "/api/v1/alarm-rules"): ALARM_RULE_CREATE,
+    ("PATCH", "/api/v1/alarm-rules/{rule_id}"): ALARM_RULE_UPDATE,
+    # Asset hierarchy (Phase 6.13-A).
+    ("GET", "/api/v1/assets"): ASSET_READ,
+    ("GET", "/api/v1/assets/tree"): ASSET_READ,
+    ("GET", "/api/v1/assets/{asset_id}"): ASSET_READ,
+    ("POST", "/api/v1/assets"): ASSET_MANAGE,
+    ("DELETE", "/api/v1/assets/{asset_id}"): ASSET_MANAGE,
+    ("PUT", "/api/v1/assets/{asset_id}/devices/{device_id}"): ASSET_MANAGE,
+    ("DELETE", "/api/v1/assets/{asset_id}/devices/{device_id}"): ASSET_MANAGE,
+    # Device configuration (Phase 6.13-A).
+    ("GET", "/api/v1/devices/{device_id}/configurations"): CONFIG_READ,
+    ("GET", "/api/v1/devices/{device_id}/configurations/{version}"): CONFIG_READ,
+    ("GET", "/api/v1/devices/{device_id}/configuration-status"): CONFIG_READ,
+    ("GET", "/api/v1/devices/{device_id}/configuration-audit"): CONFIG_READ,
+    ("POST", "/api/v1/devices/{device_id}/configurations"): CONFIG_WRITE,
+    ("PATCH", "/api/v1/devices/{device_id}/configurations/{version}"): CONFIG_WRITE,
+    ("DELETE", "/api/v1/devices/{device_id}/configurations/{version}"): CONFIG_WRITE,
+    ("POST", "/api/v1/devices/{device_id}/configurations/{version}/validate"): CONFIG_WRITE,
+    ("POST", "/api/v1/devices/{device_id}/configurations/{version}/clone"): CONFIG_WRITE,
+    ("POST", "/api/v1/devices/{device_id}/configurations/{version}/publish"): CONFIG_PUBLISH,
+    ("POST", "/api/v1/devices/{device_id}/configuration-status/apply"): CONFIG_PUBLISH,
+    # Connectivity (Phase 6.13-A).
+    ("GET", "/api/v1/connectivity/summary"): CONNECTIVITY_READ,
+    ("GET", "/api/v1/connectivity/devices"): CONNECTIVITY_READ,
+    ("GET", "/api/v1/connectivity/devices/{device_id}"): CONNECTIVITY_READ,
+    ("POST", "/api/v1/connectivity/devices/{device_id}/start"): CONNECTIVITY_CONTROL,
+    ("POST", "/api/v1/connectivity/devices/{device_id}/stop"): CONNECTIVITY_CONTROL,
+    # Agent observability (Phase 6.13-A).
+    ("GET", "/api/v1/observability/runs"): OBSERVABILITY_READ,
+    ("GET", "/api/v1/observability/runs/{run_id}"): OBSERVABILITY_READ,
+    ("GET", "/api/v1/observability/metrics"): OBSERVABILITY_READ,
 }
 
 

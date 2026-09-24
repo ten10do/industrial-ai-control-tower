@@ -1,4 +1,4 @@
-# Security Model — Phase 6.12
+# Security Model — Phase 6.12 / 6.13-A
 
 ## Purpose
 
@@ -11,6 +11,12 @@ attributed with an `X-Actor` header, which is descriptive metadata rather than
 authentication: any client could write any name into it. This phase introduces a
 real credential, a real authorization decision on the server, and an audit trail
 that records the authenticated principal.
+
+Phase 6.13-A closes the one gap 6.12 documented: the alarm, alarm-rule, asset,
+device-configuration, connectivity, and observability routes are now inside the
+governed perimeter, and every business mutation attributes its actor to the
+authenticated user. The `X-Actor` header is not deleted; it survives as legacy
+audit metadata and decides nothing.
 
 The design goal is a **coherent foundation**, not a complete security product. A
 small number of decisions are made once, in code, and enforced everywhere
@@ -107,8 +113,8 @@ code is caught instead of tolerated.
 | Role | Grants | Intent |
 |---|---|---|
 | `ADMIN` | `*`, `user.manage` | Unrestricted authority, including identity and role management |
-| `OPERATOR` | `telemetry.read`, `dashboard.read`, `incident.read`, `incident.create`, `incident.ack`, `incident.investigate`, `incident.resolve`, `incident.close`, `incident.reopen`, `workflow.read`, `workflow.start`, `workflow.cancel`, `approval.read`, `approval.review`, `workorder.read` | Runs the incident, workflow, and approval loop for a plant |
-| `VIEWER` | `telemetry.read`, `dashboard.read`, `incident.read`, `workflow.read`, `approval.read`, `workorder.read` | Read-only observer |
+| `OPERATOR` | `telemetry.read`, `dashboard.read`, `incident.read`, `incident.create`, `incident.ack`, `incident.investigate`, `incident.resolve`, `incident.close`, `incident.reopen`, `workflow.read`, `workflow.start`, `workflow.cancel`, `approval.read`, `approval.review`, `workorder.read`, `alarm.read`, `alarm.ack`, `alarm.clear`, `alarmrule.read`, `alarmrule.create`, `alarmrule.update`, `asset.read`, `asset.manage`, `config.read`, `config.write`, `config.publish`, `connectivity.read`, `connectivity.control`, `observability.read` | Runs the plant loop: incidents, decisions, alarms, configuration, connectivity |
+| `VIEWER` | `telemetry.read`, `dashboard.read`, `incident.read`, `workflow.read`, `approval.read`, `workorder.read`, `alarm.read`, `alarmrule.read`, `asset.read`, `config.read`, `connectivity.read`, `observability.read` | Read-only observer |
 
 `*` is reserved for `ADMIN`. It is an **exact-match** grant, checked as
 `permission in permissions`, not an `fnmatch` pattern. A permission that
@@ -148,6 +154,25 @@ this matrix, so a route added without a permission fails the build.
 | GET | `/api/v1/approvals/pending`, `/api/v1/approvals/{id}` | `approval.read` |
 | POST | `/api/v1/approvals/{id}/approve`, `/api/v1/approvals/{id}/reject` | `approval.review` |
 | GET | `/api/v1/work-orders`, `/api/v1/work-orders/{id}` | `workorder.read` |
+| GET | `/api/v1/alarms`, `/api/v1/alarms/related`, `/api/v1/alarms/{id}` | `alarm.read` |
+| POST | `/api/v1/alarms/{id}/acknowledge` | `alarm.ack` |
+| POST | `/api/v1/alarms/{id}/clear` | `alarm.clear` |
+| GET | `/api/v1/alarm-rules`, `/api/v1/alarm-rules/{id}` | `alarmrule.read` |
+| POST | `/api/v1/alarm-rules` | `alarmrule.create` |
+| PATCH | `/api/v1/alarm-rules/{id}` | `alarmrule.update` |
+| GET | `/api/v1/assets`, `/api/v1/assets/tree`, `/api/v1/assets/{id}` | `asset.read` |
+| POST | `/api/v1/assets` | `asset.manage` |
+| DELETE | `/api/v1/assets/{id}`, `/api/v1/assets/{id}/devices/{device_id}` | `asset.manage` |
+| PUT | `/api/v1/assets/{id}/devices/{device_id}` | `asset.manage` |
+| GET | `/api/v1/devices/{id}/configurations`, `.../configurations/{v}`, `.../configuration-status`, `.../configuration-audit` | `config.read` |
+| POST | `/api/v1/devices/{id}/configurations` | `config.write` |
+| PATCH | `/api/v1/devices/{id}/configurations/{v}` | `config.write` |
+| DELETE | `/api/v1/devices/{id}/configurations/{v}` | `config.write` |
+| POST | `/api/v1/devices/{id}/configurations/{v}/validate`, `.../clone` | `config.write` |
+| POST | `/api/v1/devices/{id}/configurations/{v}/publish`, `/api/v1/devices/{id}/configuration-status/apply` | `config.publish` |
+| GET | `/api/v1/connectivity/summary`, `/api/v1/connectivity/devices`, `/api/v1/connectivity/devices/{id}` | `connectivity.read` |
+| POST | `/api/v1/connectivity/devices/{id}/start`, `/api/v1/connectivity/devices/{id}/stop` | `connectivity.control` |
+| GET | `/api/v1/observability/runs`, `/api/v1/observability/runs/{id}`, `/api/v1/observability/metrics` | `observability.read` |
 
 The legacy `/api` prefix mirrors `/api/v1` and enforces exactly the same
 permissions; a test asserts that every mirror declares what its `/api/v1`
@@ -229,8 +254,16 @@ Security events use a single shape:
 | Registration | `action=register`, with whether a requested role was ignored |
 | Permission denied | `action=permission.denied`, `status=DENIED`, with the required permission, method, and path |
 | Incident acknowledged / resolved | the lifecycle transition, with the authenticated actor |
+| Alarm acknowledged / cleared, rule authored, configuration published | the business mutation, with the authenticated actor and its `actor_user_id` (Phase 6.13-A) |
 | Workflow started | the delegation to the engine |
 | Approval decided | the human decision |
+
+Since Phase 6.13-A the legacy `X-Actor` header, when a client still sends one,
+travels in the request-scoped context and is recorded as
+`details["legacy_x_actor"]` on business audit rows. It is deliberately not
+validated for shape and it never overrides `actor` or `actor_user_id`: a forged
+label is preserved as the claim it is, next to the identity that actually
+acted.
 
 Two audit conventions coexist and are documented in
 `app/repositories/audit.py`: the legacy convention puts an identifier in
@@ -317,12 +350,14 @@ with `openssl rand -hex 32` and inject it from the operator's secret store.
 These are honest statements of where the foundation stops. Each is a candidate
 for a later phase, not a defect being hidden.
 
-1. **The legacy `X-Actor` header is still in use outside the governed surface.**
-   Alarms, alarm rules, assets, device configuration, connectivity, and
-   observability routes are not covered by RBAC in this phase, and
-   `app/api/dependencies.py` records that boundary in the source. Until those
-   routes are migrated, treat the audit actor on those paths as descriptive
-   rather than authenticated.
+1. **The legacy `X-Actor` header is accepted, but only as metadata.** Since
+   Phase 6.13-A no route uses it for attribution: alarms, alarm rules, assets,
+   device configuration, connectivity, and observability are governed by
+   permissions, and every business mutation records the authenticated identity
+   plus its `actor_user_id`. The header value is preserved in
+   `details["legacy_x_actor"]` for traceability with pre-migration clients and
+   grants no authority. Devices, telemetry, and the platform routes are still
+   outside the governed surface; treat the actor there as system-originated.
 2. **Tokens cannot be revoked.** Disabling an identity takes effect on the next
    request, because the user row is loaded per request. A password change is not
    implemented, and implementing one would not invalidate outstanding tokens.
@@ -351,7 +386,8 @@ for a later phase, not a defect being hidden.
 | `401` vs `403`, role limits, live revocation | `tests/security/test_rbac_enforcement.py` |
 | Audit rows for sign-in, denial, lifecycle | `tests/security/test_audit_security.py` |
 | Rate limiting and its fail-open behaviour | `tests/security/test_rate_limit.py` |
-| Seeded grants equal the code table | `tests/security/test_rbac_vocabulary.py` |
+| Seeded grants equal the code table (both migrations combined) | `tests/security/test_rbac_vocabulary.py` |
 | Every governed route declares its permission | `tests/security/test_route_coverage.py` |
+| Phase 6.13-A: 401/403 on the migrated surface, forged `X-Actor`, audit attribution | `tests/security/test_phase613_actor_migration.py` |
 | The scanner reports real secrets and passes placeholders | `tests/security/test_security_scan.py` |
 | Token storage, guard, hidden actions, server re-verification | `frontend/src/security.test.tsx` |

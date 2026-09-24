@@ -3,6 +3,9 @@
 The asset tree is a minimal location hierarchy. Device identity still lives in the
 existing ``devices`` table, so this router can attach and detach devices but can
 never create, rename, or delete a device master record.
+
+Phase 6.13-A gates every route here: reads require ``asset.read``, structural
+changes require ``asset.manage``.
 """
 
 from typing import Annotated
@@ -15,8 +18,12 @@ from app.api.dependencies import get_session
 from app.assetconfig.contracts import AssetNodeCreate, AssetNodeRead, AssetTreeRead
 from app.assetconfig.models import AssetNode
 from app.assetconfig.service import AssetService
+from app.security.dependencies import require_permission
+from app.security.rbac import ASSET_MANAGE, ASSET_READ, Principal
 
 router = APIRouter(tags=["assets"])
+
+ReadAsset = Annotated[Principal, Depends(require_permission(ASSET_READ))]
 
 
 def _read(node: AssetNode, device_count: int = 0) -> AssetNodeRead:
@@ -28,6 +35,7 @@ def _read(node: AssetNode, device_count: int = 0) -> AssetNodeRead:
 @router.get("/assets", response_model=list[AssetNodeRead])
 async def list_assets(
     session: Annotated[AsyncSession, Depends(get_session)],
+    principal: ReadAsset,
 ) -> list[AssetNodeRead]:
     service = AssetService(session)
     counts = await service.assets.device_counts()
@@ -37,13 +45,16 @@ async def list_assets(
 @router.get("/assets/tree", response_model=AssetTreeRead)
 async def asset_tree(
     session: Annotated[AsyncSession, Depends(get_session)],
+    principal: ReadAsset,
 ) -> AssetTreeRead:
     return AssetTreeRead.model_validate(await AssetService(session).tree())
 
 
 @router.post("/assets", response_model=AssetNodeRead, status_code=status.HTTP_201_CREATED)
 async def create_asset(
-    data: AssetNodeCreate, session: Annotated[AsyncSession, Depends(get_session)]
+    data: AssetNodeCreate,
+    session: Annotated[AsyncSession, Depends(get_session)],
+    principal: Annotated[Principal, Depends(require_permission(ASSET_MANAGE))],
 ) -> AssetNodeRead:
     node = await AssetService(session).create(
         name=data.name,
@@ -57,7 +68,9 @@ async def create_asset(
 
 @router.get("/assets/{asset_id}", response_model=AssetNodeRead)
 async def get_asset(
-    asset_id: UUID, session: Annotated[AsyncSession, Depends(get_session)]
+    asset_id: UUID,
+    session: Annotated[AsyncSession, Depends(get_session)],
+    principal: ReadAsset,
 ) -> AssetNodeRead:
     service = AssetService(session)
     node = await service.get(asset_id)
@@ -66,20 +79,28 @@ async def get_asset(
 
 @router.delete("/assets/{asset_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_asset(
-    asset_id: UUID, session: Annotated[AsyncSession, Depends(get_session)]
+    asset_id: UUID,
+    session: Annotated[AsyncSession, Depends(get_session)],
+    principal: Annotated[Principal, Depends(require_permission(ASSET_MANAGE))],
 ) -> None:
     await AssetService(session).delete(asset_id)
 
 
 @router.put("/assets/{asset_id}/devices/{device_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def attach_device(
-    asset_id: UUID, device_id: str, session: Annotated[AsyncSession, Depends(get_session)]
+    asset_id: UUID,
+    device_id: str,
+    session: Annotated[AsyncSession, Depends(get_session)],
+    principal: Annotated[Principal, Depends(require_permission(ASSET_MANAGE))],
 ) -> None:
     await AssetService(session).attach_device(asset_id, device_id)
 
 
 @router.delete("/assets/{asset_id}/devices/{device_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def detach_device(
-    asset_id: UUID, device_id: str, session: Annotated[AsyncSession, Depends(get_session)]
+    asset_id: UUID,
+    device_id: str,
+    session: Annotated[AsyncSession, Depends(get_session)],
+    principal: Annotated[Principal, Depends(require_permission(ASSET_MANAGE))],
 ) -> None:
     await AssetService(session).detach_device_from(asset_id, device_id)

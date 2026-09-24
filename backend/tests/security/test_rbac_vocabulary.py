@@ -35,13 +35,24 @@ from app.security.rbac import (
 )
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
-_MIGRATION_PATH = (
-    REPO_ROOT / "backend" / "alembic" / "versions" / "20260924_09_phase6_12_security.py"
-)
-_spec = importlib.util.spec_from_file_location("phase6_12_migration_under_test", _MIGRATION_PATH)
-assert _spec is not None and _spec.loader is not None
-migration: Any = importlib.util.module_from_spec(_spec)
-_spec.loader.exec_module(migration)
+
+
+def _load_migration(name: str) -> Any:
+    path = REPO_ROOT / "backend" / "alembic" / "versions" / name
+    spec = importlib.util.spec_from_file_location(name.removesuffix(".py"), path)
+    assert spec is not None and spec.loader is not None
+    module: Any = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+#: Phase 6.12 seeded the original vocabulary; Phase 6.13-A added the alarm,
+#: asset-configuration, connectivity, and observability names. Each migration
+#: must keep producing the rows it produced on the day it ran, so neither may
+#: import the code table, and the parity claim is about their *combined* seed.
+_phase612 = _load_migration("20260924_09_phase6_12_security.py")
+_phase613 = _load_migration("20260924_10_phase6_13_a_actor_migration.py")
+_MIGRATIONS = (_phase612, _phase613)
 
 
 # --------------------------------------------------------------------------- #
@@ -74,7 +85,22 @@ def test_viewer_holds_every_permission_the_spec_lists() -> None:
 def test_viewer_holds_no_write_permission() -> None:
     """The read-only role must be read-only, checked by verb and not by name."""
 
-    write_verbs = {"ack", "resolve", "start", "cancel", "review", "create", "close", "reopen"}
+    write_verbs = {
+        "ack",
+        "resolve",
+        "start",
+        "cancel",
+        "review",
+        "create",
+        "close",
+        "reopen",
+        "clear",
+        "update",
+        "manage",
+        "write",
+        "publish",
+        "control",
+    }
     for permission in ROLE_PERMISSIONS[VIEWER]:
         assert permission != WILDCARD
         assert permission.split(".", 1)[1] not in write_verbs, permission
@@ -112,21 +138,49 @@ def test_every_default_role_has_a_description() -> None:
 # --------------------------------------------------------------------------- #
 
 
-def test_the_migration_seeds_exactly_the_code_vocabulary() -> None:
-    """The migration may not import the code table, so it is compared to it."""
+def _seeded_grants() -> dict[str, set[str]]:
+    """The union of the grants every seeded migration writes."""
 
-    assert {role: set(grants) for role, grants in migration.ROLE_SEED.items()} == {
-        role: set(grants) for role, grants in ROLE_PERMISSIONS.items()
-    }
+    combined: dict[str, set[str]] = {}
+    for migration in _MIGRATIONS:
+        seed = migration.ROLE_SEED if hasattr(migration, "ROLE_SEED") else migration.GRANTS
+        for role, grants in seed.items():
+            combined.setdefault(role, set()).update(grants)
+    return combined
+
+
+def test_the_migrations_seed_exactly_the_code_vocabulary() -> None:
+    """The migrations may not import the code table, so they are compared to it."""
+
+    expected = {role: set(grants) for role, grants in ROLE_PERMISSIONS.items()}
+    assert expected == _seeded_grants()
+
+
+def test_each_migration_is_purely_additive() -> None:
+    """A later seed may only add names; it may never re-seed an earlier grant.
+
+    Re-seeding would collide on the ``role_permissions`` primary key, and a
+    narrowed re-seed would silently revoke an authority an operator already
+    holds. Each migration therefore owns a disjoint slice of the vocabulary.
+    """
+
+    for earlier, later in zip(_MIGRATIONS, _MIGRATIONS[1:], strict=False):
+        earlier_seed = earlier.ROLE_SEED
+        later_seed = later.ROLE_SEED if hasattr(later, "ROLE_SEED") else later.GRANTS
+        for role, grants in earlier_seed.items():
+            overlap = set(grants) & set(later_seed.get(role, ()))
+            assert not overlap, f"{later.revision} re-seeds {sorted(overlap)} for {role}"
 
 
 def test_the_migration_seeds_the_role_descriptions() -> None:
-    assert migration.ROLE_DESCRIPTIONS == ROLE_DESCRIPTIONS
+    assert _phase612.ROLE_DESCRIPTIONS == ROLE_DESCRIPTIONS
 
 
 def test_the_migration_revision_chain_is_linear() -> None:
-    assert migration.revision == "20260924_09"
-    assert migration.down_revision == "20260923_08"
+    assert _phase612.revision == "20260924_09"
+    assert _phase612.down_revision == "20260923_08"
+    assert _phase613.revision == "20260924_10"
+    assert _phase613.down_revision == "20260924_09"
 
 
 # --------------------------------------------------------------------------- #

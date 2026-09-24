@@ -48,6 +48,8 @@ from app.observability.tracer import (
     summarize_input,
     summarize_output,
 )
+from app.security.dependencies import get_principal
+from app.security.rbac import Principal
 from app.workflow.contracts import (
     DiagnosisSnapshot,
     KnowledgeContextSnapshot,
@@ -716,11 +718,21 @@ class _FakeDatabaseSession:
         return []
 
 
+#: Phase 6.13-A put the observability surface behind ``require_permission``.
+#: The authentication and authorization boundary is proven against a real
+#: database in ``tests/security``; these contract tests stub the principal so
+#: they keep running without one.
+_PRINCIPAL = Principal(
+    user_id=uuid4(), username="operator.one", roles=("ADMIN",), permissions=frozenset({"*"})
+)
+
+
 def _client() -> TestClient:
     async def override_session() -> Any:
         yield _FakeDatabaseSession()
 
     app.dependency_overrides[get_session] = override_session
+    app.dependency_overrides[get_principal] = lambda: _PRINCIPAL
     return TestClient(app)
 
 

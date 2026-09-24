@@ -5,9 +5,10 @@ list endpoint therefore answers "what is currently wrong on this device, and for
 how long" rather than "how many samples breached a threshold".
 
 The acknowledge and clear endpoints are the only alarm mutations. Both are
-guarded state moves driven by the alarm transition table, and both record the
-caller-supplied actor label from the ``X-Actor`` header. Neither can reach a
-device.
+guarded state moves driven by the alarm transition table. Since Phase 6.13-A
+both record the authenticated caller as the actor; a legacy ``X-Actor`` header,
+when a client still sends one, is kept only as audit metadata. Neither
+mutation can reach a device.
 """
 
 from datetime import datetime
@@ -17,7 +18,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.dependencies import get_actor, get_session
+from app.api.dependencies import get_session
 from app.core.errors import AppError
 from app.incidents.contracts import (
     AlarmAcknowledgeRequest,
@@ -33,16 +34,23 @@ from app.incidents.correlation import (
 from app.incidents.service import AlarmLifecycleService
 from app.repositories.alarm import AlarmRepository
 from app.repositories.incident_alarm import IncidentAlarmRepository
+from app.security.dependencies import require_permission
+from app.security.rbac import ALARM_ACK, ALARM_CLEAR, ALARM_READ, Principal
 
 router = APIRouter(prefix="/alarms", tags=["alarms"])
 
-Actor = Annotated[str, Depends(get_actor)]
 Session = Annotated[AsyncSession, Depends(get_session)]
+
+#: Every route below declares its own permission, and the dependency returns
+#: the authenticated principal, so the lifecycle commands record the real
+#: identity as the actor instead of a caller-supplied header.
+ReadAlarm = Annotated[Principal, Depends(require_permission(ALARM_READ))]
 
 
 @router.get("", response_model=list[AlarmRead])
 async def list_alarms(
     session: Session,
+    principal: ReadAlarm,
     device_id: str | None = None,
     status: str | None = None,
     severity: str | None = None,
@@ -82,6 +90,7 @@ async def list_alarms(
 @router.get("/related", response_model=list[AlarmRead])
 async def list_related_alarms(
     session: Session,
+    principal: ReadAlarm,
     device_id: str,
     rule_id: str | None = None,
     window_seconds: Annotated[int, Query(ge=1, le=MAX_WINDOW_SECONDS)] = DEFAULT_WINDOW_SECONDS,
@@ -110,7 +119,7 @@ async def list_related_alarms(
 
 
 @router.get("/{alarm_id}", response_model=AlarmDetailRead)
-async def get_alarm(alarm_id: UUID, session: Session) -> AlarmDetailRead:
+async def get_alarm(alarm_id: UUID, session: Session, principal: ReadAlarm) -> AlarmDetailRead:
     """Return one alarm instance with the incidents it has been linked to."""
 
     alarm = await AlarmRepository(session).get(alarm_id)
@@ -126,12 +135,16 @@ async def acknowledge_alarm(
     alarm_id: UUID,
     payload: AlarmAcknowledgeRequest,
     session: Session,
-    actor: Actor,
+    principal: Annotated[Principal, Depends(require_permission(ALARM_ACK))],
 ) -> AlarmRead:
-    """Record that an operator has seen the condition."""
+    """Record that an operator has seen the condition.
+
+    The actor is the authenticated identity; a legacy ``X-Actor`` header is
+    metadata only.
+    """
 
     alarm = await AlarmLifecycleService(session).acknowledge_alarm(
-        alarm_id, actor=actor, note=payload.note
+        alarm_id, actor=principal.username, note=payload.note
     )
     return AlarmRead.model_validate(alarm)
 
@@ -141,11 +154,11 @@ async def clear_alarm(
     alarm_id: UUID,
     payload: AlarmClearRequest,
     session: Session,
-    actor: Actor,
+    principal: Annotated[Principal, Depends(require_permission(ALARM_CLEAR))],
 ) -> AlarmRead:
     """Close the instance. A recurrence afterwards opens a new one."""
 
     alarm = await AlarmLifecycleService(session).clear_alarm(
-        alarm_id, actor=actor, reason=payload.reason
+        alarm_id, actor=principal.username, reason=payload.reason
     )
     return AlarmRead.model_validate(alarm)

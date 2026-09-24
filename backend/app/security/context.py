@@ -26,12 +26,22 @@ from uuid import UUID
 
 @dataclass(frozen=True, slots=True)
 class SecurityContext:
-    """Who is calling, from where, with what client."""
+    """Who is calling, from where, with what client.
+
+    ``legacy_actor`` carries the raw ``X-Actor`` header value when the client
+    sent one. Since Phase 6.13-A the header is descriptive metadata only: it
+    never decides attribution, and it is recorded on audit rows as
+    ``details["legacy_x_actor"]`` so a pre-migration client's claim stays
+    visible next to the identity that actually acted. It is deliberately not
+    validated: a malformed legacy label must not be able to fail an otherwise
+    authenticated request.
+    """
 
     actor: str
     actor_user_id: UUID | None
     ip_address: str | None
     user_agent: str | None
+    legacy_actor: str | None = None
 
 
 security_context: ContextVar[SecurityContext | None] = ContextVar("security_context", default=None)

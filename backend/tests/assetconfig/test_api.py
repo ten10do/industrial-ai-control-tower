@@ -14,6 +14,7 @@ from __future__ import annotations
 
 from collections.abc import AsyncIterator
 from typing import Any, cast
+from uuid import uuid4
 
 import httpx
 import pytest
@@ -23,10 +24,24 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from app.assetconfig.apply import UnavailableApplier
 from app.assetconfig.models import ApplyStatus, AssetType
 from app.main import app
+from app.security.dependencies import get_principal
+from app.security.rbac import Principal
 from tests.assetconfig.conftest import FakeApplier, create_device, modbus_payload
 
 V1 = "/api/v1"
 LEGACY = "/api"
+
+#: The authenticated caller for this suite. Phase 6.13-A moved actor attribution
+#: from the ``X-Actor`` header to the authenticated identity, so every request
+#: here acts as this principal. The authentication and authorization boundary
+#: itself is proven against a real database in ``tests/security``; this suite is
+#: about the asset and configuration contract, so the principal is stubbed.
+ACTING_PRINCIPAL = Principal(
+    user_id=uuid4(),
+    username="operator.one",
+    roles=("ADMIN",),
+    permissions=frozenset({"*"}),
+)
 
 
 class _DatabaseShim:
@@ -51,9 +66,15 @@ async def client(
 ) -> AsyncIterator[httpx.AsyncClient]:
     app.state.database = _DatabaseShim(sessions)
     app.state.configuration_applier = applier
+    app.dependency_overrides[get_principal] = lambda: ACTING_PRINCIPAL
     transport = ASGITransport(app=app)
-    async with httpx.AsyncClient(transport=transport, base_url="http://control-tower") as client:
-        yield client
+    try:
+        async with httpx.AsyncClient(
+            transport=transport, base_url="http://control-tower"
+        ) as client:
+            yield client
+    finally:
+        app.dependency_overrides.pop(get_principal, None)
 
 
 def _error(response: httpx.Response) -> tuple[str, str]:
@@ -523,23 +544,28 @@ async def test_secret_material_is_never_accepted(
     assert code == "CONFIGURATION_VALIDATION_FAILED"
 
 
-async def test_the_actor_header_is_validated_and_recorded(
+async def test_the_legacy_actor_header_is_metadata_not_attribution(
     client: httpx.AsyncClient, session: AsyncSession
 ) -> None:
+    """Phase 6.13-A: a forged ``X-Actor`` no longer decides attribution.
+
+    Pre-6.13 this value was rejected with 422 ``INVALID_ACTOR``; now it is
+    recorded as legacy metadata and the actor is the authenticated identity.
+    """
+
     await _device(session, "MOTOR-001")
 
-    rejected = await client.post(
+    forged = await client.post(
         f"{V1}/devices/MOTOR-001/configurations",
         json=modbus_payload(),
         headers={"X-Actor": "bad actor!"},
     )
-    assert rejected.status_code == 422
-    assert _error(rejected)[0] == "INVALID_ACTOR"
-    assert (await client.get(f"{V1}/devices/MOTOR-001/configurations")).json() == []
+    assert forged.status_code == 201, forged.text
+    assert forged.json()["created_by"] == "operator.one"
 
     created = await client.post(
         f"{V1}/devices/MOTOR-001/configurations",
-        json=modbus_payload(),
+        json=modbus_payload(port=5021),
         headers={"X-Actor": "operator.one"},
     )
     assert created.status_code == 201
@@ -550,13 +576,19 @@ async def test_the_actor_header_is_validated_and_recorded(
     assert created_event["config_version"] == 1
 
 
-async def test_no_actor_header_defaults_to_system(
+async def test_the_actor_is_the_authenticated_identity_without_a_header(
     client: httpx.AsyncClient, session: AsyncSession
 ) -> None:
+    """Phase 6.13-A: attribution no longer depends on a client-supplied label.
+
+    The pre-6.13 fallback wrote ``"system"`` when ``X-Actor`` was absent; the
+    migrated route records the authenticated principal instead.
+    """
+
     await _device(session, "MOTOR-001")
     await client.post(f"{V1}/devices/MOTOR-001/configurations", json=modbus_payload())
     events = (await client.get(f"{V1}/devices/MOTOR-001/configuration-audit")).json()
-    assert events[0]["actor"] == "system"
+    assert events[0]["actor"] == "operator.one"
 
 
 async def test_the_audit_history_is_newest_first_and_limitable(

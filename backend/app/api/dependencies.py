@@ -33,16 +33,18 @@ def get_websocket_manager(request: Request) -> WebSocketManager:
 def get_actor(request: Request) -> str:
     """Return the caller-supplied actor label, defaulting to ``system``.
 
-    This is descriptive metadata only. It is not authentication and grants no
-    authority: any caller may claim any label.
+    Legacy metadata only. Phase 6.13-A migrated the last business mutations
+    (alarms, alarm rules, asset configuration, connectivity) to the
+    authenticated identity, so no governed route consumes this dependency any
+    more: every business mutation attributes its actor to the authenticated
+    user through :mod:`app.security.dependencies`.
 
-    Phase 6.12 introduces real identity at the incident, workflow, approval, and
-    work-order boundary, where the actor is now the authenticated username and
-    this header is no longer consulted. The alarm, alarm-rule, and device
-    configuration routers still use this label, and that is a documented gap in
-    :doc:`docs/SECURITY_MODEL.md` rather than an oversight: those endpoints are
-    outside the boundary this phase was scoped to close, and silently changing
-    their actor semantics would alter the audit trail that Phase 6.8 shipped.
+    The header is not deleted. Clients that still send ``X-Actor`` keep working,
+    and the raw value travels in the request-scoped security context as
+    ``legacy_actor``, where the audit writer records it as
+    ``details["legacy_x_actor"]`` next to the identity that actually acted. It
+    grants no authority and is never validated for shape there: a forged label
+    is recorded as the claim it is.
     """
 
     raw = request.headers.get("X-Actor", "").strip()

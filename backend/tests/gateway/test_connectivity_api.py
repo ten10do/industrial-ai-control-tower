@@ -2,24 +2,42 @@
 
 These tests drive the real application routes and a real gateway object. The
 database-facing collaborators are replaced by fakes, so no database is required.
+
+Phase 6.13-A put the surface behind ``require_permission``. The authentication
+and authorization boundary is proven against a real database in
+``tests/security``; this suite is about the gateway contract, so the principal
+is stubbed with an unrestricted identity.
 """
 
 from __future__ import annotations
 
+from collections.abc import AsyncIterator, Iterator
+from uuid import uuid4
+
 import pytest
 from fastapi.testclient import TestClient
 
+from app.api.dependencies import get_session
 from app.gateway.gateway import IndustrialProtocolGateway
 from app.gateway.models import DeviceState
 from app.gateway.registry import DeviceRegistry
 from app.gateway.runtime import RetryPolicy
 from app.main import app
+from app.security.dependencies import get_principal
+from app.security.rbac import Principal
 from tests.gateway.conftest import (
     FakeRegistration,
     FakeSink,
     ScriptedAdapter,
     modbus_definition,
     wait_until,
+)
+
+ACTING_PRINCIPAL = Principal(
+    user_id=uuid4(),
+    username="operator.one",
+    roles=("ADMIN",),
+    permissions=frozenset({"*"}),
 )
 
 FAST = RetryPolicy(
@@ -45,6 +63,27 @@ def _gateway(sink: FakeSink, registration: FakeRegistration) -> IndustrialProtoc
         config_file="gateway_devices.yaml",
         policy=FAST,
     )
+
+
+@pytest.fixture(autouse=True)
+def _acting_principal() -> Iterator[None]:
+    """Stub the authenticated caller for every test in this module.
+
+    ``require_permission`` pulls in the session dependency even when the
+    principal itself is overridden, so both dependencies are stubbed: this
+    suite has no database and must not need one. The overrides are removed
+    afterwards so they cannot leak into another test module that drives the
+    same application object.
+    """
+
+    async def override_session() -> AsyncIterator[None]:
+        yield None
+
+    app.dependency_overrides[get_principal] = lambda: ACTING_PRINCIPAL
+    app.dependency_overrides[get_session] = override_session
+    yield
+    app.dependency_overrides.pop(get_principal, None)
+    app.dependency_overrides.pop(get_session, None)
 
 
 def _configure(

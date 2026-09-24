@@ -5,6 +5,9 @@ ingestion totals, plus local start/stop control over the gateway's own polling
 runtime. No endpoint here writes to a device: start and stop only toggle whether the
 gateway polls, so nothing in this module can command plant equipment.
 
+Phase 6.13-A gates the surface: reads require ``connectivity.read``, and the
+polling controls require ``connectivity.control``.
+
 The router is declared without a prefix and mounted twice by the application as
 ``/api/v1/connectivity`` (the repository-wide API contract namespace) and
 ``/api/connectivity`` (the shorthand used by the Phase 6.7 specification).
@@ -23,8 +26,12 @@ from app.gateway import (
     GatewayConfigurationError,
     IndustrialProtocolGateway,
 )
+from app.security.dependencies import require_permission
+from app.security.rbac import CONNECTIVITY_CONTROL, CONNECTIVITY_READ, Principal
 
 router = APIRouter(tags=["connectivity"])
+
+ReadConnectivity = Annotated[Principal, Depends(require_permission(CONNECTIVITY_READ))]
 
 
 def get_gateway(request: Request) -> IndustrialProtocolGateway | None:
@@ -51,7 +58,9 @@ def _device_not_found(exc: GatewayConfigurationError) -> AppError:
 
 
 @router.get("/connectivity/summary", response_model=ConnectivitySummary)
-async def connectivity_summary(request: Request, gateway: GatewayDep) -> ConnectivitySummary:
+async def connectivity_summary(
+    request: Request, gateway: GatewayDep, principal: ReadConnectivity
+) -> ConnectivitySummary:
     """Return gateway availability and aggregate device state."""
 
     if gateway is None:
@@ -64,7 +73,9 @@ async def connectivity_summary(request: Request, gateway: GatewayDep) -> Connect
 
 
 @router.get("/connectivity/devices", response_model=list[DeviceStatusRead])
-async def list_connectivity_devices(gateway: GatewayDep) -> list[DeviceStatusRead]:
+async def list_connectivity_devices(
+    gateway: GatewayDep, principal: ReadConnectivity
+) -> list[DeviceStatusRead]:
     """Return every configured device and its current lifecycle state."""
 
     if gateway is None:
@@ -73,7 +84,9 @@ async def list_connectivity_devices(gateway: GatewayDep) -> list[DeviceStatusRea
 
 
 @router.get("/connectivity/devices/{device_id}", response_model=DeviceStatusRead)
-async def get_connectivity_device(device_id: str, gateway: GatewayDep) -> DeviceStatusRead:
+async def get_connectivity_device(
+    device_id: str, gateway: GatewayDep, principal: ReadConnectivity
+) -> DeviceStatusRead:
     """Return one device's lifecycle status."""
 
     try:
@@ -83,7 +96,11 @@ async def get_connectivity_device(device_id: str, gateway: GatewayDep) -> Device
 
 
 @router.post("/connectivity/devices/{device_id}/start", response_model=DeviceStatusRead)
-async def start_connectivity_device(device_id: str, gateway: GatewayDep) -> DeviceStatusRead:
+async def start_connectivity_device(
+    device_id: str,
+    gateway: GatewayDep,
+    principal: Annotated[Principal, Depends(require_permission(CONNECTIVITY_CONTROL))],
+) -> DeviceStatusRead:
     """Start polling for one device."""
 
     try:
@@ -93,7 +110,11 @@ async def start_connectivity_device(device_id: str, gateway: GatewayDep) -> Devi
 
 
 @router.post("/connectivity/devices/{device_id}/stop", response_model=DeviceStatusRead)
-async def stop_connectivity_device(device_id: str, gateway: GatewayDep) -> DeviceStatusRead:
+async def stop_connectivity_device(
+    device_id: str,
+    gateway: GatewayDep,
+    principal: Annotated[Principal, Depends(require_permission(CONNECTIVITY_CONTROL))],
+) -> DeviceStatusRead:
     """Stop polling for one device."""
 
     try:

@@ -48,9 +48,25 @@ from app.security.tokens import decode_access_token
 
 AUTHORIZATION_HEADER = "Authorization"
 USER_AGENT_HEADER = "User-Agent"
+X_ACTOR_HEADER = "X-Actor"
 BEARER_PREFIX = "bearer "
 
 ANONYMOUS_ACTOR = "anonymous"
+
+#: The legacy actor label is metadata, not authority, so it is only bounded in
+#: length. Unlike the pre-6.13 ``get_actor`` dependency it is never validated
+#: for shape: a forged or malformed label must not fail an authenticated
+#: request, it must simply be recorded as the claim it is.
+MAX_LEGACY_ACTOR_LENGTH = 200
+
+
+def legacy_actor_label(request: Request) -> str | None:
+    """Return the raw ``X-Actor`` header value, or ``None`` when absent."""
+
+    value = (request.headers.get(X_ACTOR_HEADER) or "").strip()
+    if not value:
+        return None
+    return value[:MAX_LEGACY_ACTOR_LENGTH]
 
 
 def bearer_token(header: str | None) -> str:
@@ -109,6 +125,7 @@ async def _authenticate(request: Request, session: AsyncSession) -> Principal:
             actor_user_id=user.id,
             ip_address=client_ip(request),
             user_agent=request.headers.get(USER_AGENT_HEADER),
+            legacy_actor=legacy_actor_label(request),
         ),
     )
     return principal
@@ -144,6 +161,7 @@ async def get_optional_principal(
                 actor_user_id=None,
                 ip_address=client_ip(request),
                 user_agent=request.headers.get(USER_AGENT_HEADER),
+                legacy_actor=legacy_actor_label(request),
             ),
         )
         return None

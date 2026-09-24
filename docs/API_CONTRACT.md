@@ -11,7 +11,13 @@ All APIs are versioned under `/api/v1/`.
 
 ## Authentication
 
-Authentication is reserved for Phase 2+. Phase 0 endpoints are open.
+Business mutation and read routes on the governed surface (incidents, workflows,
+approvals, work orders, alarms, alarm rules, assets, device configuration,
+connectivity, observability) require a bearer access token and declare the
+permission they enforce; see `docs/SECURITY_MODEL.md` for the full matrix. A
+missing credential is `401`, an identity without the permission is `403`. The
+legacy `X-Actor` header is accepted as descriptive metadata only and never
+decides attribution. `/health`, `/ready`, and the auth endpoints remain open.
 
 ## Health Endpoints
 

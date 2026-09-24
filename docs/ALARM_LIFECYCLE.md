@@ -163,8 +163,10 @@ resolves `incident_ids` read-only.
 ## API Surface
 
 All routes are registered under both `/api/v1` and `/api`, matching the Phase 6.6
-and 6.8 convention. The write path records the caller-supplied actor label from
-the `X-Actor` header (default `system`).
+and 6.8 convention. Since Phase 6.13-A every route declares a permission through
+`require_permission`, and the write path records the authenticated caller as the
+actor. A legacy `X-Actor` header, when a client still sends one, is kept only as
+audit metadata (`details["legacy_x_actor"]`) and grants no authority.
 
 ### Rules
 
