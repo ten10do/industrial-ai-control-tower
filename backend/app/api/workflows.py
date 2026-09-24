@@ -21,6 +21,18 @@ from app.incidents.contracts import (
 from app.incidents.incident_service import IncidentContextService
 from app.models import Approval, Diagnosis, Incident, WorkflowRun, WorkOrder
 from app.platform_observability.metrics import incident_created_total
+from app.security.dependencies import require_permission
+from app.security.rbac import (
+    APPROVAL_READ,
+    APPROVAL_REVIEW,
+    INCIDENT_CREATE,
+    INCIDENT_READ,
+    WORKFLOW_CANCEL,
+    WORKFLOW_READ,
+    WORKFLOW_START,
+    WORKORDER_READ,
+    Principal,
+)
 from app.workflow.contracts import (
     ApprovalDecisionRequest,
     ApprovalRead,
@@ -38,6 +50,18 @@ from app.workflow.contracts import (
 from app.workflow.service import WorkflowService
 
 router = APIRouter(prefix="/api/v1", tags=["workflows"])
+
+#: Each route declares the permission it needs. Reads are separated from writes
+#: so a VIEWER can follow an incident through the decision workflow without
+#: being able to move it.
+CanReadIncidents = Annotated[Principal, Depends(require_permission(INCIDENT_READ))]
+CanCreateIncidents = Annotated[Principal, Depends(require_permission(INCIDENT_CREATE))]
+CanReadWorkflows = Annotated[Principal, Depends(require_permission(WORKFLOW_READ))]
+CanStartWorkflows = Annotated[Principal, Depends(require_permission(WORKFLOW_START))]
+CanCancelWorkflows = Annotated[Principal, Depends(require_permission(WORKFLOW_CANCEL))]
+CanReadApprovals = Annotated[Principal, Depends(require_permission(APPROVAL_READ))]
+CanReviewApprovals = Annotated[Principal, Depends(require_permission(APPROVAL_REVIEW))]
+CanReadWorkOrders = Annotated[Principal, Depends(require_permission(WORKORDER_READ))]
 
 
 def _service(request: Request) -> WorkflowService:
@@ -147,7 +171,11 @@ async def _work_order_read(session: AsyncSession, row: WorkOrder) -> WorkOrderRe
 async def create_incident(
     payload: IncidentCreateRequest,
     session: Annotated[AsyncSession, Depends(get_session)],
+    principal: CanCreateIncidents,
 ) -> IncidentRead:
+    # The caller is required for authorization. Creation is deliberately not
+    # audited here: the audit vocabulary of this phase lists lifecycle
+    # transitions, so an extra row would be a scope change, not a gap.
     diagnosis = await session.get(Diagnosis, payload.diagnosis_id)
     if diagnosis is None or diagnosis.device_id != payload.device_id:
         raise AppError(
@@ -182,6 +210,7 @@ async def create_incident(
 @router.get("/incidents", response_model=list[IncidentSummaryRead])
 async def list_incidents(
     session: Annotated[AsyncSession, Depends(get_session)],
+    principal: CanReadIncidents,
     status: str | None = None,
     severity: str | None = None,
     device_id: str | None = None,
@@ -200,7 +229,9 @@ async def list_incidents(
 
 @router.get("/incidents/{incident_id}", response_model=IncidentDetailContextRead)
 async def get_incident(
-    incident_id: UUID, session: Annotated[AsyncSession, Depends(get_session)]
+    incident_id: UUID,
+    session: Annotated[AsyncSession, Depends(get_session)],
+    principal: CanReadIncidents,
 ) -> IncidentDetailContextRead:
     incident = await session.get(Incident, incident_id)
     if incident is None:
@@ -253,19 +284,23 @@ async def get_incident(
 
 @router.post("/incidents/{incident_id}/workflows", response_model=WorkflowRead)
 async def start_workflow(
-    request: Request, incident_id: UUID, payload: WorkflowCreateRequest
+    request: Request,
+    incident_id: UUID,
+    payload: WorkflowCreateRequest,
+    principal: CanStartWorkflows,
 ) -> WorkflowRead:
     return await _service(request).start(incident_id, payload.diagnosis_id, trace_id_context.get())
 
 
 @router.get("/workflow-metrics", response_model=dict[str, int | float])
-async def workflow_metrics(request: Request) -> dict[str, int | float]:
+async def workflow_metrics(request: Request, principal: CanReadWorkflows) -> dict[str, int | float]:
     return await _service(request).metrics()
 
 
 @router.get("/workflows", response_model=list[WorkflowSummaryRead])
 async def list_workflows(
     session: Annotated[AsyncSession, Depends(get_session)],
+    principal: CanReadWorkflows,
     status: str | None = None,
     limit: Annotated[int, Query(ge=1, le=200)] = 100,
 ) -> list[WorkflowSummaryRead]:
@@ -277,28 +312,36 @@ async def list_workflows(
 
 
 @router.get("/workflows/{workflow_run_id}", response_model=WorkflowRead)
-async def get_workflow(request: Request, workflow_run_id: UUID) -> WorkflowRead:
+async def get_workflow(
+    request: Request, workflow_run_id: UUID, principal: CanReadWorkflows
+) -> WorkflowRead:
     return await _service(request).get(workflow_run_id)
 
 
 @router.get("/workflows/{workflow_run_id}/trace", response_model=WorkflowTrace)
-async def get_workflow_trace(request: Request, workflow_run_id: UUID) -> WorkflowTrace:
+async def get_workflow_trace(
+    request: Request, workflow_run_id: UUID, principal: CanReadWorkflows
+) -> WorkflowTrace:
     workflow, runs = await _service(request).trace(workflow_run_id)
     return WorkflowTrace(workflow=workflow, agent_runs=runs)
 
 
 @router.post("/workflows/{workflow_run_id}/cancel", response_model=WorkflowRead)
-async def cancel_workflow(request: Request, workflow_run_id: UUID) -> WorkflowRead:
+async def cancel_workflow(
+    request: Request, workflow_run_id: UUID, principal: CanCancelWorkflows
+) -> WorkflowRead:
     return await _service(request).cancel(workflow_run_id)
 
 
 @router.get("/approvals/pending", response_model=list[ApprovalRead])
-async def pending_approvals(request: Request) -> list[ApprovalRead]:
+async def pending_approvals(request: Request, principal: CanReadApprovals) -> list[ApprovalRead]:
     return [_approval_read(row) for row in await _service(request).pending_approvals()]
 
 
 @router.get("/approvals/{approval_id}", response_model=ApprovalRead)
-async def get_approval(request: Request, approval_id: UUID) -> ApprovalRead:
+async def get_approval(
+    request: Request, approval_id: UUID, principal: CanReadApprovals
+) -> ApprovalRead:
     return _approval_read(await _service(request).get_approval(approval_id))
 
 
@@ -325,6 +368,7 @@ async def approve(
     request: Request,
     approval_id: UUID,
     payload: ApprovalDecisionRequest,
+    principal: CanReviewApprovals,
     actor: Annotated[str | None, Header(alias="X-Development-Actor")] = None,
 ) -> WorkflowRead:
     return await _decide(request, approval_id, payload, actor, "APPROVED")
@@ -335,6 +379,7 @@ async def reject(
     request: Request,
     approval_id: UUID,
     payload: ApprovalDecisionRequest,
+    principal: CanReviewApprovals,
     actor: Annotated[str | None, Header(alias="X-Development-Actor")] = None,
 ) -> WorkflowRead:
     return await _decide(request, approval_id, payload, actor, "REJECTED")
@@ -342,7 +387,9 @@ async def reject(
 
 @router.get("/work-orders/{work_order_id}", response_model=WorkOrderRead)
 async def get_work_order(
-    work_order_id: UUID, session: Annotated[AsyncSession, Depends(get_session)]
+    work_order_id: UUID,
+    session: Annotated[AsyncSession, Depends(get_session)],
+    principal: CanReadWorkOrders,
 ) -> WorkOrderRead:
     row = await session.get(WorkOrder, work_order_id)
     if row is None:
@@ -353,6 +400,7 @@ async def get_work_order(
 @router.get("/work-orders", response_model=list[WorkOrderRead])
 async def list_work_orders(
     session: Annotated[AsyncSession, Depends(get_session)],
+    principal: CanReadWorkOrders,
     status: str | None = None,
     limit: Annotated[int, Query(ge=1, le=200)] = 100,
 ) -> list[WorkOrderRead]:

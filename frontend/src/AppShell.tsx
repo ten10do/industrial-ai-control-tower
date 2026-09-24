@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { NavLink, Outlet } from 'react-router-dom'
 import { api, ApiError } from './api'
+import { useAuth } from './auth'
 import { StatusBadge } from './components'
 
 const navigation = [
@@ -15,6 +16,7 @@ const navigation = [
 ] as const
 
 export function AppShell() {
+  const { identity, logout } = useAuth()
   const ready = useQuery({ queryKey: ['ready'], queryFn: api.ready, refetchInterval: 15_000 })
   const dependencies = ready.data?.dependencies ?? (ready.error instanceof ApiError ? ready.error.details?.dependencies : undefined)
   const overall = ready.isPending ? 'CHECKING' : ready.data?.status === 'ready' ? 'HEALTHY' : 'DEGRADED'
@@ -25,7 +27,12 @@ export function AppShell() {
         <nav aria-label="Primary navigation">
           {navigation.map(([label, path]) => <NavLink key={path} to={path} end={path === '/'}>{label}</NavLink>)}
         </nav>
-        <div className="sidebar-foot"><small>Phase 6 operator interface</small><span>READ-ONLY DEVICE CONTROL</span></div>
+        <div className="sidebar-foot">
+          <small>{identity ? `Signed in as ${identity.username}` : 'No active session'}</small>
+          <span>{identity?.roles.join(' · ') || 'NO ROLE'}</span>
+          <button type="button" onClick={logout}>Sign out</button>
+          <span>READ-ONLY DEVICE CONTROL</span>
+        </div>
       </aside>
       <div className="workspace">
         <header className="topbar">

@@ -3,6 +3,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { api, ApiError } from './api'
+import { OPERATOR_IDENTITY, withAuth } from './authTestUtils'
 import { ApprovalDetailPage } from './pages'
 import type { Approval, Workflow } from './types'
 
@@ -15,7 +16,7 @@ const workflow: Workflow = {
 
 function renderApproval() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
-  return render(<QueryClientProvider client={client}><MemoryRouter initialEntries={['/approvals/approval-1']}><Routes><Route path="/approvals/:approvalId" element={<ApprovalDetailPage />} /><Route path="/work-orders/:workOrderId" element={<div>work order destination</div>} /></Routes></MemoryRouter></QueryClientProvider>)
+  return render(withAuth(<QueryClientProvider client={client}><MemoryRouter initialEntries={['/approvals/approval-1']}><Routes><Route path="/approvals/:approvalId" element={<ApprovalDetailPage />} /><Route path="/work-orders/:workOrderId" element={<div>work order destination</div>} /></Routes></MemoryRouter></QueryClientProvider>, OPERATOR_IDENTITY))
 }
 
 async function readyForm() {

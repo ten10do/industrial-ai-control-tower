@@ -19,6 +19,7 @@ from app.api import (
     alarm_rules,
     alarms,
     assets,
+    auth,
     configurations,
     connectivity,
     devices,
@@ -60,6 +61,7 @@ from app.knowledge.retrieval import KnowledgeIndex
 from app.ml.runtime import ModelCompatibilityError, ModelRuntime
 from app.observability.tracer import ObservableWorkflowService, WorkflowTracer
 from app.platform_observability.resilience import default_database_retry
+from app.security.context import security_context
 from app.services.diagnosis import OnlineDiagnosisCoordinator
 from app.services.telemetry import IngestionCounters
 from app.websocket.manager import WebSocketManager
@@ -350,6 +352,8 @@ app.include_router(assets.router, prefix="/api")
 app.include_router(configurations.router, prefix="/api/v1")
 app.include_router(configurations.router, prefix="/api")
 app.include_router(websockets.router)
+app.include_router(auth.router, prefix="/api/v1")
+app.include_router(auth.router, prefix="/api")
 app.include_router(platform_api.router)
 app.include_router(platform_api.platform_router, prefix="/api/v1")
 app.include_router(platform_api.platform_router, prefix="/api")
@@ -359,11 +363,16 @@ app.include_router(platform_api.platform_router, prefix="/api")
 async def correlation_middleware(request: Request, call_next: Any) -> Any:
     trace_id = request.headers.get("X-Trace-ID") or str(uuid4())
     token = trace_id_context.set(trace_id)
+    # The authenticated identity is published per request by the security
+    # dependency. Clearing it here guarantees one request can never inherit the
+    # actor of the request that happened to run before it on the same task.
+    security_token = security_context.set(None)
     try:
         response = await call_next(request)
         response.headers["X-Trace-ID"] = trace_id
         return response
     finally:
+        security_context.reset(security_token)
         trace_id_context.reset(token)
 
 

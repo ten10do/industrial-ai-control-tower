@@ -286,17 +286,44 @@ class WorkflowRun(TimestampMixin, Base):
 
 
 class AuditEvent(Base):
+    """One auditable event.
+
+    Phase 6.12 adds the identity columns (``actor_user_id``, ``ip_address``,
+    ``user_agent``) and ``resource_id``. All four are nullable and carry no
+    server default, so every row written by Phases 2 through 6.11 stays valid and
+    unchanged, and a downgrade loses only the new fields.
+
+    ``actor_user_id`` is deliberately *not* a foreign key to ``users.id``. An
+    audit record must outlive the identity it names: a cascade or a set-null from
+    the identity table would let a user-management operation rewrite history.
+    The column is an immutable reference, not a relationship.
+
+    Two conventions share the table. Rows written before this phase use
+    ``resource`` for the resource *identifier* (an incident uuid, or
+    ``device-config:<device>``); the incident timeline and the configuration
+    audit both query it that way and are left untouched. Security-boundary rows
+    written by the Phase 6.12 authentication and authorization layer use the
+    unified shape, with ``resource`` naming the resource *type* and
+    ``resource_id`` naming the instance.
+    """
+
     __tablename__ = "audit_events"
     __table_args__ = (
         Index("ix_audit_timestamp", "timestamp"),
         Index("ix_audit_events_resource_timestamp", "resource", "timestamp"),
+        Index("ix_audit_events_actor_user_id", "actor_user_id"),
+        Index("ix_audit_events_resource_id", "resource_id"),
     )
     id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
     trace_id: Mapped[str] = mapped_column(String(100), nullable=False)
     actor: Mapped[str] = mapped_column(String(100), nullable=False)
+    actor_user_id: Mapped[UUID | None] = mapped_column(Uuid)
     action: Mapped[str] = mapped_column(String(100), nullable=False)
     resource: Mapped[str] = mapped_column(String(200), nullable=False)
+    resource_id: Mapped[str | None] = mapped_column(String(200))
     status: Mapped[str] = mapped_column(String(40), nullable=False)
+    ip_address: Mapped[str | None] = mapped_column(String(45))
+    user_agent: Mapped[str | None] = mapped_column(String(400))
     details: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict)
     timestamp: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
 

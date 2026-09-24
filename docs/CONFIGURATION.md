@@ -74,6 +74,30 @@ python scripts/validate_env.py .env --mode runtime           # runtime config
 `GET /metrics` and `GET /api/v1/platform/metrics` (Phase 6.10) need no
 configuration beyond the backend port.
 
+### Security (identity and authorization)
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `SECURITY_JWT_SECRET` | *(empty)* | Signs access tokens. Empty fails closed: the auth API answers `503 SECURITY_NOT_CONFIGURED` instead of minting or accepting a token. Generate with `openssl rand -hex 32` and inject from the operator's secret store |
+| `SECURITY_ACCESS_TOKEN_TTL_SECONDS` | `3600` | Access-token lifetime. Tokens are not revocable, so this is the only bound on how long a leaked token is useful |
+| `SECURITY_REGISTRATION_ENABLED` | `true` | Self-service registration. A self-registered identity always receives `VIEWER`; only a caller holding `user.manage` may name another role |
+| `SECURITY_LOGIN_RATE_LIMIT_ATTEMPTS` | `5` | Failed sign-ins per source address per window |
+| `SECURITY_LOGIN_RATE_LIMIT_WINDOW_SECONDS` | `60` | Length of that window |
+
+`SECURITY_JWT_SECRET` is intentionally absent from `REQUIRED_KEYS` in
+`scripts/validate_env.py`. An unset secret is a *safe* misconfiguration, not an
+unsafe one: the platform refuses to authenticate rather than trusting a token it
+cannot verify, and CI therefore need not carry a secret to run. Set it before
+the first sign-in.
+
+`SECURITY_BOOTSTRAP_PASSWORD` is read by `scripts/create_admin.py` only. It
+exists so the first administrator can be provisioned without a password
+appearing in shell history or in the process table. It must not be placed in
+`.env`.
+
+The full model — roles, the permission matrix, the audit format, and the
+non-goals — is in `docs/SECURITY_MODEL.md`.
+
 ## Validation Rules
 
 | Mode | Rejects |

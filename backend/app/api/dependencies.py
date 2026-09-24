@@ -34,8 +34,15 @@ def get_actor(request: Request) -> str:
     """Return the caller-supplied actor label, defaulting to ``system``.
 
     This is descriptive metadata only. It is not authentication and grants no
-    authority. Real identity and RBAC are intentionally out of scope for this
-    phase, so an absent header yields ``system`` rather than a fabricated user.
+    authority: any caller may claim any label.
+
+    Phase 6.12 introduces real identity at the incident, workflow, approval, and
+    work-order boundary, where the actor is now the authenticated username and
+    this header is no longer consulted. The alarm, alarm-rule, and device
+    configuration routers still use this label, and that is a documented gap in
+    :doc:`docs/SECURITY_MODEL.md` rather than an oversight: those endpoints are
+    outside the boundary this phase was scoped to close, and silently changing
+    their actor semantics would alter the audit trail that Phase 6.8 shipped.
     """
 
     raw = request.headers.get("X-Actor", "").strip()

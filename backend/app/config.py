@@ -63,6 +63,16 @@ class Settings(BaseSettings):
     # and the YAML file only bootstraps devices that have no published version.
     config_management_enabled: bool = False
     gateway_apply_timeout_seconds: float = 10.0
+    # Phase 6.12 security foundation. Authentication and authorization are always
+    # enforced on the endpoints that declare a permission; only the two knobs
+    # below are configurable. The signing secret has no default on purpose: a
+    # generated fallback would silently invalidate every token on restart and
+    # would make an unconfigured deployment look configured.
+    security_jwt_secret: SecretStr | None = None
+    security_access_token_ttl_seconds: int = 3600
+    security_registration_enabled: bool = True
+    security_login_rate_limit_attempts: int = 5
+    security_login_rate_limit_window_seconds: int = 60
 
     @property
     def checkpoint_database_url(self) -> str:

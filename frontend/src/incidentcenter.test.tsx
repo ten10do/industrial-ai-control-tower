@@ -3,6 +3,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { api } from './api'
+import { OPERATOR_IDENTITY, withAuth } from './authTestUtils'
 import { IncidentDetailPage, IncidentsPage } from './pages'
 import type {
   Alarm,
@@ -119,28 +120,34 @@ const metrics: IncidentMetrics = { mtta_seconds: 120, mttr_seconds: 3600, alarm_
 function renderCenter() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
   return render(
-    <QueryClientProvider client={client}>
-      <MemoryRouter initialEntries={['/incidents']}>
-        <Routes>
-          <Route path="/incidents" element={<IncidentsPage />} />
-          <Route path="/incidents/:incidentId" element={<IncidentDetailPage />} />
-        </Routes>
-      </MemoryRouter>
-    </QueryClientProvider>,
+    withAuth(
+      <QueryClientProvider client={client}>
+        <MemoryRouter initialEntries={['/incidents']}>
+          <Routes>
+            <Route path="/incidents" element={<IncidentsPage />} />
+            <Route path="/incidents/:incidentId" element={<IncidentDetailPage />} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>,
+      OPERATOR_IDENTITY,
+    ),
   )
 }
 
 function renderDetail() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
   return render(
-    <QueryClientProvider client={client}>
-      <MemoryRouter initialEntries={['/incidents/incident-1']}>
-        <Routes>
-          <Route path="/incidents" element={<IncidentsPage />} />
-          <Route path="/incidents/:incidentId" element={<IncidentDetailPage />} />
-        </Routes>
-      </MemoryRouter>
-    </QueryClientProvider>,
+    withAuth(
+      <QueryClientProvider client={client}>
+        <MemoryRouter initialEntries={['/incidents/incident-1']}>
+          <Routes>
+            <Route path="/incidents" element={<IncidentsPage />} />
+            <Route path="/incidents/:incidentId" element={<IncidentDetailPage />} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>,
+      OPERATOR_IDENTITY,
+    ),
   )
 }
 

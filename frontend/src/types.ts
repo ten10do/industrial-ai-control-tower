@@ -522,3 +522,35 @@ export type PublishResult = {
   configuration: ConfigurationDetail
   status: ConfigurationStatus
 }
+
+/** `GET /api/v1/auth/me`: the caller's identity and the authority it holds now. */
+export type Identity = {
+  user_id: string
+  username: string
+  email: string | null
+  status: string
+  roles: string[]
+  permissions: string[]
+  created_at: string
+}
+
+/** The result of a successful sign-in. The token is the only secret in it. */
+export type IssuedToken = {
+  access_token: string
+  token_type: string
+  expires_in: number
+  expires_at: string
+  user_id: string
+  username: string
+  roles: string[]
+}
+
+/** A registered identity, as returned by provisioning. Never carries a secret. */
+export type RegisteredUser = {
+  user_id: string
+  username: string
+  email: string | null
+  status: string
+  roles: string[]
+  created_at: string
+}

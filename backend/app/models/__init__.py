@@ -37,6 +37,14 @@ from app.observability.models import (
     ObservabilityRun,
     ObservabilityStep,
 )
+from app.security.models import (
+    Permission,
+    Role,
+    RolePermission,
+    User,
+    UserRole,
+    UserStatus,
+)
 
 __all__ = [
     "AgentRun",
@@ -62,8 +70,14 @@ __all__ = [
     "ObservabilityMetric",
     "ObservabilityRun",
     "ObservabilityStep",
+    "Permission",
     "RetrievalRun",
+    "Role",
+    "RolePermission",
     "Telemetry",
+    "User",
+    "UserRole",
+    "UserStatus",
     "WorkOrder",
     "WorkflowRun",
 ]

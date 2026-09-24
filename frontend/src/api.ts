@@ -12,17 +12,20 @@ import type {
   ConnectivitySummary,
   Device,
   Diagnosis,
+  Identity,
   IncidentDashboard,
   IncidentDetail,
   IncidentMetrics,
   IncidentSummary,
   IncidentWorkflowBridge,
+  IssuedToken,
   KnowledgeDocument,
   ObservabilityMetrics,
   ObservabilityRun,
   ObservabilityRunTrace,
   PublishResult,
   ReadyStatus,
+  RegisteredUser,
   Telemetry,
   ValidationResult,
   Workflow,
@@ -30,6 +33,7 @@ import type {
   WorkflowTrace,
   WorkOrder,
 } from './types'
+import { clearToken, getToken } from './authStorage'
 
 const API_BASE = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '')
 
@@ -45,18 +49,45 @@ export class ApiError extends Error {
   }
 }
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
+/**
+ * Perform a request against the Control Tower API.
+ *
+ * Two cross-cutting concerns live here so no caller has to remember them.
+ *
+ * The stored access token is attached as a bearer credential on every call
+ * except the ones marked `anonymous`, which are the sign-in calls: sending a
+ * stale token to `/auth/login` would be meaningless, and clearing an existing
+ * session because a *new* sign-in failed would log the operator out of the
+ * session they already had.
+ *
+ * A `401` means the server did not accept the credential, so the token is
+ * discarded. The session provider observes that and returns to anonymous. A
+ * `403` is deliberately *not* handled here: it means the credential is fine and
+ * the permission is missing, which is a fact the calling page should show the
+ * operator rather than a reason to sign them out.
+ */
+async function request<T>(
+  path: string,
+  init?: RequestInit,
+  options: { anonymous?: boolean } = {},
+): Promise<T> {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...(init?.headers as Record<string, string> | undefined),
+  }
+  if (!options.anonymous) {
+    const token = getToken()
+    if (token) headers.Authorization = `Bearer ${token}`
+  }
   let response: Response
   try {
-    response = await fetch(`${API_BASE}${path}`, {
-      ...init,
-      headers: { 'Content-Type': 'application/json', ...init?.headers },
-    })
+    response = await fetch(`${API_BASE}${path}`, { ...init, headers })
   } catch {
     throw new ApiError('Backend unavailable. Check the Control Tower connection.', 0, 'NETWORK_ERROR')
   }
   const body = (await response.json().catch(() => ({}))) as ApiErrorPayload
   if (!response.ok) {
+    if (response.status === 401 && !options.anonymous) clearToken()
     const message =
       body.error?.message ??
       (response.status === 503 ? 'Capability unavailable.' : `Request failed (${response.status}).`)
@@ -74,6 +105,25 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 export const api = {
   health: () => request<{ status: string }>('/health'),
   ready: () => request<ReadyStatus>('/ready'),
+  /**
+   * Authentication. `login` and `register` are anonymous by construction: they
+   * are how a session begins, so they cannot require one. `me` is the call the
+   * interface trusts for its own authority, because it is answered from the
+   * database at request time rather than from the claims inside the token.
+   */
+  login: (username: string, password: string) =>
+    request<IssuedToken>(
+      '/api/v1/auth/login',
+      { method: 'POST', body: JSON.stringify({ username, password }) },
+      { anonymous: true },
+    ),
+  register: (payload: { username: string; password: string; email?: string | null }) =>
+    request<RegisteredUser>(
+      '/api/v1/auth/register',
+      { method: 'POST', body: JSON.stringify(payload) },
+      { anonymous: true },
+    ),
+  me: () => request<Identity>('/api/v1/auth/me'),
   devices: () => request<Device[]>('/api/v1/devices?limit=200'),
   device: (id: string) => request<Device>(`/api/v1/devices/${encodeURIComponent(id)}`),
   telemetry: (id: string, start: string) =>

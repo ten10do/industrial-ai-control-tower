@@ -22,7 +22,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.dependencies import get_actor, get_session
+from app.api.dependencies import get_session
 from app.core.context import trace_id_context
 from app.core.errors import AppError
 from app.incidents.contracts import (
@@ -38,13 +38,28 @@ from app.incidents.contracts import (
 )
 from app.incidents.incident_service import IncidentContextService, IncidentLifecycleService
 from app.incidents.operations import IncidentOperationsService, IncidentWorkflowGate
+from app.security.dependencies import require_permission
+from app.security.rbac import (
+    INCIDENT_ACK,
+    INCIDENT_CLOSE,
+    INCIDENT_INVESTIGATE,
+    INCIDENT_READ,
+    INCIDENT_REOPEN,
+    INCIDENT_RESOLVE,
+    WORKFLOW_START,
+    Principal,
+)
 from app.workflow.contracts import WorkflowRead
 from app.workflow.service import WorkflowService
 
 router = APIRouter(prefix="/incidents", tags=["incidents"])
 
-Actor = Annotated[str, Depends(get_actor)]
 Session = Annotated[AsyncSession, Depends(get_session)]
+
+#: Every route below declares its own permission. The dependency returns the
+#: authenticated principal, so the lifecycle commands record the real identity
+#: as the actor instead of a caller-supplied header.
+ReadIncident = Annotated[Principal, Depends(require_permission(INCIDENT_READ))]
 
 
 def _workflow_service(request: Request) -> WorkflowService:
@@ -57,6 +72,7 @@ def _workflow_service(request: Request) -> WorkflowService:
 @router.get("/dashboard", response_model=IncidentDashboardRead)
 async def incident_dashboard(
     session: Session,
+    principal: ReadIncident,
     status: str | None = None,
     severity: str | None = None,
     device_id: str | None = None,
@@ -77,7 +93,7 @@ async def incident_dashboard(
 
 
 @router.get("/metrics", response_model=IncidentMetricsRead)
-async def incident_metrics(session: Session) -> IncidentMetricsRead:
+async def incident_metrics(session: Session, principal: ReadIncident) -> IncidentMetricsRead:
     """Operational metrics: MTTA, MTTR, and the alarm compression ratio."""
 
     return IncidentMetricsRead.model_validate(await IncidentOperationsService(session).metrics())
@@ -85,7 +101,7 @@ async def incident_metrics(session: Session) -> IncidentMetricsRead:
 
 @router.get("/{incident_id}/workflow-context", response_model=IncidentWorkflowBridgeRead)
 async def incident_workflow_context(
-    incident_id: UUID, session: Session
+    incident_id: UUID, session: Session, principal: ReadIncident
 ) -> IncidentWorkflowBridgeRead:
     """Where this incident stands in the existing decision workflow.
 
@@ -100,7 +116,10 @@ async def incident_workflow_context(
 
 @router.post("/{incident_id}/start-workflow", response_model=WorkflowRead)
 async def start_incident_workflow(
-    incident_id: UUID, session: Session, request: Request
+    incident_id: UUID,
+    session: Session,
+    request: Request,
+    principal: Annotated[Principal, Depends(require_permission(WORKFLOW_START))],
 ) -> WorkflowRead:
     """Enter the existing decision workflow from the Incident Center.
 
@@ -125,14 +144,14 @@ async def start_incident_workflow(
 async def acknowledge_incident(
     incident_id: UUID,
     session: Session,
-    actor: Actor,
+    principal: Annotated[Principal, Depends(require_permission(INCIDENT_ACK))],
     payload: IncidentNoteRequest | None = None,
 ) -> IncidentLifecycleAcknowledgeRead:
     """OPEN -> ACKNOWLEDGED. Records the actor and an optional note."""
 
     note = payload.note if payload is not None else None
     incident = await IncidentLifecycleService(session).acknowledge_incident(
-        incident_id, actor=actor, note=note
+        incident_id, actor=principal.username, note=note
     )
     result = IncidentLifecycleAcknowledgeRead.model_validate(incident)
     result.note = note
@@ -141,46 +160,64 @@ async def acknowledge_incident(
 
 @router.post("/{incident_id}/investigate", response_model=IncidentLifecycleRead)
 async def start_investigation(
-    incident_id: UUID, session: Session, actor: Actor
+    incident_id: UUID,
+    session: Session,
+    principal: Annotated[Principal, Depends(require_permission(INCIDENT_INVESTIGATE))],
 ) -> IncidentLifecycleRead:
     """ACKNOWLEDGED (or REOPENED) -> INVESTIGATING."""
 
-    incident = await IncidentLifecycleService(session).start_investigation(incident_id, actor=actor)
+    incident = await IncidentLifecycleService(session).start_investigation(
+        incident_id, actor=principal.username
+    )
     return IncidentLifecycleRead.model_validate(incident)
 
 
 @router.post("/{incident_id}/resolve", response_model=IncidentLifecycleRead)
 async def resolve_incident(
-    incident_id: UUID, session: Session, actor: Actor
+    incident_id: UUID,
+    session: Session,
+    principal: Annotated[Principal, Depends(require_permission(INCIDENT_RESOLVE))],
 ) -> IncidentLifecycleRead:
     """MITIGATED -> RESOLVED."""
 
-    incident = await IncidentLifecycleService(session).resolve_incident(incident_id, actor=actor)
+    incident = await IncidentLifecycleService(session).resolve_incident(
+        incident_id, actor=principal.username
+    )
     return IncidentLifecycleRead.model_validate(incident)
 
 
 @router.post("/{incident_id}/close", response_model=IncidentLifecycleRead)
 async def close_incident(
-    incident_id: UUID, session: Session, actor: Actor
+    incident_id: UUID,
+    session: Session,
+    principal: Annotated[Principal, Depends(require_permission(INCIDENT_CLOSE))],
 ) -> IncidentLifecycleRead:
     """RESOLVED -> CLOSED."""
 
-    incident = await IncidentLifecycleService(session).close_incident(incident_id, actor=actor)
+    incident = await IncidentLifecycleService(session).close_incident(
+        incident_id, actor=principal.username
+    )
     return IncidentLifecycleRead.model_validate(incident)
 
 
 @router.post("/{incident_id}/reopen", response_model=IncidentLifecycleRead)
 async def reopen_incident(
-    incident_id: UUID, session: Session, actor: Actor
+    incident_id: UUID,
+    session: Session,
+    principal: Annotated[Principal, Depends(require_permission(INCIDENT_REOPEN))],
 ) -> IncidentLifecycleRead:
     """CLOSED -> REOPENED."""
 
-    incident = await IncidentLifecycleService(session).reopen_incident(incident_id, actor=actor)
+    incident = await IncidentLifecycleService(session).reopen_incident(
+        incident_id, actor=principal.username
+    )
     return IncidentLifecycleRead.model_validate(incident)
 
 
 @router.get("/{incident_id}/context", response_model=IncidentContextRead)
-async def get_incident_context(incident_id: UUID, session: Session) -> IncidentContextRead:
+async def get_incident_context(
+    incident_id: UUID, session: Session, principal: ReadIncident
+) -> IncidentContextRead:
     """Read-only bundle: incident, alarms, device, asset, diagnosis, audit timeline.
 
     This is the shape a later agent-facing phase will consume. Nothing here

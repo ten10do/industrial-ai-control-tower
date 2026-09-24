@@ -26,7 +26,7 @@ import pytest_asyncio
 from fastapi import FastAPI
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.dependencies import get_actor, get_session
+from app.api.dependencies import get_session
 from app.api.incidents import router as incident_router
 from app.incidents.errors import AlarmLifecycleError
 from app.incidents.operations import (
@@ -36,6 +36,8 @@ from app.incidents.operations import (
     IncidentWorkflowGate,
 )
 from app.models import Alarm, Approval, Diagnosis, Incident, WorkflowRun
+from app.security.dependencies import get_principal
+from app.security.rbac import WORKFLOW_START, Principal
 from app.workflow.contracts import (
     DiagnosisSnapshot,
     KnowledgeContextSnapshot,
@@ -44,6 +46,15 @@ from app.workflow.contracts import (
     WorkflowStatus,
 )
 from tests.incidents.conftest import create_device, utc
+
+#: An authenticated operator for the route-level tests. It is defined once so the
+#: dependency override cannot drift from what the route requires.
+WORKFLOW_STARTER = Principal(
+    user_id=uuid4(),
+    username="incident-operator",
+    roles=("OPERATOR",),
+    permissions=frozenset({WORKFLOW_START}),
+)
 
 T0 = utc(2026, 9, 23, 10, 0, 0)
 
@@ -489,7 +500,10 @@ def _app(session: AsyncSession, workflow_service: Any) -> FastAPI:
         yield session
 
     app.dependency_overrides[get_session] = override_session
-    app.dependency_overrides[get_actor] = lambda: "incident-operator"
+    # Phase 6.12 protects the workflow-start route with ``workflow.start``. These
+    # tests are about the gate and the delegation, so they present an operator
+    # that already holds it.
+    app.dependency_overrides[get_principal] = lambda: WORKFLOW_STARTER
     return app
 
 

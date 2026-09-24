@@ -151,6 +151,9 @@ jobs:
       - name: Env template scan
         run: python scripts/validate_env.py .env.example --mode example
 
+      - name: Secret scan
+        run: python scripts/security_scan.py
+
       - name: Dockerfile lint
         run: |
           test -f backend/Dockerfile
@@ -195,6 +198,7 @@ jobs:
           test -f docs/ROADMAP.md
           test -f docs/SIMULATOR.md
           test -f docs/ML_PIPELINE.md
+          test -f docs/SECURITY_MODEL.md
           # ADR validation is structural rather than a hard-coded exact count,
           # so adding a legitimate ADR cannot break this job again. It checks
           # that ADR files exist, are numbered contiguously from ADR-001, and

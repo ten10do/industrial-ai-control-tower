@@ -13,8 +13,25 @@ from fastapi.testclient import TestClient
 from app.api.dependencies import get_session
 from app.main import app
 from app.models import Approval, Diagnosis
+from app.security.dependencies import get_principal
+from app.security.rbac import (
+    INCIDENT_READ,
+    WORKFLOW_READ,
+    WORKORDER_READ,
+    Principal,
+)
 
 NOW = datetime(2026, 9, 21, tzinfo=UTC)
+
+#: Phase 6.12 protects this read surface with permissions. These tests are about
+#: the query contracts, not about authorization, so they present an already
+#: authenticated reader and let the query be the subject.
+READER = Principal(
+    user_id=uuid4(),
+    username="query.test.reader",
+    roles=("VIEWER",),
+    permissions=frozenset({INCIDENT_READ, WORKFLOW_READ, WORKORDER_READ}),
+)
 
 
 class FakeSession:
@@ -48,6 +65,7 @@ def _request(path: str, session: FakeSession) -> Any:
         yield session
 
     app.dependency_overrides[get_session] = override_session
+    app.dependency_overrides[get_principal] = lambda: READER
     try:
         return TestClient(app).get(path)
     finally:

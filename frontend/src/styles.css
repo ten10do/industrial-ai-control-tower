@@ -203,3 +203,13 @@ ol.alarm-list { list-style: none; margin: 0; padding: 0; counter-reset: alarm-st
 .alarm-timeline-row + .alarm-timeline-row { margin-top: 8px; }
 .alarm-timeline-row > div { display: grid; gap: 4px; }
 .alarm-timeline-index { width: 28px; height: 28px; display: grid; place-items: center; border-radius: 50%; background: var(--danger); color: #fff; font-weight: 700; font-size: 13px; }
+
+/* Phase 6.12: authenticated access */
+.login-screen { min-height: 100vh; display: grid; place-items: center; padding: 40px 16px; }
+.login-panel { width: min(460px, 100%); display: grid; gap: 20px; }
+.login-panel .brand { padding: 0 0 6px; }
+.login-panel h2 { font-size: 20px; }
+.login-panel > div > p { margin: 8px 0 0; color: var(--muted); }
+.login-panel form { display: grid; gap: 14px; }
+.sidebar-foot button { min-height: 34px; padding: 6px 10px; color: var(--text); background: #0d151b; border: 1px solid var(--line); font-weight: 650; }
+.sidebar-foot button:hover { color: var(--accent-strong); border-color: var(--accent); }

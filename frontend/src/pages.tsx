@@ -1,7 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { FormEvent, useMemo, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { FormEvent, useEffect, useMemo, useState } from 'react'
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { api, ApiError } from './api'
+import { useAuth } from './auth'
 import {
   AgentStepTrack,
   ApiErrorPanel,
@@ -23,6 +24,7 @@ import {
   validationIssues,
   WorkflowPanel,
 } from './components'
+import { PERMISSIONS } from './permissions'
 import type {
   Approval,
   AssetNode,
@@ -40,6 +42,62 @@ const activeIncident = (status: string) => !['WORK_ORDER_CREATED', 'REJECTED', '
 
 export function PageHeader({ eyebrow, title, detail }: { eyebrow: string; title: string; detail: string }) {
   return <header className="page-header"><div><p className="eyebrow">{eyebrow}</p><h1>{title}</h1></div><p>{detail}</p></header>
+}
+
+/**
+ * Sign-in, the only route that renders without a session.
+ *
+ * There is no sign-up form here on purpose. Creating an identity is a
+ * provisioning step, and a self-service registration surface on an industrial
+ * console adds an attack surface with no operator value; the register API exists
+ * for test and administrative provisioning.
+ *
+ * The credentials are posted over the same fetch path as everything else and are
+ * never stored: on success the access token goes to the session store and the
+ * password is discarded with the component state.
+ */
+export function LoginPage() {
+  const { login, status } = useAuth()
+  const navigate = useNavigate()
+  const location = useLocation()
+  const [username, setUsername] = useState('')
+  const [password, setPassword] = useState('')
+  const [error, setError] = useState('')
+  const [busy, setBusy] = useState(false)
+  const from = (location.state as { from?: string } | null)?.from || '/'
+
+  // Landing on /login with a live session returns the operator to where they
+  // were headed instead of asking them to sign in twice.
+  useEffect(() => {
+    if (status === 'authenticated') navigate(from, { replace: true })
+  }, [status, from, navigate])
+
+  const submit = async (event: FormEvent) => {
+    event.preventDefault()
+    if (!username.trim()) { setError('Username is required.'); return }
+    if (!password) { setError('Password is required.'); return }
+    setError('')
+    setBusy(true)
+    try {
+      await login(username.trim(), password)
+      navigate(from, { replace: true })
+    } catch (failure) {
+      setError(failure instanceof ApiError ? failure.message : 'Sign-in failed.')
+      setBusy(false)
+    }
+  }
+
+  return <main className="login-screen"><section className="panel login-panel">
+    <div className="brand"><span className="brand-mark">IA</span><div><strong>Industrial AI Control Tower</strong><small>Industrial AI Operations</small></div></div>
+    <div><p className="eyebrow">Authenticated access</p><h2>Operator sign-in</h2><p>Every action in this console is attributed to the identity that performed it, and recorded in the audit trail.</p></div>
+    {error && <div className="notice notice-error" role="alert"><strong>Sign-in was not accepted</strong><span>{error}</span></div>}
+    <form onSubmit={submit}>
+      <label>Username<input value={username} autoComplete="username" onChange={(event) => setUsername(event.target.value)} disabled={busy} /></label>
+      <label>Password<input type="password" value={password} autoComplete="current-password" onChange={(event) => setPassword(event.target.value)} disabled={busy} /></label>
+      <div className="button-row"><button className="button-primary" type="submit" disabled={busy}>{busy ? 'SIGNING IN…' : 'Sign in'}</button></div>
+    </form>
+    <p className="footnote">Accounts are provisioned by an administrator. This console has no self-service sign-up.</p>
+  </section></main>
 }
 
 export function OverviewPage() {
@@ -185,8 +243,18 @@ export function IncidentDetailPage() {
   const data = incident.data
   const status = data?.status ?? ''
   const workflowStarted = !!workflowId || (bridge.data?.workflow_exists ?? false)
+  // Authority is decided by the permission the backend reported for this
+  // identity. An action the caller cannot perform is not rendered at all, so a
+  // read-only operator sees a readable incident rather than four buttons that
+  // would each return 403.
+  const { hasPermission, identity } = useAuth()
+  const mayAcknowledge = hasPermission(PERMISSIONS.incidentAck)
+  const mayInvestigate = hasPermission(PERMISSIONS.incidentInvestigate)
+  const mayStartWorkflow = hasPermission(PERMISSIONS.workflowStart)
+  const mayResolve = hasPermission(PERMISSIONS.incidentResolve)
+  const mayAct = mayAcknowledge || mayInvestigate || mayStartWorkflow || mayResolve
   return <><PageHeader eyebrow="Incident detail" title={data?.title || 'Incident'} detail={incidentId} /><AsyncPanel loading={incident.isPending} error={incident.error}>{data && <>
-    <section className="panel"><div className="panel-heading"><div><p className="eyebrow">Overview</p><h2>{data.device_id || 'Unassigned device'}</h2></div><StatusBadge value={data.status} /></div><div className="detail-grid"><KeyValue label="Status" value={<StatusBadge value={data.status} />} /><KeyValue label="Severity" value={<StatusBadge value={data.severity || 'UNKNOWN'} />} /><KeyValue label="Priority" value={<StatusBadge value={data.priority} />} /><KeyValue label="Device" value={data.device_id || '—'} /><KeyValue label="Asset" value={data.asset?.name || 'Unassigned'} /><KeyValue label="Created" value={formatTime(data.created_at)} /><KeyValue label="Updated" value={formatTime(data.updated_at)} /><KeyValue label="Description" value={data.description || 'No operator description.'} /></div><div className="button-row"><button className="button-primary" type="button" disabled={busy || !canAcknowledge(status)} onClick={() => acknowledge.mutate()}>Acknowledge</button><button className="button-primary" type="button" disabled={busy || !canInvestigate(status)} onClick={() => investigate.mutate()}>Start Investigation</button><button className="button-primary" type="button" disabled={busy || !canStartWorkflow(status) || workflowStarted} onClick={() => startWorkflow.mutate()}>Start Workflow</button><button className="button-primary" type="button" disabled={busy || !canResolve(status)} onClick={() => resolve.mutate()}>Resolve</button></div>{startWorkflow.error && <ApiErrorPanel error={startWorkflow.error} title="Workflow was not started" />}{actionError && !startWorkflow.error && <ApiErrorPanel error={actionError} title="Action was not accepted" />}{bridge.data?.approval_required && <div className="notice notice-warning" role="status"><strong>Waiting approval</strong><span>The decision workflow is holding for a human decision. The system recommends; the operator approves.</span></div>}<ResourceLink to={`/devices/${data.device_id}`}>Open device context</ResourceLink></section>
+    <section className="panel"><div className="panel-heading"><div><p className="eyebrow">Overview</p><h2>{data.device_id || 'Unassigned device'}</h2></div><StatusBadge value={data.status} /></div><div className="detail-grid"><KeyValue label="Status" value={<StatusBadge value={data.status} />} /><KeyValue label="Severity" value={<StatusBadge value={data.severity || 'UNKNOWN'} />} /><KeyValue label="Priority" value={<StatusBadge value={data.priority} />} /><KeyValue label="Device" value={data.device_id || '—'} /><KeyValue label="Asset" value={data.asset?.name || 'Unassigned'} /><KeyValue label="Created" value={formatTime(data.created_at)} /><KeyValue label="Updated" value={formatTime(data.updated_at)} /><KeyValue label="Description" value={data.description || 'No operator description.'} /></div><div className="button-row">{mayAcknowledge && <button className="button-primary" type="button" disabled={busy || !canAcknowledge(status)} onClick={() => acknowledge.mutate()}>Acknowledge</button>}{mayInvestigate && <button className="button-primary" type="button" disabled={busy || !canInvestigate(status)} onClick={() => investigate.mutate()}>Start Investigation</button>}{mayStartWorkflow && <button className="button-primary" type="button" disabled={busy || !canStartWorkflow(status) || workflowStarted} onClick={() => startWorkflow.mutate()}>Start Workflow</button>}{mayResolve && <button className="button-primary" type="button" disabled={busy || !canResolve(status)} onClick={() => resolve.mutate()}>Resolve</button>}{!mayAct && <span className="footnote" role="status">Role {identity?.roles.join(', ') || 'unknown'} can read this incident but not act on it.</span>}</div>{startWorkflow.error && <ApiErrorPanel error={startWorkflow.error} title="Workflow was not started" />}{actionError && !startWorkflow.error && <ApiErrorPanel error={actionError} title="Action was not accepted" />}{bridge.data?.approval_required && <div className="notice notice-warning" role="status"><strong>Waiting approval</strong><span>The decision workflow is holding for a human decision. The system recommends; the operator approves.</span></div>}<ResourceLink to={`/devices/${data.device_id}`}>Open device context</ResourceLink></section>
     <section className="panel"><div className="panel-heading"><div><p className="eyebrow">Alarm timeline</p><h2>Correlated alarm instances</h2></div><span>{data.alarms?.length ?? 0} linked · newest first</span></div>{data.alarms?.length ? <ol className="alarm-list">{data.alarms.map((alarm, index) => <li key={alarm.id} className="alarm-timeline-row"><span className="alarm-timeline-index">{index + 1}</span><StatusBadge value={alarm.severity} /><div><strong>{alarm.rule_id}</strong><span>{alarm.message}</span></div><KeyValue label="Started" value={formatTime(alarm.started_at)} /><KeyValue label="Occurrences" value={alarm.occurrence_count ?? 1} /><StatusBadge value={alarm.status} /></li>)}</ol> : <div className="panel-state">No alarms are linked to this incident.</div>}</section>
     <section className="panel"><div className="panel-heading"><div><p className="eyebrow">Diagnosis evidence</p><h2>Machine diagnosis</h2></div><StatusBadge value={data.diagnosis.status || 'UNKNOWN'} /></div><div className="detail-grid"><KeyValue label="Fault type" value={data.diagnosis.fault_type || 'Unclassified'} /><KeyValue label="Confidence" value={data.diagnosis.confidence == null ? 'Not reported' : formatPercent(data.diagnosis.confidence)} /><KeyValue label="Severity" value={<StatusBadge value={data.diagnosis.severity || 'UNKNOWN'} />} /><KeyValue label="Diagnosed at" value={formatTime(data.diagnosis.created_at)} /></div><p className="footnote">Read-only. Diagnosis records are produced by the ML pipeline and are never edited from the Incident Center.</p></section>
     {data.diagnosis?.evidence?.length ? <SensorEvidencePanel evidence={data.diagnosis.evidence} /> : null}
@@ -238,14 +306,20 @@ export function ApprovalDetailPage() {
   }
   const state = workflow.data?.state
   const stale = mutation.error instanceof ApiError && mutation.error.code === 'STALE_APPROVAL'
-  const canDecide = approval.data?.status === 'PENDING' && workflow.data?.status === 'WAITING_APPROVAL' && !stale
+  // A decision is a distinct authority from reading one. Without approval.review
+  // the operator may inspect the plan and the evidence behind it, and the form
+  // is not offered: the state of the approval is not the reason, so it must not
+  // be reported as one.
+  const { hasPermission } = useAuth()
+  const mayReview = hasPermission(PERMISSIONS.approvalReview)
+  const canDecide = mayReview && approval.data?.status === 'PENDING' && workflow.data?.status === 'WAITING_APPROVAL' && !stale
   return <><PageHeader eyebrow="Approval detail" title="Operator decision" detail={approvalId} /><AsyncPanel loading={approval.isPending || workflow.isPending} error={approval.error || workflow.error}>{approval.data && workflow.data && <>
     <DiagnosisPanel diagnosis={workflow.data.state.diagnosis} />
     <SensorEvidencePanel evidence={workflow.data.state.sensor_evidence} />
     <EvidencePanel evidence={state?.knowledge_context.evidence || []} documents={documents.data || []} />
     <WorkflowPanel workflow={workflow.data} />
     <section className="panel"><div className="panel-heading"><div><p className="eyebrow">Maintenance plan</p><h2>{state?.maintenance_plan?.objective || 'Plan unavailable'}</h2></div><span>Version {approval.data.plan_version}</span></div><ol className="plan-list">{state?.maintenance_plan?.steps.map((step, index) => <li key={`${step.action}-${index}`}><span>{index + 1}</span><div><strong>{step.action_type}</strong><p>{step.action}</p><small>Evidence: {step.evidence_ids.join(', ')}</small></div></li>)}</ol></section>
-    <section className="panel approval-form"><div><p className="eyebrow">Human approval gate</p><h2>Record operator decision</h2><p>This action authorizes creation of a planned maintenance work order. It does not execute physical maintenance.</p>{!canDecide && !mutation.isPending && <div className="notice notice-warning">Decision recorded: {approval.data.status}. This approval is no longer actionable.</div>}</div>{mutation.error && <ApiErrorPanel error={mutation.error} title="Decision was not accepted" />}<form><label>Operator identity<input value={actor} onChange={(event) => setActor(event.target.value)} disabled={mutation.isPending || !canDecide} /></label><label>Decision reason<textarea value={reason} onChange={(event) => setReason(event.target.value)} disabled={mutation.isPending || !canDecide} aria-describedby="decision-error" /></label>{formError && <span className="field-error" id="decision-error" role="alert">{formError}</span>}<div className="button-row"><button className="button-primary" type="submit" disabled={mutation.isPending || !canDecide} onClick={(event) => submit(event, 'approve')}>{mutation.isPending ? 'SUBMITTING…' : 'Approve plan'}</button><button className="button-danger" type="submit" disabled={mutation.isPending || !canDecide} onClick={(event) => submit(event, 'reject')}>{mutation.isPending ? 'SUBMITTING…' : 'Reject plan'}</button></div></form></section>
+    <section className="panel approval-form"><div><p className="eyebrow">Human approval gate</p><h2>Record operator decision</h2><p>This action authorizes creation of a planned maintenance work order. It does not execute physical maintenance.</p>{!canDecide && !mutation.isPending && mayReview && <div className="notice notice-warning">Decision recorded: {approval.data.status}. This approval is no longer actionable.</div>}{!mayReview && <div className="notice notice-warning" role="status"><strong>Decision requires authority</strong><span>Recording a decision needs the approval.review permission. Your role can read this approval and its evidence, and cannot decide it.</span></div>}</div>{mutation.error && <ApiErrorPanel error={mutation.error} title="Decision was not accepted" />}{mayReview && <form><label>Operator identity<input value={actor} onChange={(event) => setActor(event.target.value)} disabled={mutation.isPending || !canDecide} /></label><label>Decision reason<textarea value={reason} onChange={(event) => setReason(event.target.value)} disabled={mutation.isPending || !canDecide} aria-describedby="decision-error" /></label>{formError && <span className="field-error" id="decision-error" role="alert">{formError}</span>}<div className="button-row"><button className="button-primary" type="submit" disabled={mutation.isPending || !canDecide} onClick={(event) => submit(event, 'approve')}>{mutation.isPending ? 'SUBMITTING…' : 'Approve plan'}</button><button className="button-danger" type="submit" disabled={mutation.isPending || !canDecide} onClick={(event) => submit(event, 'reject')}>{mutation.isPending ? 'SUBMITTING…' : 'Reject plan'}</button></div></form>}</section>
   </>}</AsyncPanel></>
 }
 
