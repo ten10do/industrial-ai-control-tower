@@ -7,7 +7,6 @@ pgserver bundle provides them; otherwise the test is skipped — never faked.
 
 import asyncio
 import os
-import subprocess
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -133,4 +132,3 @@ def test_restore_refuses_without_confirmation() -> None:
     )
     assert result.returncode == 1
     assert "--yes" in result.stderr
-    assert subprocess.CompletedProcess  # keep subprocess import meaningful

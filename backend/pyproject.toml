@@ -62,7 +62,7 @@ warn_unused_configs = true
 exclude = ['\.venv', 'build', 'dist']
 
 [[tool.mypy.overrides]]
-module = ["joblib", "sklearn", "pypdf", "pgvector.*", "langgraph.*"]
+module = ["joblib", "sklearn", "pypdf", "pgvector.*", "langgraph.*", "asyncpg"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]

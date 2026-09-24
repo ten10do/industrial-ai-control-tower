@@ -9,6 +9,7 @@ live in ``tests/incidents/test_platform_reliability.py``.
 import asyncio
 import contextlib
 import time
+from collections.abc import Iterator
 from typing import Any
 
 import pytest
@@ -103,7 +104,7 @@ class FakeMqtt:
 
 
 @pytest.fixture()
-def stub_dependencies(monkeypatch: pytest.MonkeyPatch) -> None:
+def stub_dependencies(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
     """Deterministic readiness inputs: every optional feature disabled."""
 
     monkeypatch.setattr(settings, "diagnosis_enabled", False, raising=False)

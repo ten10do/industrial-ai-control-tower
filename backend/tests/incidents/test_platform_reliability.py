@@ -33,11 +33,11 @@ class FakeRedis:
         self.store: dict[bytes, bytes] = {}
 
     async def eval(self, script: str, keys: int, key: str, epoch: float, payload: str) -> int:
-        existing = self.store.get(key.encode() + b":epoch")  # type: ignore[union-attr]
+        existing = self.store.get(key.encode() + b":epoch")
         if existing is not None and float(existing) >= float(epoch):
             return 0
-        self.store[key.encode() + b":epoch"] = str(epoch).encode()  # type: ignore[union-attr]
-        self.store[key.encode() + b":payload"] = payload.encode()  # type: ignore[union-attr]
+        self.store[key.encode() + b":epoch"] = str(epoch).encode()
+        self.store[key.encode() + b":payload"] = payload.encode()
         return 1
 
     async def hget(self, key: str, field: str) -> bytes | None:

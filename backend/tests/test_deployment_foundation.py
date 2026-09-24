@@ -20,8 +20,11 @@ import socket
 import subprocess
 import sys
 import threading
+import types
+from collections.abc import Iterator
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -38,7 +41,7 @@ BASH_BIN = shutil.which("bash") or "bash"
 
 def run_script(
     script: str, *args: str, env: dict[str, str] | None = None
-) -> subprocess.CompletedProcess:
+) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         [BASH_BIN, str(SCRIPTS / script), *args],
         capture_output=True,
@@ -49,14 +52,17 @@ def run_script(
     )
 
 
-def _load_script_module(name: str):
+def _load_script_module(name: str) -> types.ModuleType:
     spec = importlib.util.spec_from_file_location(name, SCRIPTS / f"{name}.py")
+    assert spec is not None
+    loader = spec.loader
+    assert loader is not None
     module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
+    loader.exec_module(module)
     return module
 
 
-def run_validate(env_file: Path, mode: str) -> subprocess.CompletedProcess:
+def run_validate(env_file: Path, mode: str) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         [PYTHON, str(SCRIPTS / "validate_env.py"), str(env_file), "--mode", mode],
         capture_output=True,
@@ -232,7 +238,7 @@ class _FakeBackendHandler(BaseHTTPRequestHandler):
 
 
 @pytest.fixture()
-def fake_backend():
+def fake_backend() -> Iterator[str]:
     server = ThreadingHTTPServer(("127.0.0.1", 0), _FakeBackendHandler)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
@@ -241,7 +247,7 @@ def fake_backend():
     thread.join(timeout=5)
 
 
-def _run_check(backend_url: str) -> dict[str, object]:
+def _run_check(backend_url: str) -> dict[str, Any]:
     result = subprocess.run(
         [PYTHON, str(SCRIPTS / "deployment_check.py"), "--backend-url", backend_url],
         capture_output=True,
@@ -294,7 +300,7 @@ def test_deployment_check_reports_docker_daemon_unavailable(fake_backend: str) -
     def daemon_down(*args: object, **kwargs: object) -> object:
         raise sp.CalledProcessError(1, "docker")
 
-    module.subprocess.run = daemon_down  # type: ignore[method-assign]
+    module.subprocess.run = daemon_down
     try:
         report = module.check_containers(docker_bin="docker")
     finally:
