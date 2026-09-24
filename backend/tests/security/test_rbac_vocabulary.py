@@ -47,12 +47,14 @@ def _load_migration(name: str) -> Any:
 
 
 #: Phase 6.12 seeded the original vocabulary; Phase 6.13-A added the alarm,
-#: asset-configuration, connectivity, and observability names. Each migration
-#: must keep producing the rows it produced on the day it ran, so neither may
-#: import the code table, and the parity claim is about their *combined* seed.
+#: asset-configuration, connectivity, and observability names; Phase 6.13-B
+#: added the organization and scope names. Each migration must keep producing
+#: the rows it produced on the day it ran, so none may import the code table,
+#: and the parity claim is about their *combined* seed.
 _phase612 = _load_migration("20260924_09_phase6_12_security.py")
-_phase613 = _load_migration("20260924_10_phase6_13_a_actor_migration.py")
-_MIGRATIONS = (_phase612, _phase613)
+_phase613a = _load_migration("20260924_10_phase6_13_a_actor_migration.py")
+_phase613b = _load_migration("20260924_11_phase6_13_b_org_scope.py")
+_MIGRATIONS = (_phase612, _phase613a, _phase613b)
 
 
 # --------------------------------------------------------------------------- #
@@ -138,13 +140,19 @@ def test_every_default_role_has_a_description() -> None:
 # --------------------------------------------------------------------------- #
 
 
+def _seed_of(migration: Any) -> dict[str, tuple[str, ...]]:
+    """Return a migration's role seed regardless of the phase that wrote it."""
+
+    seed = migration.ROLE_SEED if hasattr(migration, "ROLE_SEED") else migration.GRANTS
+    return {role: tuple(grants) for role, grants in seed.items()}
+
+
 def _seeded_grants() -> dict[str, set[str]]:
     """The union of the grants every seeded migration writes."""
 
     combined: dict[str, set[str]] = {}
     for migration in _MIGRATIONS:
-        seed = migration.ROLE_SEED if hasattr(migration, "ROLE_SEED") else migration.GRANTS
-        for role, grants in seed.items():
+        for role, grants in _seed_of(migration).items():
             combined.setdefault(role, set()).update(grants)
     return combined
 
@@ -165,8 +173,8 @@ def test_each_migration_is_purely_additive() -> None:
     """
 
     for earlier, later in zip(_MIGRATIONS, _MIGRATIONS[1:], strict=False):
-        earlier_seed = earlier.ROLE_SEED
-        later_seed = later.ROLE_SEED if hasattr(later, "ROLE_SEED") else later.GRANTS
+        earlier_seed = _seed_of(earlier)
+        later_seed = _seed_of(later)
         for role, grants in earlier_seed.items():
             overlap = set(grants) & set(later_seed.get(role, ()))
             assert not overlap, f"{later.revision} re-seeds {sorted(overlap)} for {role}"
@@ -179,8 +187,10 @@ def test_the_migration_seeds_the_role_descriptions() -> None:
 def test_the_migration_revision_chain_is_linear() -> None:
     assert _phase612.revision == "20260924_09"
     assert _phase612.down_revision == "20260923_08"
-    assert _phase613.revision == "20260924_10"
-    assert _phase613.down_revision == "20260924_09"
+    assert _phase613a.revision == "20260924_10"
+    assert _phase613a.down_revision == "20260924_09"
+    assert _phase613b.revision == "20260924_11"
+    assert _phase613b.down_revision == "20260924_10"
 
 
 # --------------------------------------------------------------------------- #

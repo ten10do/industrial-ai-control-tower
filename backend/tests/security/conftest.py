@@ -61,6 +61,7 @@ from app.models import (
 )
 from app.models import WorkflowRun as WorkflowRunModel
 from app.security.dependencies import get_principal
+from app.security.org_models import Area, DeviceScope, Organization, Plant, UserScope
 from app.security.rbac import ROLE_PERMISSIONS, Principal
 
 TEST_DATABASE_ENV = "ALARM_TEST_DATABASE_URL"
@@ -115,6 +116,12 @@ def _tables() -> list[Any]:
         Permission.__table__,
         UserRole.__table__,
         RolePermission.__table__,
+        # Phase 6.13-B enterprise hierarchy, in dependency order.
+        Organization.__table__,
+        Plant.__table__,
+        Area.__table__,
+        UserScope.__table__,
+        DeviceScope.__table__,
     ]
 
 

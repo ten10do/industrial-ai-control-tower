@@ -18,7 +18,9 @@ from __future__ import annotations
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Request
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.dependencies import get_session
 from app.core.errors import AppError
 from app.gateway import (
     ConnectivitySummary,
@@ -28,10 +30,13 @@ from app.gateway import (
 )
 from app.security.dependencies import require_permission
 from app.security.rbac import CONNECTIVITY_CONTROL, CONNECTIVITY_READ, Principal
+from app.security.scope_policy import ensure_device_in_scope
 
 router = APIRouter(tags=["connectivity"])
 
 ReadConnectivity = Annotated[Principal, Depends(require_permission(CONNECTIVITY_READ))]
+
+SessionDep = Annotated[AsyncSession, Depends(get_session)]
 
 
 def get_gateway(request: Request) -> IndustrialProtocolGateway | None:
@@ -85,10 +90,11 @@ async def list_connectivity_devices(
 
 @router.get("/connectivity/devices/{device_id}", response_model=DeviceStatusRead)
 async def get_connectivity_device(
-    device_id: str, gateway: GatewayDep, principal: ReadConnectivity
+    device_id: str, gateway: GatewayDep, principal: ReadConnectivity, session: SessionDep
 ) -> DeviceStatusRead:
     """Return one device's lifecycle status."""
 
+    await ensure_device_in_scope(session, principal, device_id)
     try:
         return _require(gateway).status(device_id)
     except GatewayConfigurationError as exc:
@@ -99,10 +105,12 @@ async def get_connectivity_device(
 async def start_connectivity_device(
     device_id: str,
     gateway: GatewayDep,
+    session: SessionDep,
     principal: Annotated[Principal, Depends(require_permission(CONNECTIVITY_CONTROL))],
 ) -> DeviceStatusRead:
     """Start polling for one device."""
 
+    await ensure_device_in_scope(session, principal, device_id)
     try:
         return await _require(gateway).start_device(device_id)
     except GatewayConfigurationError as exc:
@@ -113,10 +121,12 @@ async def start_connectivity_device(
 async def stop_connectivity_device(
     device_id: str,
     gateway: GatewayDep,
+    session: SessionDep,
     principal: Annotated[Principal, Depends(require_permission(CONNECTIVITY_CONTROL))],
 ) -> DeviceStatusRead:
     """Stop polling for one device."""
 
+    await ensure_device_in_scope(session, principal, device_id)
     try:
         return await _require(gateway).stop_device(device_id)
     except GatewayConfigurationError as exc:

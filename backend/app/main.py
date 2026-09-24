@@ -26,6 +26,7 @@ from app.api import (
     diagnoses,
     knowledge,
     observability,
+    organizations,
     telemetry,
     websockets,
     workflows,
@@ -354,6 +355,8 @@ app.include_router(configurations.router, prefix="/api")
 app.include_router(websockets.router)
 app.include_router(auth.router, prefix="/api/v1")
 app.include_router(auth.router, prefix="/api")
+app.include_router(organizations.router, prefix="/api/v1")
+app.include_router(organizations.router, prefix="/api")
 app.include_router(platform_api.router)
 app.include_router(platform_api.platform_router, prefix="/api/v1")
 app.include_router(platform_api.platform_router, prefix="/api")

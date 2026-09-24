@@ -45,6 +45,14 @@ from app.security.models import (
     UserRole,
     UserStatus,
 )
+from app.security.org_models import (
+    Area,
+    DeviceScope,
+    Organization,
+    Plant,
+    ScopeLevel,
+    UserScope,
+)
 
 __all__ = [
     "AgentRun",
@@ -80,4 +88,10 @@ __all__ = [
     "UserStatus",
     "WorkOrder",
     "WorkflowRun",
+    "Organization",
+    "Plant",
+    "Area",
+    "UserScope",
+    "DeviceScope",
+    "ScopeLevel",
 ]

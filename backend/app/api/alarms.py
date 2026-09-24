@@ -36,6 +36,7 @@ from app.repositories.alarm import AlarmRepository
 from app.repositories.incident_alarm import IncidentAlarmRepository
 from app.security.dependencies import require_permission
 from app.security.rbac import ALARM_ACK, ALARM_CLEAR, ALARM_READ, Principal
+from app.security.scope_policy import device_scope_filter, ensure_device_in_scope
 
 router = APIRouter(prefix="/alarms", tags=["alarms"])
 
@@ -45,6 +46,12 @@ Session = Annotated[AsyncSession, Depends(get_session)]
 #: the authenticated principal, so the lifecycle commands record the real
 #: identity as the actor instead of a caller-supplied header.
 ReadAlarm = Annotated[Principal, Depends(require_permission(ALARM_READ))]
+
+#: Phase 6.13-B: the permission check says *what* this caller may do; the
+#: Scope Policy says *where*. Mutations resolve the alarm first and then ask
+#: the policy whether its device is inside the caller's subtree; list reads
+#: apply the caller's reachable device set as a filter. No route evaluates
+#: reach itself.
 
 
 @router.get("", response_model=list[AlarmRead])
@@ -72,6 +79,9 @@ async def list_alarms(
             "active_only and status cannot be combined; use one or the other.",
             422,
         )
+    scope = await device_scope_filter(session, principal)
+    if scope is not None and device_id is not None and device_id not in scope:
+        return []
     alarms = await AlarmRepository(session).list_instances(
         device_id,
         limit,
@@ -80,6 +90,7 @@ async def list_alarms(
         rule_id=rule_id,
         since=since,
         open_only=active_only,
+        device_ids=scope,
     )
     return [AlarmRead.model_validate(alarm) for alarm in alarms]
 
@@ -102,10 +113,11 @@ async def list_related_alarms(
 
     This is the correlation foundation exposed read-only. It answers "which
     conditions on this device belong to the same period" and it deliberately does
-    nothing with the answer. Assembling an incident from these alarms is the next
+    nothing with the answer.     Assembling an incident from these alarms is the next
     phase.
     """
 
+    await ensure_device_in_scope(session, principal, device_id)
     alarms = await find_related_alarms(
         session,
         device_id=device_id,
@@ -125,6 +137,7 @@ async def get_alarm(alarm_id: UUID, session: Session, principal: ReadAlarm) -> A
     alarm = await AlarmRepository(session).get(alarm_id)
     if alarm is None:
         raise AppError("ALARM_NOT_FOUND", f"Alarm {alarm_id} was not found.", 404)
+    await ensure_device_in_scope(session, principal, alarm.device_id)
     incident_ids = await IncidentAlarmRepository(session).incident_ids_for_alarm(alarm_id)
     detail = AlarmDetailRead.model_validate(alarm)
     return detail.model_copy(update={"incident_ids": incident_ids})
@@ -143,6 +156,10 @@ async def acknowledge_alarm(
     metadata only.
     """
 
+    existing = await AlarmRepository(session).get(alarm_id)
+    if existing is None:
+        raise AppError("ALARM_NOT_FOUND", f"Alarm {alarm_id} was not found.", 404)
+    await ensure_device_in_scope(session, principal, existing.device_id)
     alarm = await AlarmLifecycleService(session).acknowledge_alarm(
         alarm_id, actor=principal.username, note=payload.note
     )
@@ -158,6 +175,10 @@ async def clear_alarm(
 ) -> AlarmRead:
     """Close the instance. A recurrence afterwards opens a new one."""
 
+    existing = await AlarmRepository(session).get(alarm_id)
+    if existing is None:
+        raise AppError("ALARM_NOT_FOUND", f"Alarm {alarm_id} was not found.", 404)
+    await ensure_device_in_scope(session, principal, existing.device_id)
     alarm = await AlarmLifecycleService(session).clear_alarm(
         alarm_id, actor=principal.username, reason=payload.reason
     )

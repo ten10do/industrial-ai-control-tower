@@ -93,17 +93,25 @@ class AlarmRepository:
         rule_id: str | None = None,
         since: datetime | None = None,
         open_only: bool = False,
+        device_ids: frozenset[str] | None = None,
     ) -> list[Alarm]:
         """List alarm instances, newest first.
 
         The secondary key on ``id`` makes the order total, so pagination and
         tests cannot observe an arbitrary order when two instances share a
         ``started_at``.
+
+        ``device_ids`` is the Phase 6.13-B scope filter: the caller's reachable
+        device set, applied as a membership predicate. ``None`` means no
+        restriction; the single ``device_id`` argument, when given, still wins
+        for an exact lookup.
         """
 
         query = select(Alarm)
         if device_id is not None:
             query = query.where(Alarm.device_id == device_id)
+        elif device_ids is not None:
+            query = query.where(Alarm.device_id.in_(device_ids))
         if status is not None:
             query = query.where(Alarm.status == status)
         elif open_only:

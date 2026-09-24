@@ -73,6 +73,16 @@ CONNECTIVITY_CONTROL: Final[str] = "connectivity.control"
 
 OBSERVABILITY_READ: Final[str] = "observability.read"
 
+# Phase 6.13-B adds enterprise organization governance. ``org.manage`` covers
+# the organization / plant / area structure; ``scope.manage`` covers binding
+# identities to subtrees and associating devices with areas. Both default to
+# ADMIN only: a boundary an operator can redraw is not an organizational
+# boundary. ``org.read`` is granted to every role so the hierarchy is
+# visible to everyone who can act inside it.
+ORG_READ: Final[str] = "org.read"
+ORG_MANAGE: Final[str] = "org.manage"
+SCOPE_MANAGE: Final[str] = "scope.manage"
+
 USER_MANAGE: Final[str] = "user.manage"
 
 ADMIN: Final[str] = "ADMIN"
@@ -88,7 +98,7 @@ DEFAULT_ROLE_NAMES: Final[tuple[str, ...]] = (ADMIN, OPERATOR, VIEWER)
 DEFAULT_REGISTRATION_ROLE: Final[str] = VIEWER
 
 ROLE_PERMISSIONS: Final[dict[str, tuple[str, ...]]] = {
-    ADMIN: (WILDCARD, USER_MANAGE),
+    ADMIN: (WILDCARD, USER_MANAGE, ORG_MANAGE, SCOPE_MANAGE),
     OPERATOR: (
         TELEMETRY_READ,
         DASHBOARD_READ,
@@ -119,6 +129,7 @@ ROLE_PERMISSIONS: Final[dict[str, tuple[str, ...]]] = {
         CONNECTIVITY_READ,
         CONNECTIVITY_CONTROL,
         OBSERVABILITY_READ,
+        ORG_READ,
     ),
     VIEWER: (
         TELEMETRY_READ,
@@ -133,6 +144,7 @@ ROLE_PERMISSIONS: Final[dict[str, tuple[str, ...]]] = {
         CONFIG_READ,
         CONNECTIVITY_READ,
         OBSERVABILITY_READ,
+        ORG_READ,
     ),
 }
 

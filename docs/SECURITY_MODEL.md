@@ -112,9 +112,9 @@ code is caught instead of tolerated.
 
 | Role | Grants | Intent |
 |---|---|---|
-| `ADMIN` | `*`, `user.manage` | Unrestricted authority, including identity and role management |
-| `OPERATOR` | `telemetry.read`, `dashboard.read`, `incident.read`, `incident.create`, `incident.ack`, `incident.investigate`, `incident.resolve`, `incident.close`, `incident.reopen`, `workflow.read`, `workflow.start`, `workflow.cancel`, `approval.read`, `approval.review`, `workorder.read`, `alarm.read`, `alarm.ack`, `alarm.clear`, `alarmrule.read`, `alarmrule.create`, `alarmrule.update`, `asset.read`, `asset.manage`, `config.read`, `config.write`, `config.publish`, `connectivity.read`, `connectivity.control`, `observability.read` | Runs the plant loop: incidents, decisions, alarms, configuration, connectivity |
-| `VIEWER` | `telemetry.read`, `dashboard.read`, `incident.read`, `workflow.read`, `approval.read`, `workorder.read`, `alarm.read`, `alarmrule.read`, `asset.read`, `config.read`, `connectivity.read`, `observability.read` | Read-only observer |
+| `ADMIN` | `*`, `user.manage`, `org.manage`, `scope.manage` | Unrestricted authority, including identity, role, and enterprise-structure management |
+| `OPERATOR` | `telemetry.read`, `dashboard.read`, `incident.read`, `incident.create`, `incident.ack`, `incident.investigate`, `incident.resolve`, `incident.close`, `incident.reopen`, `workflow.read`, `workflow.start`, `workflow.cancel`, `approval.read`, `approval.review`, `workorder.read`, `alarm.read`, `alarm.ack`, `alarm.clear`, `alarmrule.read`, `alarmrule.create`, `alarmrule.update`, `asset.read`, `asset.manage`, `config.read`, `config.write`, `config.publish`, `connectivity.read`, `connectivity.control`, `observability.read`, `org.read` | Runs the plant loop: incidents, decisions, alarms, configuration, connectivity |
+| `VIEWER` | `telemetry.read`, `dashboard.read`, `incident.read`, `workflow.read`, `approval.read`, `workorder.read`, `alarm.read`, `alarmrule.read`, `asset.read`, `config.read`, `connectivity.read`, `observability.read`, `org.read` | Read-only observer |
 
 `*` is reserved for `ADMIN`. It is an **exact-match** grant, checked as
 `permission in permissions`, not an `fnmatch` pattern. A permission that
@@ -173,6 +173,12 @@ this matrix, so a route added without a permission fails the build.
 | GET | `/api/v1/connectivity/summary`, `/api/v1/connectivity/devices`, `/api/v1/connectivity/devices/{id}` | `connectivity.read` |
 | POST | `/api/v1/connectivity/devices/{id}/start`, `/api/v1/connectivity/devices/{id}/stop` | `connectivity.control` |
 | GET | `/api/v1/observability/runs`, `/api/v1/observability/runs/{id}`, `/api/v1/observability/metrics` | `observability.read` |
+| GET | `/api/v1/organizations`, `/api/v1/organizations/{id}`, `/api/v1/organizations/{id}/plants`, `/api/v1/plants/{id}/areas` | `org.read` |
+| POST | `/api/v1/organizations`, `/api/v1/organizations/{id}/plants`, `/api/v1/plants/{id}/areas` | `org.manage` |
+| PATCH | `/api/v1/organizations/{id}`, `/api/v1/plants/{id}`, `/api/v1/areas/{id}` | `org.manage` |
+| DELETE | `/api/v1/organizations/{id}`, `/api/v1/plants/{id}`, `/api/v1/areas/{id}` | `org.manage` |
+| GET | `/api/v1/users/{id}/scopes`, `/api/v1/devices/{id}/scope` | `scope.manage` |
+| PUT | `/api/v1/users/{id}/scopes`, `/api/v1/devices/{id}/scope` | `scope.manage` |
 
 The legacy `/api` prefix mirrors `/api/v1` and enforces exactly the same
 permissions; a test asserts that every mirror declares what its `/api/v1`
@@ -183,6 +189,37 @@ counterpart declares, so the second prefix cannot become a softer entrance.
 machine itself is untouched: the same transitions, the same
 `WAITING_APPROVAL` gate, the same audit of the decided plan. Only the question
 "may this caller decide?" is answered by a permission instead of by presence.
+
+## Scope: the enterprise hierarchy (Phase 6.13-B)
+
+A permission answers *what* a caller may do. Phase 6.13-B adds the answer to
+*where*: the hierarchy `organizations → plants → areas`, with devices attached
+to areas and identities bound to subtrees. See `docs/ORGANIZATION_MODEL.md`
+for the full model; the security-relevant rules are these.
+
+**All scope decisions live in one module.** `app/security/scope_policy.py`
+resolves reach, guards device-scoped requests, and produces the filter for
+device-scoped lists. No route queries `user_scopes` or `device_scopes`
+itself, so the policy cannot drift between surfaces.
+
+| Caller shape | Resolved reach |
+|---|---|
+| Holds the `*` wildcard (ADMIN) | Everything, always. Bindings cannot shrink ADMIN |
+| No bindings at all | Everything. The documented migration default: every operator created before 6.13-B has no bindings, and silently shrinking their reach to zero would lock a working plant |
+| Bound to one or more subtrees | Exactly the devices associated (via `device_scopes`) with the areas inside those subtrees |
+| Bound, but the subtree has no assigned devices | Nothing. An empty answer denies |
+
+Out-of-scope access is refused with `403 SCOPE_DENIED` and audited as
+`action=scope.denied`, `status=DENIED`, with the acting identity and the
+device id, before the route body runs. A device with no area assignment is
+out of scope for every constrained identity: reach is granted explicitly, by
+assignment, and never inferred from a device existing.
+
+Enforcement points in 6.13-B: alarm acknowledge/clear/detail/related and the
+alarm list filter, every device-configuration route, connectivity
+detail/start/stop, and asset attach/detach. The alarm list narrows to the
+caller's reachable device set instead of failing, so a plant-scoped operator
+sees their plant's alarms and nobody else's.
 
 ## Security boundary
 
@@ -255,6 +292,8 @@ Security events use a single shape:
 | Permission denied | `action=permission.denied`, `status=DENIED`, with the required permission, method, and path |
 | Incident acknowledged / resolved | the lifecycle transition, with the authenticated actor |
 | Alarm acknowledged / cleared, rule authored, configuration published | the business mutation, with the authenticated actor and its `actor_user_id` (Phase 6.13-A) |
+| Organization / plant / area authored, scope bound, device assigned | the structure mutation, with the authenticated actor and its `actor_user_id` (Phase 6.13-B) |
+| Device access refused by scope | `action=scope.denied`, `status=DENIED`, with the device id and the acting identity (Phase 6.13-B) |
 | Workflow started | the delegation to the engine |
 | Approval decided | the human decision |
 
@@ -358,6 +397,12 @@ for a later phase, not a defect being hidden.
    `details["legacy_x_actor"]` for traceability with pre-migration clients and
    grants no authority. Devices, telemetry, and the platform routes are still
    outside the governed surface; treat the actor there as system-originated.
+   Phase 6.13-B edges: devices and telemetry routes are not scope-governed;
+   asset reads are not scope-filtered (only attach and detach check the
+   device); alarm-rule authoring is device-type scoped and therefore not
+   device-scope checked; and the no-bindings-means-global default is a
+   migration-period trade-off recorded in `app/security/scope_policy.py`,
+   ready to be flipped to deny-by-default once every identity is bound.
 2. **Tokens cannot be revoked.** Disabling an identity takes effect on the next
    request, because the user row is loaded per request. A password change is not
    implemented, and implementing one would not invalidate outstanding tokens.
@@ -389,5 +434,6 @@ for a later phase, not a defect being hidden.
 | Seeded grants equal the code table (both migrations combined) | `tests/security/test_rbac_vocabulary.py` |
 | Every governed route declares its permission | `tests/security/test_route_coverage.py` |
 | Phase 6.13-A: 401/403 on the migrated surface, forged `X-Actor`, audit attribution | `tests/security/test_phase613_actor_migration.py` |
+| Phase 6.13-B: hierarchy CRUD, scope binding, enforcement, denial audit | `tests/security/test_scope_governance.py` |
 | The scanner reports real secrets and passes placeholders | `tests/security/test_security_scan.py` |
 | Token storage, guard, hidden actions, server re-verification | `frontend/src/security.test.tsx` |

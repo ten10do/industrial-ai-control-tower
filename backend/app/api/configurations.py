@@ -32,6 +32,7 @@ from app.assetconfig.contracts import (
 from app.assetconfig.service import ConfigurationService
 from app.security.dependencies import require_permission
 from app.security.rbac import CONFIG_PUBLISH, CONFIG_READ, CONFIG_WRITE, Principal
+from app.security.scope_policy import ensure_device_in_scope
 
 router = APIRouter(tags=["configuration"])
 
@@ -57,6 +58,7 @@ async def list_configurations(
     applier: Applier,
     principal: ReadConfiguration,
 ) -> list[ConfigurationSummaryRead]:
+    await ensure_device_in_scope(session, principal, device_id)
     rows = await _service(session, applier).list_configurations(device_id)
     return [ConfigurationSummaryRead.model_validate(row) for row in rows]
 
@@ -73,6 +75,7 @@ async def create_configuration(
     applier: Applier,
     principal: Annotated[Principal, Depends(require_permission(CONFIG_WRITE))],
 ) -> ConfigurationDetailRead:
+    await ensure_device_in_scope(session, principal, device_id)
     row = await _service(session, applier).create_draft(device_id, payload, principal.username)
     return ConfigurationDetailRead.model_validate(row)
 
@@ -88,6 +91,7 @@ async def get_configuration(
     applier: Applier,
     principal: ReadConfiguration,
 ) -> ConfigurationDetailRead:
+    await ensure_device_in_scope(session, principal, device_id)
     row = await _service(session, applier).get_configuration(device_id, version)
     return ConfigurationDetailRead.model_validate(row)
 
@@ -104,6 +108,7 @@ async def update_configuration(
     applier: Applier,
     principal: Annotated[Principal, Depends(require_permission(CONFIG_WRITE))],
 ) -> ConfigurationDetailRead:
+    await ensure_device_in_scope(session, principal, device_id)
     row = await _service(session, applier).update_draft(
         device_id, version, payload, principal.username
     )
@@ -121,6 +126,7 @@ async def delete_configuration(
     applier: Applier,
     principal: Annotated[Principal, Depends(require_permission(CONFIG_WRITE))],
 ) -> None:
+    await ensure_device_in_scope(session, principal, device_id)
     await _service(session, applier).delete_draft(device_id, version)
 
 
@@ -135,6 +141,7 @@ async def validate_configuration(
     applier: Applier,
     principal: Annotated[Principal, Depends(require_permission(CONFIG_WRITE))],
 ) -> ValidationResultRead:
+    await ensure_device_in_scope(session, principal, device_id)
     result = await _service(session, applier).validate_version(device_id, version)
     return ValidationResultRead.model_validate(result)
 
@@ -151,6 +158,7 @@ async def clone_configuration(
     applier: Applier,
     principal: Annotated[Principal, Depends(require_permission(CONFIG_WRITE))],
 ) -> ConfigurationDetailRead:
+    await ensure_device_in_scope(session, principal, device_id)
     row = await _service(session, applier).clone_version(device_id, version, principal.username)
     return ConfigurationDetailRead.model_validate(row)
 
@@ -166,6 +174,7 @@ async def publish_configuration(
     applier: Applier,
     principal: Annotated[Principal, Depends(require_permission(CONFIG_PUBLISH))],
 ) -> PublishResultRead:
+    await ensure_device_in_scope(session, principal, device_id)
     row, status_row = await _service(session, applier).publish(
         device_id, version, principal.username
     )
@@ -185,6 +194,7 @@ async def configuration_status(
     applier: Applier,
     principal: ReadConfiguration,
 ) -> ConfigurationStatusRead:
+    await ensure_device_in_scope(session, principal, device_id)
     return ConfigurationStatusRead.model_validate(
         await _service(session, applier).status(device_id)
     )
@@ -200,6 +210,7 @@ async def apply_configuration(
     applier: Applier,
     principal: Annotated[Principal, Depends(require_permission(CONFIG_PUBLISH))],
 ) -> ConfigurationStatusRead:
+    await ensure_device_in_scope(session, principal, device_id)
     """Retry applying the currently published version."""
 
     return ConfigurationStatusRead.model_validate(
@@ -218,5 +229,6 @@ async def configuration_audit(
     principal: ReadConfiguration,
     limit: Annotated[int, Query(ge=1, le=500)] = 100,
 ) -> list[AuditEventRead]:
+    await ensure_device_in_scope(session, principal, device_id)
     rows = await _service(session, applier).audit_history(device_id, limit)
     return [AuditEventRead.model_validate(row) for row in rows]

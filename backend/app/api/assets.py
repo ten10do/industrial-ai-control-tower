@@ -20,6 +20,7 @@ from app.assetconfig.models import AssetNode
 from app.assetconfig.service import AssetService
 from app.security.dependencies import require_permission
 from app.security.rbac import ASSET_MANAGE, ASSET_READ, Principal
+from app.security.scope_policy import ensure_device_in_scope
 
 router = APIRouter(tags=["assets"])
 
@@ -93,6 +94,7 @@ async def attach_device(
     session: Annotated[AsyncSession, Depends(get_session)],
     principal: Annotated[Principal, Depends(require_permission(ASSET_MANAGE))],
 ) -> None:
+    await ensure_device_in_scope(session, principal, device_id)
     await AssetService(session).attach_device(asset_id, device_id)
 
 
@@ -103,4 +105,5 @@ async def detach_device(
     session: Annotated[AsyncSession, Depends(get_session)],
     principal: Annotated[Principal, Depends(require_permission(ASSET_MANAGE))],
 ) -> None:
+    await ensure_device_in_scope(session, principal, device_id)
     await AssetService(session).detach_device_from(asset_id, device_id)
