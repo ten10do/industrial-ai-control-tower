@@ -249,7 +249,19 @@ def fake_backend() -> Iterator[str]:
 
 def _run_check(backend_url: str) -> dict[str, Any]:
     result = subprocess.run(
-        [PYTHON, str(SCRIPTS / "deployment_check.py"), "--backend-url", backend_url],
+        [
+            PYTHON,
+            str(SCRIPTS / "deployment_check.py"),
+            "--backend-url",
+            backend_url,
+            # The interpreter exists but cannot serve `docker ps`, so the
+            # container probe deterministically reports DOCKER_DAEMON_UNAVAILABLE
+            # and is tolerated. Without this the HTTP-path tests depend on the
+            # host: on a runner that has a Docker daemon and no compose services
+            # the check legitimately reports failure and the exit code is 1.
+            "--docker-bin",
+            PYTHON,
+        ],
         capture_output=True,
         text=True,
         encoding="utf-8",
@@ -307,3 +319,36 @@ def test_deployment_check_reports_docker_daemon_unavailable(fake_backend: str) -
         module.subprocess.run = original_run
     assert report["docker"] == "DOCKER_DAEMON_UNAVAILABLE"
     assert set(report) == {"docker", "postgres", "redis", "mosquitto", "backend", "frontend"}
+
+
+def test_deployment_check_fails_when_the_daemon_is_up_but_services_are_absent(
+    fake_backend: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A live daemon with no compose services is a failure, not a pass.
+
+    This is the shape CI produced: a Docker daemon is available on the runner,
+    so the container probe actually runs, finds no services, and the overall
+    status is ``fail``. The HTTP surface is healthy here, which isolates the
+    verdict to the container dimension.
+    """
+
+    module = _load_script_module("deployment_check")
+    monkeypatch.setattr(
+        module,
+        "check_containers",
+        lambda docker_bin="docker": {
+            "docker": "ok",
+            **dict.fromkeys(module.SERVICES, "absent"),
+        },
+    )
+
+    report = module.run_check(
+        module.argparse.Namespace(
+            backend_url=fake_backend,
+            database_url=None,
+            docker_bin="docker",
+            require_docker=False,
+        )
+    )
+    assert report["docker"] == "ok"
+    assert report["status"] == "fail"
