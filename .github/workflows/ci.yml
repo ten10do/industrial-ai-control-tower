@@ -178,7 +178,9 @@ jobs:
 
       - name: Deployment check unit tests
         run: |
-          pip install -r backend/requirements.txt > /dev/null
+          # requirements.txt carries runtime deps only, so pytest must be
+          # requested explicitly or this step fails with "No module named pytest".
+          pip install pytest -r backend/requirements.txt > /dev/null
           python -m pytest backend/tests/test_deployment_foundation.py -q
 
   docs:

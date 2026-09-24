@@ -24,6 +24,9 @@ dependencies = [
     "langgraph==1.2.11",
     "langgraph-checkpoint-postgres==3.1.2",
     "psycopg[binary]>=3.2.0",
+    "PyJWT>=2.8.0",
+    "bcrypt>=4.1.0",
+    "prometheus-client>=0.20",
 ]
 
 [project.optional-dependencies]
@@ -62,7 +65,15 @@ warn_unused_configs = true
 exclude = ['\.venv', 'build', 'dist']
 
 [[tool.mypy.overrides]]
-module = ["joblib", "sklearn", "pypdf", "pgvector.*", "langgraph.*", "asyncpg"]
+module = [
+    "joblib",
+    "sklearn",
+    "pypdf",
+    "pgvector.*",
+    "langgraph.*",
+    "asyncpg",
+    "pgserver",
+]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]
