@@ -1,43 +1,39 @@
 # Phase 6.12 Final Report — Security & Governance Foundation
 
-**Status**: PHASE_6_12_BLOCKED — `REMOTE_PUSH_WITHHELD` (see section 0)
-**Base commit**: `2379224` (Phase 6.11) · **Branch**: main · **Phase commit**: `21bb321`
+**Status**: `PHASE_6_12_COMPLETE` — remote CI green, run `35956414254`, 6/6 jobs
+**Base commit**: `2379224` (Phase 6.11) · **Branch**: main
+**Phase commits**: `21bb321`, `b3061ea`, `d041ef3`, `430d999`, `e675b53`
+**Remote**: `origin/main` fast-forwarded `2c2f216` (6.8) → `e675b53`
 **Constraint compliance**: no business-flow, Agent, Workflow Graph, Approval
 state-machine, WorkOrder, ML, or RAG changes; no Cloud, Kubernetes, SSO,
 Enterprise IAM, OAuth, or Zero Trust work; no tag, no release; stopped before
 Phase 6.13.
 
-## 0. Blocker — remote state divergence (read first)
+## 0. Remote state, CI outcome, and what the local gates could not see
 
 Every implementation task and every local gate of this phase is complete and
-green. The phase is not marked `PHASE_6_12_COMPLETE` because the final gate,
-"push and confirm CI", cannot be completed honestly from the state the
-repository is in. Two facts, both verified this session:
+green, and the phase is now `PHASE_6_12_COMPLETE`. Reaching that state took
+three CI runs and two follow-up commits, because two of the failures could not
+be reproduced locally. Both are recorded here in full: the value of this section
+is the failure mode, not the success.
 
-**1. Five commits from earlier phases have never been pushed.**
+**The first push carried eight commits at once**, as a fast-forward. Five of them
+belong to earlier phases and had never been pushed: `2379224` (6.11), `4a41c18`
+(6.10), `c5d852f` (6.9-C), `e5f58e7` (6.9-B) and `112d879` (6.9-A). The other
+three were this phase's implementation (`21bb321`), its report (`b3061ea`), and
+the gate fix described below (`d041ef3`). Two further commits, `430d999` and
+`e675b53`, followed once CI exposed what the local gates had missed. The full
+list is in section 12.
 
-| Ref | Commit | Phase |
-|---|---|---|
-| local `main` | `21bb321` | 6.12 (this phase) |
-| | `2379224` | 6.11 |
-| | `4a41c18` | 6.10 |
-| | `c5d852f` | 6.9-C |
-| | `e5f58e7` | 6.9-B |
-| | `112d879` | 6.9-A |
-| `origin/main` | `2c2f216` | 6.8 (last pushed) |
+`origin/main` was at `2c2f216` (6.8), a strict ancestor of local `main`, so the
+push was a fast-forward with no rewriting. Because those earlier phases had never
+been pushed, their CI gate had never been confirmed, which is why publishing them
+was put to the operator as a decision rather than taken unilaterally.
 
-The remote is a strict ancestor of local `main` (`git merge-base --is-ancestor`
-succeeds), so the branch is not stale and the push would be a fast-forward with
-no rewriting. The consequence is that the CI gate for Phases 6.9-A through 6.11
-has never been confirmed on the remote, and pushing this phase publishes all six
-commits at once. That is a governance decision about other phases' history, so
-it was not taken unilaterally.
-
-**2. `mypy` is not clean at the base commit, and CI would very likely say so.**
-
-A fresh-cache `mypy app tests` run on an isolated worktree at `2379224` (the
-unmodified Phase 6.11 base) reports **20 errors in 4 files**. The identical 20
-errors appear after this phase. All four files belong to earlier phases:
+**The push was held first, because `mypy` was not clean.** A fresh-cache
+`mypy app tests` run on an isolated worktree at `2379224` (the unmodified Phase
+6.11 base) reported **20 errors in 4 files**, and the identical 20 appeared
+after this phase. All four files belonged to earlier phases:
 
 ```
 tests/test_deployment_foundation.py          type-arg, no-untyped-def, arg-type,
@@ -48,28 +44,79 @@ tests/test_platform_reliability.py           misc
 ```
 
 `backend/requirements-dev.txt` pins `mypy>=1.10.0` without an upper bound, and
-the local resolution is mypy 2.3.1, so CI installs the same generation. The
-`backend` job runs `mypy app tests`, so pushing would most likely produce a red
-`backend` job for reasons that pre-date this phase.
+CI was later confirmed to resolve mypy 2.3.1, the same build as local. The
+`backend` job runs `mypy app tests`, so this debt would have turned that job red
+for reasons that pre-date this phase. It was fixed in its own commit, `d041ef3`,
+scoped to the four test files: parameterise `CompletedProcess`, annotate two
+generator fixtures, narrow `importlib` spec/loader, type the parsed
+deployment-check JSON, and drop four `type: ignore` comments plus a dead import
+that mypy 2.x no longer needs.
 
 For the record, `PHASE_6_10_FINAL_REPORT.md` and `PHASE_6_11_FINAL_REPORT.md`
-both claim `mypy` clean. That claim is not reproducible today against the tree
-they describe. The most likely explanation is a mypy/typeshed version change
-(the failing codes are version-sensitive: `index` on `object`, `unused-ignore`,
-`type-arg`), not a false claim at the time. Either way, the debt is real now and
-belongs to 6.10/6.11 test files, not to 6.12.
+both claim `mypy` clean. That claim is not reproducible against the tree they
+describe. The explanation is a mypy version change, since every failing code is
+version-sensitive (`index` on `object`, `unused-ignore`, `type-arg`), rather than
+a false claim at the time. The debt was real and belonged to 6.10/6.11 test
+files, which is where the fix was applied.
 
-**What is needed to close the phase.** A decision, then one of:
+### 0.1 Three CI runs, and why the first two failed
 
-- push as-is and record the CI outcome, including a red `backend` job traced to
-  the four files above; or
-- first restore the gate with a small, separate commit that fixes the 20 type
-  errors in those four test files, then push a green tree; or
-- hold the push.
+The naive expectation was that fixing the 20 `mypy` errors would make CI green.
+It did not. Two further failures surfaced, and neither was reproducible locally.
+Both are worth recording, because the pattern is the same in each case: **the
+local environment was not the CI environment, and every local gate was green.**
 
-This phase deliberately did not touch those four files, because a phase commit
-should not silently absorb another phase's debt and the fix belongs in a commit
-of its own.
+| Run | Commit | Outcome |
+|---|---|---|
+| `35954114086` | `d041ef3` | **fail** — `backend` at *Type check*, `deployment` at *unit tests* |
+| `35955921527` | `430d999` | **fail** — `backend` at *Test*, `deployment` at *unit tests* |
+| `35956414254` | `e675b53` | **pass** — 6/6 jobs |
+
+**Run 1: nine `mypy` errors that had nothing to do with `mypy`.** The Type check
+step failed with 9 `import-not-found` / `no-any-return` errors, and the log
+showed CI resolving mypy 2.3.1, the same build as local. The cause was that four
+imported packages were never declared anywhere:
+
+- `PyJWT` and `bcrypt`, imported by `app/security/tokens.py` and
+  `app/security/passwords.py`, appeared in neither `pyproject.toml` nor
+  `requirements.txt`. Because `backend/Dockerfile` installs `requirements.txt`,
+  the built image could not have imported `app.security` at all. This is the most
+  serious defect this phase produced, and no local gate could see it.
+- `prometheus-client` was in `requirements.txt` but missing from
+  `pyproject.toml`, so the `pip install -e .` in the `backend` job never
+  installed it, even though `app/platform_observability/metrics.py` imports it.
+- `pgserver` was never declared; it is imported inside a `try/except ImportError`
+  guard, which makes its absence a supported state.
+
+The local `.venv` happened to have all four packages installed by hand, which is
+exactly why every local gate passed. A hand-grown environment hides an undeclared
+dependency. The fix is `430d999`.
+
+Run 1's `deployment` job failed with `No module named pytest`: its step installed
+`requirements.txt` (runtime dependencies only) and then invoked pytest. That job
+had never run on the remote before, because 6.11 was among the unpushed commits,
+so this pre-existing defect was surfacing for the first time.
+
+**Run 2: the mypy debt was fixed, and a host-dependent test was exposed.** Type
+check went green, and the remaining failures were one and the same test in two
+jobs, `test_deployment_check_passes_against_healthy_backend`, with the report:
+
+```
+{'status': 'fail', 'docker': 'ok',
+ 'services': {'postgres': 'absent', 'redis': 'absent', 'mosquitto': 'absent', ...},
+ 'checks': {'health': 'ok', 'ready': 'ok', 'metrics': 'ok', ...}}
+```
+
+That report is correct. `deployment_check.py` verifies that all five services
+are running; a GitHub runner has a Docker daemon but no compose services, so the
+container dimension legitimately fails. The test asserted a clean pass, which
+only holds on a host without a Docker daemon. The assertions depended on the
+machine, not on the code under test, which is why Windows was green and CI was
+red. The fix is `e675b53`, which passes `--docker-bin <interpreter>` so the probe
+deterministically reports `DOCKER_DAEMON_UNAVAILABLE` and is tolerated, and adds
+a unit test pinning the live-daemon-with-absent-services verdict.
+
+**Run 3 is green and is the release basis.** Every job passes on `e675b53`.
 
 ## 1. Identity Foundation (6.12-A)
 
@@ -253,6 +300,28 @@ password from `SECURITY_BOOTSTRAP_PASSWORD` or an echo-off prompt, never from
 6. **14 ruff errors** (12 × `N818`, 2 × `E402`) from the first pass: the error
    taxonomy was renamed to the `*Error` suffix the rest of the codebase already
    uses, and module-level imports were moved to the top.
+7. **`PyJWT` and `bcrypt` were imported but never declared.** Found by the first
+   remote CI run, not by any local gate. `requirements.txt` is what
+   `backend/Dockerfile` installs, so the container image would have failed to
+   import `app.security` at all. Fixed in `430d999` by declaring both in
+   `pyproject.toml` and `requirements.txt`.
+8. **`prometheus-client` was in `requirements.txt` but not in `pyproject.toml`.**
+   The two manifests had silently diverged, so `pip install -e .` never installed
+   it. Fixed in the same commit, restoring the two files to agreement.
+9. **`test_deployment_check_passes_against_healthy_backend` depended on the
+   host having no Docker daemon.** It asserted a clean pass, which a runner with
+   a live daemon and no compose services cannot produce. Fixed in `e675b53`,
+   together with a new unit test that pins the live-daemon verdict.
+10. **The `deployment` job invoked pytest without installing it.** A pre-6.11
+    defect that had never run on the remote, because 6.11 was among the unpushed
+    commits. Fixed in `430d999`.
+
+The last four share one root cause, and it is the most transferable lesson of
+this phase: **a hand-grown local environment is not evidence about CI.** The
+local `.venv` had `PyJWT`, `bcrypt`, `prometheus-client` and `pgserver` installed
+by hand, and Windows has no Docker daemon. Every local gate was green while CI
+was red. Reproducing the CI install in a fresh venv, and reasoning about what the
+host provides, is what closed the gap.
 
 ## 10. Tests
 
@@ -277,29 +346,82 @@ sign-out.
 Two existing frontend suites were updated to render under a settled session, and
 `App.test.tsx` now asserts the guard behaviour instead of assuming an open shell.
 
-## 11. Validation Results (all executed this session)
+`backend/tests/test_deployment_foundation.py` is not a new suite, but CI added one
+test to it: the live-daemon-with-absent-services case that run 2 exposed. It now
+covers both directions of the container dimension instead of assuming the host has
+no Docker.
+
+## 11. Validation Results
+
+Every figure below was measured, not inherited. Two environments are reported
+separately on purpose: the local one, which runs the whole suite against a real
+PostgreSQL, and a fresh venv that reproduces the CI install, which is the only
+environment that could have caught defects 7 and 8 above.
+
+**Local, with PostgreSQL 16 + pgvector (three opt-in database variables set).**
+The `_TEST_DATABASE_URL` variables are per-suite and each suite drops the
+database it was given, so all three point at separate databases.
 
 | Suite | Result |
 |---|---|
-| backend `pytest` (DB-backed, PostgreSQL + pgvector @127.0.0.1:65179) | **597 passed, 94 skipped** (from 591/94 at base) |
-| backend `pytest tests/security` | **142 passed** |
-| `ruff check` / `ruff format --check` | **clean** (198 files) |
-| `mypy app tests` | **20 errors in 4 files**, none in this phase's code; **identical 20 errors measured on an isolated worktree at the base commit `2379224`**, so this phase introduces none |
+| backend `pytest` (full, `ALARM_` + `ASSETCONFIG_` + `OBSERVABILITY_` set) | **691 passed, 0 skipped** |
+| backend `pytest` (`tests/incidents` alone) | 211 passed |
+| backend `pytest` (`tests/security` + observability integration) | 143 passed |
+| `alembic heads` / `upgrade head` / `current` / `check` | `20260924_09` / 10 migrations applied / `20260924_09 (head)` / **"No new upgrade operations detected"** |
 | frontend `npm test` / `npm run lint` / `npm run build` | **56 passed (10 files) / clean / clean** |
-| `alembic heads` / `upgrade head` / `check` | `20260924_09 (head)` / applied / **"No new upgrade operations detected"** |
 | `python scripts/security_scan.py` | **clean, 0 findings**, exit 0 |
 | `python scripts/validate_env.py .env.example --mode example` | **pass** |
-| remote CI | **not verified** (see section 0) |
+
+**Fresh venv reproducing the CI install (`pip install -r requirements-dev.txt`),
+plus a pytest-only venv for the `deployment` job.**
+
+| Gate | Result |
+|---|---|
+| `ruff check` / `ruff format --check` | **clean** (198 files) |
+| `mypy app tests` | **clean, 178 source files** (was 20 errors before `d041ef3`) |
+| backend `pytest`, no database (the CI condition) | **439 passed, 253 skipped, 0 failed** |
+| `pytest backend/tests/test_deployment_foundation.py` from the repo root | **13 passed** |
+
+**Remote.**
+
+| Gate | Result |
+|---|---|
+| CI run `35956414254` on `e675b53` | **6/6 jobs green**: backend, deployment, docs, frontend, ml, simulator |
+
+The earlier runs `35954114086` and `35955921527` failed; section 0.1 records what
+each one exposed. The green run is the release basis for this phase.
 
 ## 12. Git
 
-- Commit `21bb321` — `feat: add security governance foundation` on `main`, based
-  on `2379224`. 55 files changed, 6593 insertions, 82 deletions. No tag, no
-  release.
-- Not pushed. Local `main` is 6 commits ahead of `origin/main` (`2c2f216`), all
-  fast-forwardable; 5 of those commits belong to Phases 6.9-A through 6.11.
-- No history was rewritten except the message and content of this phase's own
-  single, unpushed commit. No `reset --hard`, no force push, no `git clean`.
+`origin/main` was fast-forwarded `2c2f216` (Phase 6.8) to `e675b53` across three
+pushes: eight commits in the first, then one after each of the two CI runs that
+failed. No history was rewritten, there was no divergence to reconcile, and no
+`reset --hard`, no force push and no `git clean` was used anywhere in this phase.
+
+| Commit | Subject | Change |
+|---|---|---|
+| `e675b53` | `test: make the deployment-check tests independent of the host's docker` | 1 file, +46/-1 |
+| `430d999` | `fix: declare security and metrics dependencies` | 3 files, +17/-2 |
+| `d041ef3` | `chore: restore mypy gate for phase 6.10-6.11 test files` | 5 files, +19/-14 |
+| `b3061ea` | `docs: add phase 6.12 final report` | 1 file, +320 |
+| `21bb321` | `feat: add security governance foundation` | 55 files, +6593/-82 |
+| `2379224` | `feat: add production deployment foundation` (6.11) | earlier phase |
+| `4a41c18` | `feat: add platform reliability hardening` (6.10) | earlier phase |
+| `c5d852f` | `feat: implement incident center and workflow integration` (6.9-C) | earlier phase |
+| `e5f58e7` | `feat: implement incident lifecycle, correlation engine, and context API` (6.9-B) | earlier phase |
+| `112d879` | `feat: add alarm lifecycle foundation, rule registry, and incident correlation` (6.9-A) | earlier phase |
+
+Net across the range: **117 files changed, 19347 insertions, 124 deletions**.
+
+Only `21bb321` belongs to this phase's implementation; `b3061ea`, `d041ef3`,
+`430d999` and `e675b53` are its report, gate restoration, and the two fixes CI
+surfaced. The five earlier-phase commits were published unchanged: no phase
+commit silently absorbed another phase's debt.
+
+This report is then corrected by a trailing `docs:` commit so that the published
+text matches the published state. That trailing commit re-runs all six jobs, and
+its own green run is the final release basis; `e675b53` is the release basis for
+the code. No tag and no release were created.
 
 ## 13. Boundary Statement
 
