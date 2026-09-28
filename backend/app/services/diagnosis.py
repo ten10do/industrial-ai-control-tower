@@ -16,6 +16,7 @@ from app.ml.runtime import ModelRuntime
 from app.repositories.audit import AuditRepository
 from app.repositories.device import DeviceRepository
 from app.repositories.diagnosis import DiagnosisRepository
+from app.repositories.incident import IncidentRepository
 from app.repositories.telemetry import TelemetryRepository
 from app.schemas.telemetry import TelemetryRead
 
@@ -84,7 +85,15 @@ class OnlineDiagnosisCoordinator:
             prediction = await asyncio.to_thread(self.runtime.predict, window)
             latency_ms = (time.perf_counter() - started) * 1000.0
             async with self.sessions() as session:
-                await DiagnosisRepository(session).create_prediction(prediction, trace_id)
+                diagnosis = await DiagnosisRepository(session).create_prediction(
+                    prediction, trace_id
+                )
+                if prediction.status in {"FAULT", "UNCERTAIN"}:
+                    incident = await IncidentRepository(session).find_open_for_device(
+                        prediction.device_id
+                    )
+                    if incident is not None:
+                        diagnosis.incident_id = incident.id
                 AuditRepository(session).add(
                     trace_id=trace_id,
                     action="DIAGNOSIS_CREATED",
@@ -93,6 +102,11 @@ class OnlineDiagnosisCoordinator:
                     details={
                         "diagnosis_status": prediction.status,
                         "model_version": prediction.model_version,
+                        "incident_id": (
+                            str(diagnosis.incident_id)
+                            if diagnosis.incident_id is not None
+                            else None
+                        ),
                     },
                 )
                 await session.commit()
