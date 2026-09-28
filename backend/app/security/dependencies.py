@@ -26,6 +26,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies import get_session
 from app.config import get_settings
+from app.platform_observability.metrics import security_permission_denied_total
 from app.security.audit import (
     ACTION_PERMISSION_DENIED,
     PERMISSION_RESOURCE,
@@ -207,6 +208,7 @@ def require_permission(permission: str) -> Callable[..., Awaitable[Principal]]:
         session: Annotated[AsyncSession, Depends(get_session)],
     ) -> Principal:
         if not principal.has_permission(permission):
+            security_permission_denied_total.inc()
             await record_security_event(
                 session,
                 action=ACTION_PERMISSION_DENIED,

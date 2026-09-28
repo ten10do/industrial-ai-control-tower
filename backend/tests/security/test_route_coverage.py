@@ -332,3 +332,72 @@ def test_declared_permissions_come_from_the_vocabulary() -> None:
         assert WILDCARD not in permissions, (
             f"{method} {path} must name a permission, not the wildcard"
         )
+
+
+# --------------------------------------------------------------------------- #
+# Phase 6.13-D: the mutation invariant
+# --------------------------------------------------------------------------- #
+
+#: The methods that can change business state. Every route that accepts one
+#: must be either permission-governed or on the explicit exception list below:
+#: a third category ("forgot the dependency") is exactly the defect this
+#: gate exists to prevent.
+MUTATION_METHODS = frozenset({"POST", "PUT", "PATCH", "DELETE"})
+
+#: Routes that mutate nothing and are deliberately not permission-governed.
+#: Each entry is a documented decision, not an omission:
+#: * ``auth/login`` and ``auth/register`` are the bootstrap endpoints — the
+#:   caller cannot hold a permission before authenticating, and the routes
+#:   only create/verify credentials, never business state.
+#: * ``knowledge/search`` and ``knowledge-context`` are read-shaped queries
+#:   that use POST because their input is a structured body; both return
+#:   search results and write nothing.
+EXPLICITLY_UNGOVERNED_MUTATIONS = frozenset(
+    {
+        ("POST", "/api/v1/auth/login"),
+        ("POST", "/api/v1/auth/register"),
+        ("POST", "/api/v1/knowledge/search"),
+        ("POST", "/api/v1/devices/{device_id}/knowledge-context"),
+        # The legacy mirror exposes the same bootstrap endpoints under /api.
+        ("POST", "/api/auth/login"),
+        ("POST", "/api/auth/register"),
+    }
+)
+
+
+def test_every_mutation_is_governed_or_explicitly_public() -> None:
+    """No business mutation may exist without a declared permission.
+
+    The walk covers every ``/api`` route, including the legacy mirror. A new
+    route that ships without ``require_permission`` (or without being added
+    to the exception list with a written justification) fails the build.
+    """
+
+    table = _route_table()
+    ungoverned = [
+        (method, path)
+        for (method, path), permissions in table.items()
+        if method in MUTATION_METHODS
+        and path.startswith("/api/")
+        and not permissions
+        and (method, path) not in EXPLICITLY_UNGOVERNED_MUTATIONS
+    ]
+    assert not ungoverned, (
+        "mutations exist that declare no permission and are not explicit "
+        f"exceptions: {sorted(ungoverned)}"
+    )
+
+
+def test_the_mutation_exception_list_stays_exact() -> None:
+    """Exceptions must correspond to real routes, so list drift is caught.
+
+    An exception naming a route that no longer exists would silently widen
+    the gate for whatever replaces it.
+    """
+
+    table = _route_table()
+    for method, path in EXPLICITLY_UNGOVERNED_MUTATIONS:
+        assert (method, path) in table, f"exception {method} {path} names no real route"
+        assert not table[(method, path)], (
+            f"exception {method} {path} is now permission-governed; remove it from the list"
+        )

@@ -56,33 +56,38 @@ existence check is the API's.
 
 ## Scope evaluation
 
-One function answers every reach question:
-`app/security.scope_policy.resolve_device_scope(session, principal)`.
+One function answers every device-reach question:
+`app/security.scope_policy.resolve_device_access(session, principal)`, which
+returns an explicit `ScopeAccessMode` — `UNRESTRICTED`, `SCOPED`, or `DENIED`
+— instead of an ambiguous `None`.
 
 | Caller shape | Answer |
 |---|---|
-| Holds `*` (ADMIN) | `None` — unrestricted, always. A binding cannot shrink ADMIN |
-| No bindings | `None` — unrestricted, by the documented migration default |
-| Bound to subtrees | The device ids associated with the areas inside those subtrees |
-| Bound, no devices assigned | The empty set — a real answer that denies |
+| Holds `*` (ADMIN) | `UNRESTRICTED`, always. A binding cannot shrink ADMIN, and nothing else grants unrestricted |
+| No bindings | `DENIED` (Phase 6.13-D deny-by-default). The 6.13-B migration default is removed |
+| Bound to subtrees | `SCOPED` with the device ids associated with the areas inside those subtrees |
+| Bound, no devices assigned | `SCOPED` with the empty set — a real answer that denies |
 
-The migration default is stated in code and in `docs/SECURITY_MODEL.md`:
-every operator created before 6.13-B has no bindings, and flipping the default
-to deny would lock a working plant on upgrade. When the deployment is ready,
-the default is a one-line change in `scope_policy.py` plus a test update —
-which is exactly why all scope decisions live in one module.
+The migration default this phase removed is handled by an explicit tool:
+`scripts/check_scope_readiness.py` reads the deployed database, lists every
+ACTIVE non-admin identity without a binding as
+`{"status": "fail", "unbound_users": [...]}`, and exits non-zero. Operators
+provision those identities before deploying 6.13-D.
 
 Three public functions cover every use:
 
 | Function | Used for |
 |---|---|
-| `resolve_device_scope` | the raw answer, for tests and list filters |
+| `resolve_device_access` | the raw answer (mode + device set), for tests and filters |
+| `resolve_organization_access` | the organization read boundary: visible organizations, plants, areas for the caller |
 | `ensure_device_in_scope` | single-device mutation/read guard: audits `scope.denied` then raises `403 SCOPE_DENIED` |
-| `device_scope_filter` | list endpoints: `None` means no filter, a set means membership |
+| `ensure_organization_visible` | single-row hierarchy read guard, same audit-then-raise contract |
+| `device_scope_filter` | list endpoints: `None` means wildcard-only (no filter), a set means membership, an empty set means see nothing |
 
-Enforcement points in this phase: alarm acknowledge / clear / detail /
-related, the alarm list filter, every device-configuration route, connectivity
-detail / start / stop, and asset attach / detach.
+Enforcement points: alarm acknowledge / clear / detail / related, the alarm
+list filter, every device-configuration route, connectivity detail / start /
+stop, asset attach / detach, and (6.13-D) the organization / plant / area
+read boundary plus the device master-data mutations (`asset.manage`).
 
 ## API
 
@@ -91,7 +96,7 @@ All routes are mounted under both `/api/v1` and `/api` and appear in the
 
 | Surface | Permission | Notes |
 |---|---|---|
-| `GET /organizations`, `/organizations/{id}`, `/organizations/{id}/plants`, `/plants/{id}/areas` | `org.read` | Every role: the structure is visible to anyone who can act |
+| `GET /organizations`, `/organizations/{id}`, `/organizations/{id}/plants`, `/plants/{id}/areas` | `org.read` | Phase 6.13-D read boundary: only the rows the caller's bindings cover (bound subtree + ancestors + descendants). Unbound identities see nothing; cross-scope detail reads are `403 SCOPE_DENIED` |
 | `POST/PATCH/DELETE` on the same paths | `org.manage` | ADMIN only by default |
 | `GET/PUT /users/{id}/scopes` | `scope.manage` | The PUT replaces the binding set wholesale, which makes it idempotent and auditable as one fact |
 | `GET/PUT /devices/{device_id}/scope` | `scope.manage` | Body is `{"area_id": ... | null}`; `null` clears the assignment |

@@ -690,3 +690,115 @@ async def test_change_records_cannot_violate_the_window_check(
             await session.rollback()
         else:
             raise AssertionError("the database accepted an inverted change window")
+
+
+# --------------------------------------------------------------------------- #
+# Phase 6.13-D invariants
+# --------------------------------------------------------------------------- #
+
+
+async def _seed_alarm(sessions: async_sessionmaker[AsyncSession], device_id: str) -> object:
+    from app.models import Alarm, Device
+
+    async with sessions() as session:
+        session.add(
+            Device(
+                device_id=device_id,
+                device_type="MOTOR",
+                name=device_id,
+                status="ACTIVE",
+                device_metadata={},
+            )
+        )
+        alarm = Alarm(
+            device_id=device_id,
+            rule_id="temperature_high",
+            severity="CRITICAL",
+            status="ACTIVE",
+            message="95 C > 90 C",
+            occurrence_count=1,
+        )
+        session.add(alarm)
+        await session.commit()
+        return alarm.id
+
+
+async def test_the_admin_wildcard_cannot_bypass_a_governance_deny(
+    client: AsyncClient,
+    sessions: async_sessionmaker[AsyncSession],
+) -> None:
+    """RBAC ``*`` + policy DENY = DENY, and the alarm is untouched."""
+
+    from app.models import Alarm
+
+    admin_token = await token_for(client, "gov.wildcard")
+    await seed_policy(sessions, permission="alarm.ack", conditions={"always": True}, enabled=True)
+    alarm_id = await _seed_alarm(sessions, "MOTOR-FROZEN")
+
+    refused = await client.post(
+        f"/api/v1/alarms/{alarm_id}/acknowledge", json={}, headers=auth(admin_token)
+    )
+    assert refused.status_code == 403, refused.text
+    assert refused.json()["error"]["code"] == "POLICY_DENIED"
+
+    async with sessions() as session:
+        alarm = await session.get(Alarm, alarm_id)
+        assert alarm is not None
+        assert alarm.status == "ACTIVE"
+        assert alarm.acknowledged_by is None
+
+
+async def test_a_policy_denial_never_transitions_a_change_record(
+    client: AsyncClient,
+    sessions: async_sessionmaker[AsyncSession],
+) -> None:
+    """PERMISSION and POLICY refusals both leave the ledger unchanged."""
+
+    admin_token = await token_for(client, "gov.ledger-admin")
+    operator_token = await token_for(client, "gov.ledger-operator")
+
+    created = await _create_change(client, admin_token)
+    assert created.status_code == 201
+    change_id = created.json()["id"]
+
+    await seed_policy(
+        sessions,
+        name="operator-transition-freeze",
+        permission="change.manage",
+        conditions={"roles": ["OPERATOR"]},
+        enabled=True,
+    )
+
+    refused = await client.post(
+        f"{GOVERNANCE}/changes/{change_id}/transition",
+        json={
+            "status": "SCHEDULED",
+            "scheduled_start": "2026-10-01T08:00:00Z",
+            "scheduled_end": "2026-10-01T10:00:00Z",
+        },
+        headers=auth(operator_token),
+    )
+    assert refused.status_code == 403
+    assert refused.json()["error"]["code"] == "POLICY_DENIED"
+
+    async with sessions() as session:
+        record = await session.get(ChangeRecord, change_id)
+        assert record is not None
+        assert record.status == ChangeStatus.DRAFT.value
+
+
+async def test_the_dashboard_counts_policies_the_engine_cannot_interpret(
+    client: AsyncClient,
+    sessions: async_sessionmaker[AsyncSession],
+) -> None:
+    """An inert rule is visible in the compliance dashboard, never silent."""
+
+    admin_token = await token_for(client, "gov.dashboards")
+    await seed_policy(sessions, conditions={"bogus": ["x"]}, enabled=True)
+    await seed_policy(sessions, conditions={"always": True}, enabled=True)
+
+    response = await client.get(f"{GOVERNANCE}/compliance/dashboard", headers=auth(admin_token))
+    assert response.status_code == 200
+    policies = response.json()["policies"]
+    assert policies["total"] == 2
+    assert policies["invalid"] == 1

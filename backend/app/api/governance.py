@@ -487,9 +487,18 @@ async def compliance_dashboard(
 
     security_summary = await repository.summary(security_filters)
 
-    policy_total = await session.scalar(select(func.count()).select_from(GovernancePolicy))
-    policy_enabled = await session.scalar(
-        select(func.count()).select_from(GovernancePolicy).where(GovernancePolicy.enabled.is_(True))
+    # Phase 6.13-D: a policy whose conditions the engine cannot interpret is
+    # inert, which is worse than disabled because it looks authoritative. The
+    # dashboard counts them so "how many rules enforce nothing" is one query.
+    policy_rows = list(
+        await session.scalars(select(GovernancePolicy).order_by(GovernancePolicy.name))
+    )
+    policy_total = len(policy_rows)
+    policy_enabled = sum(1 for row in policy_rows if row.enabled)
+    policy_invalid = sum(
+        1
+        for row in policy_rows
+        if not set(dict(row.conditions or {})).issubset(SUPPORTED_CONDITION_KEYS)
     )
 
     change_by_status: dict[str, int] = {change_status.value: 0 for change_status in ChangeStatus}
@@ -517,9 +526,10 @@ async def compliance_dashboard(
         audit={"total": sum(audit_by_status.values()), "by_status": audit_by_status},
         security_events=security_summary,
         policies={
-            "total": int(policy_total or 0),
-            "enabled": int(policy_enabled or 0),
-            "disabled": int(policy_total or 0) - int(policy_enabled or 0),
+            "total": policy_total,
+            "enabled": policy_enabled,
+            "disabled": policy_total - policy_enabled,
+            "invalid": policy_invalid,
         },
         changes={
             "total": change_total,

@@ -92,9 +92,23 @@ Write-time validation (422 `POLICY_CONDITION_INVALID`):
 - `always` combined with any other key.
 
 A rule edited out-of-band into an unsupported shape is **inert** at evaluation
-time (it never matches), never a 500. This is fail-open by design and is
-recorded as a known limitation: an out-of-band edit bypasses the write-time
-guarantees.
+time (it never matches), never a 500. Inert does not mean silent (Phase
+6.13-D): the evaluation emits a structured warning naming the policy,
+increments `governance_invalid_policy_total`, and the compliance dashboard
+reports the invalid count, so a rule that enforces nothing is visible.
+
+### Fail-closed semantics (Phase 6.13-D)
+
+The database session is a required dependency of evaluation; the former
+`session=None → allowed` compatibility branch is removed. The full matrix:
+
+| Situation | Behaviour |
+|---|---|
+| No matching enabled DENY policy | The RBAC + scope answer stands |
+| Policy matches | `403 POLICY_DENIED`, audited before the raise |
+| Stored condition the engine cannot interpret | Inert for the request; structured warning + counter + dashboard invalid count |
+| Governance database unavailable | `503 GOVERNANCE_UNAVAILABLE` — never an `ALLOW` |
+| Unexpected evaluator exception | `503 GOVERNANCE_UNAVAILABLE`, counted in `governance_evaluation_error_total`, structured log |
 
 ### Refusal semantics
 
@@ -102,7 +116,9 @@ guarantees.
 the policy name, permission, method, path, and acting identity, written before
 the exception is raised. The evaluate endpoint
 (`POST /governance/policies/evaluate`) answers the same question without side
-effects.
+effects. A refusal never mutates business state: the denial is decided before
+the route body runs, and the tests assert the refused object (alarm, change
+record) is unchanged.
 
 ## Change management
 
@@ -161,7 +177,9 @@ Nothing is cached or copied. Every number is computed at request time from
 `audit_events`, `governance_policies`, `change_records`, and `users`, so the
 dashboard cannot disagree with the evidence it summarizes. The window is
 bounded at 90 days to keep the query a dashboard aggregate rather than a
-full-table export in disguise.
+full-table export in disguise. Phase 6.13-D adds `policies.invalid`: the
+count of stored rules whose conditions the engine cannot interpret (they are
+inert at evaluation time), so "how many rules enforce nothing" is one read.
 
 ## Migration
 

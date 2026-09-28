@@ -8,14 +8,13 @@ and the scope decision is enforced on routes that name a device.
 Three groups:
 
 1. Structure and binding APIs — CRUD, validation, audit attribution.
-2. Scope policy evaluation — the resolution rules, including the two kinds of
-   unrestricted caller and the deny-by-empty answer.
+2. Scope policy evaluation — the resolution rules: the wildcard-only kind of
+   unrestricted caller, and the Phase 6.13-D deny-by-default for identities
+   with no bindings at all.
 3. Enforcement — a bound operator reaches devices inside their plant and is
-   refused, with an audited ``SCOPE_DENIED`` row, on devices outside it.
-
-The documented default matters: an identity with **no** bindings keeps the
-global reach every operator had before this phase. A binding, once present,
-is exhaustive.
+   refused, with an audited ``SCOPE_DENIED`` row, on devices outside it —
+   across every device-scoped surface: alarms, configurations, connectivity,
+   assets, and the organization hierarchy read boundary.
 """
 
 from __future__ import annotations
@@ -386,10 +385,16 @@ async def test_a_bound_operator_sees_only_in_scope_alarms(
     assert devices == {"MOTOR-IN"}
 
 
-async def test_an_unbound_operator_keeps_global_reach(
+async def test_an_unbound_operator_has_no_reach(
     client: AsyncClient, sessions: async_sessionmaker[AsyncSession]
 ) -> None:
-    """The documented migration default: no bindings, no shrinkage."""
+    """Phase 6.13-D deny-by-default: no bindings, no reach.
+
+    The Phase 6.13-B migration default (unbound identities keep global reach)
+    is gone. An unbound operator is refused every scoped resource with an
+    audited ``SCOPE_DENIED``; provisioning happens through bindings, and the
+    pre-deployment readiness check lists exactly these identities.
+    """
 
     await make_user(sessions, "operator.one", "OPERATOR")
     operator_token = await token_for(client, "operator.one")
@@ -400,7 +405,90 @@ async def test_an_unbound_operator_keeps_global_reach(
         f"/api/v1/alarms/{alarm_id}/acknowledge", json={}, headers=auth(operator_token)
     )
 
-    assert response.status_code == 200, response.text
+    assert response.status_code == 403
+    assert response.json()["error"]["code"] == "SCOPE_DENIED"
+
+    listed = await client.get("/api/v1/alarms", headers=auth(operator_token))
+    assert listed.status_code == 200
+    assert listed.json() == []
+
+
+async def test_an_unbound_viewer_sees_no_hierarchy(
+    client: AsyncClient, sessions: async_sessionmaker[AsyncSession]
+) -> None:
+    """The read boundary follows the same rule: no bindings, nothing visible."""
+
+    await make_user(sessions, "admin.one", "ADMIN")
+    admin_token = await token_for(client, "admin.one")
+    await client.post(ORGANIZATIONS, json={"name": "Hidden Co"}, headers=auth(admin_token))
+
+    await make_user(sessions, "viewer.one", "VIEWER")
+    viewer_token = await token_for(client, "viewer.one")
+
+    response = await client.get(ORGANIZATIONS, headers=auth(viewer_token))
+
+    assert response.status_code == 200
+    assert response.json() == []
+
+
+async def test_a_bound_operator_sees_only_the_hierarchy_it_is_bound_to(
+    client: AsyncClient, sessions: async_sessionmaker[AsyncSession]
+) -> None:
+    """Plant A's operator must not read Plant B's organizations or plants."""
+
+    await make_user(sessions, "admin.one", "ADMIN")
+    admin_token = await token_for(client, "admin.one")
+    user_id = await make_user(sessions, "operator.one", "OPERATOR")
+    operator_token = await token_for(client, "operator.one")
+
+    org_a = (
+        await client.post(ORGANIZATIONS, json={"name": "Org A"}, headers=auth(admin_token))
+    ).json()
+    org_b = (
+        await client.post(ORGANIZATIONS, json={"name": "Org B"}, headers=auth(admin_token))
+    ).json()
+    plant_a = (
+        await client.post(
+            f"{ORGANIZATIONS}/{org_a['id']}/plants",
+            json={"name": "Plant A"},
+            headers=auth(admin_token),
+        )
+    ).json()
+    area_a = (
+        await client.post(
+            f"/api/v1/plants/{plant_a['id']}/areas",
+            json={"name": "Area A1"},
+            headers=auth(admin_token),
+        )
+    ).json()
+    await client.post(
+        f"{ORGANIZATIONS}/{org_b['id']}/plants",
+        json={"name": "Plant B"},
+        headers=auth(admin_token),
+    )
+    await bind(client, admin_token, user_id, area_a["id"])
+
+    listed = await client.get(ORGANIZATIONS, headers=auth(operator_token))
+    assert [row["name"] for row in listed.json()] == ["Org A"]
+
+    plants = await client.get(f"{ORGANIZATIONS}/{org_a['id']}/plants", headers=auth(operator_token))
+    assert [row["name"] for row in plants.json()] == ["Plant A"]
+
+    outside = await client.get(
+        f"{ORGANIZATIONS}/{org_b['id']}/plants", headers=auth(operator_token)
+    )
+    assert outside.status_code == 403
+    assert outside.json()["error"]["code"] == "SCOPE_DENIED"
+
+    detail = await client.get(f"{ORGANIZATIONS}/{org_b['id']}", headers=auth(operator_token))
+    assert detail.status_code == 403
+    assert detail.json()["error"]["code"] == "SCOPE_DENIED"
+
+    # The org binding's ancestors are visible, the sibling subtree is not:
+    # the refusal is audited against the acting identity.
+    rows = await events(sessions, action="SCOPE_DENIED")
+    assert rows
+    assert all(row.actor == "operator.one" for row in rows)
 
 
 async def test_an_administrator_with_bindings_is_still_unrestricted(
@@ -486,17 +574,30 @@ async def _first_area_id(client: AsyncClient, admin_token: str) -> str:
     return str(areas[0]["id"])
 
 
-async def test_the_organization_read_model_stays_visible_to_every_role(
+async def test_a_bound_viewer_sees_the_hierarchy_it_is_bound_to(
     client: AsyncClient, sessions: async_sessionmaker[AsyncSession]
 ) -> None:
-    """``org.read`` is granted to every role: structure is not a secret."""
+    """``org.read`` still shows structure — bounded by scope, per identity."""
 
     await make_user(sessions, "admin.one", "ADMIN")
     admin_token = await token_for(client, "admin.one")
-    await client.post(ORGANIZATIONS, json={"name": "Visible Co"}, headers=auth(admin_token))
-
-    await make_user(sessions, "viewer.one", "VIEWER")
+    user_id = await make_user(sessions, "viewer.one", "VIEWER")
     viewer_token = await token_for(client, "viewer.one")
+
+    org = (
+        await client.post(ORGANIZATIONS, json={"name": "Visible Co"}, headers=auth(admin_token))
+    ).json()
+    plant = (
+        await client.post(
+            f"{ORGANIZATIONS}/{org['id']}/plants", json={"name": "Plant"}, headers=auth(admin_token)
+        )
+    ).json()
+    area = (
+        await client.post(
+            f"/api/v1/plants/{plant['id']}/areas", json={"name": "Area"}, headers=auth(admin_token)
+        )
+    ).json()
+    await bind(client, admin_token, user_id, area["id"])
 
     response = await client.get(ORGANIZATIONS, headers=auth(viewer_token))
 
@@ -543,3 +644,111 @@ async def test_the_row_survives_in_the_organizations_table_by_name(
         found = await session.get(Organization, row.id)
         assert found is not None
         assert found.name == "Model Check Co"
+
+
+# --------------------------------------------------------------------------- #
+# 3. The scope invariant, across every governed surface
+# --------------------------------------------------------------------------- #
+
+
+async def test_the_scope_invariant_holds_across_every_governed_surface(
+    client: AsyncClient,
+    sessions: async_sessionmaker[AsyncSession],
+) -> None:
+    """Same permission + same role + different scope must always be 403.
+
+    Phase 6.13-D turns this into the invariant the platform is judged by:
+    every surface declared device-scoped (alarms, configurations,
+    connectivity, assets) refuses out-of-scope access the same way, and the
+    organization hierarchy read boundary refuses the equivalent cross-scope
+    read. A new surface that forgets the scope check fails here.
+    """
+
+    await make_user(sessions, "admin.one", "ADMIN")
+    admin_token = await token_for(client, "admin.one")
+    user_id = await make_user(sessions, "operator.one", "OPERATOR")
+    operator_token = await token_for(client, "operator.one")
+
+    _, area_id = await build_hierarchy(client, sessions, admin_token, device="MOTOR-IN")
+    await bind(client, admin_token, user_id, area_id)
+    out_alarm = await seed_alarm(sessions, "MOTOR-OUT")
+
+    alarm = await client.post(
+        f"/api/v1/alarms/{out_alarm}/acknowledge", json={}, headers=auth(operator_token)
+    )
+    assert alarm.status_code == 403
+    assert alarm.json()["error"]["code"] == "SCOPE_DENIED"
+
+    configuration = await client.get(
+        "/api/v1/devices/MOTOR-OUT/configurations", headers=auth(operator_token)
+    )
+    assert configuration.status_code == 403
+    assert configuration.json()["error"]["code"] == "SCOPE_DENIED"
+
+    connectivity = await client.post(
+        "/api/v1/connectivity/devices/MOTOR-OUT/start", headers=auth(operator_token)
+    )
+    assert connectivity.status_code == 403
+    assert connectivity.json()["error"]["code"] == "SCOPE_DENIED"
+
+    attach = await client.put(
+        f"/api/v1/assets/{uuid4()}/devices/MOTOR-OUT", headers=auth(operator_token)
+    )
+    assert attach.status_code == 403
+    assert attach.json()["error"]["code"] == "SCOPE_DENIED"
+
+
+async def test_device_master_mutations_are_governed_and_attributed(
+    client: AsyncClient, sessions: async_sessionmaker[AsyncSession]
+) -> None:
+    """Phase 6.13-D: device CRUD is a business mutation.
+
+    It requires a permission (``asset.manage``, held by OPERATOR and ADMIN)
+    and the resulting audit rows carry the authenticated caller's
+    ``actor_user_id`` — never the legacy ``X-Actor`` label.
+    """
+
+    await make_user(sessions, "admin.one", "ADMIN")
+    admin_token = await token_for(client, "admin.one")
+
+    anonymous = await client.post(
+        "/api/v1/devices",
+        json={"device_id": "MOTOR-NEW", "device_type": "MOTOR", "name": "Motor New"},
+    )
+    assert anonymous.status_code == 401
+
+    created = await client.post(
+        "/api/v1/devices",
+        json={"device_id": "MOTOR-NEW", "device_type": "MOTOR", "name": "Motor New"},
+        headers=auth(admin_token),
+    )
+    assert created.status_code == 201, created.text
+
+    updated = await client.patch(
+        "/api/v1/devices/MOTOR-NEW", json={"name": "Motor Renamed"}, headers=auth(admin_token)
+    )
+    assert updated.status_code == 200, updated.text
+
+    admin_id = await _admin_id(sessions, "admin.one")
+    for action in ("DEVICE_CREATED", "DEVICE_UPDATED"):
+        rows = await events(sessions, action=action, resource="MOTOR-NEW")
+        assert rows, f"no {action} audit row"
+        assert rows[-1].actor == "admin.one"
+        assert rows[-1].actor_user_id == admin_id
+
+
+async def test_device_master_mutations_require_the_manage_permission(
+    client: AsyncClient, sessions: async_sessionmaker[AsyncSession]
+) -> None:
+    """A viewer holds no ``asset.manage`` and is refused with 403."""
+
+    await make_user(sessions, "viewer.one", "VIEWER")
+    viewer_token = await token_for(client, "viewer.one")
+
+    response = await client.post(
+        "/api/v1/devices",
+        json={"device_id": "MOTOR-DENIED", "device_type": "MOTOR", "name": "Denied"},
+        headers=auth(viewer_token),
+    )
+    assert response.status_code == 403
+    assert response.json()["error"]["code"] == "PERMISSION_DENIED"

@@ -214,10 +214,14 @@ itself, so the policy cannot drift between surfaces.
 
 | Caller shape | Resolved reach |
 |---|---|
-| Holds the `*` wildcard (ADMIN) | Everything, always. Bindings cannot shrink ADMIN |
-| No bindings at all | Everything. The documented migration default: every operator created before 6.13-B has no bindings, and silently shrinking their reach to zero would lock a working plant |
+| Holds the `*` wildcard (ADMIN) | Everything, always. Bindings cannot shrink ADMIN. Unrestricted comes only from a real RBAC wildcard grant |
+| No bindings at all | **Nothing** (Phase 6.13-D deny-by-default). The 6.13-B migration default is removed; an unbound operator is refused with `403 SCOPE_DENIED` and must be provisioned by binding. `scripts/check_scope_readiness.py` lists exactly these identities before deployment |
 | Bound to one or more subtrees | Exactly the devices associated (via `device_scopes`) with the areas inside those subtrees |
 | Bound, but the subtree has no assigned devices | Nothing. An empty answer denies |
+
+The three answers are named explicitly (`ScopeAccessMode`: `UNRESTRICTED`,
+`SCOPED`, `DENIED`) so no code path can confuse "admin", "no bindings", and
+"unknown state" — `None` no longer means three different things.
 
 Out-of-scope access is refused with `403 SCOPE_DENIED` and audited as
 `action=scope.denied`, `status=DENIED`, with the acting identity and the
@@ -230,6 +234,19 @@ alarm list filter, every device-configuration route, connectivity
 detail/start/stop, and asset attach/detach. The alarm list narrows to the
 caller's reachable device set instead of failing, so a plant-scoped operator
 sees their plant's alarms and nobody else's.
+
+Phase 6.13-D adds the organization read boundary: `GET /organizations`,
+`GET /organizations/{id}`, the plant and area list routes, and their detail
+lookups return only the hierarchy rows the caller's bindings cover — bound
+subtree, its ancestors, and its descendants. A caller bound to Plant A cannot
+read Plant B's organizations, plants, or areas; the cross-scope detail read is
+`403 SCOPE_DENIED` with an audit row, and the cross-scope rows simply do not
+appear in lists.
+
+Phase 6.13-D also governs the device master-data mutations: `POST
+/api/v1/devices` and `PATCH /api/v1/devices/{id}` require `asset.manage`.
+Device reads are not scope-filtered — device master data has not been declared
+scope-governed — and that boundary is recorded as a known limitation.
 
 ## Governance: policy above RBAC (Phase 6.13-C)
 
@@ -254,8 +271,23 @@ edit, the same way every route inherits RBAC.
 Multiple condition keys compose with AND. An unknown condition key is a
 write-time rejection (422 `POLICY_CONDITION_INVALID`), and a rule edited
 out-of-band into an unsupported shape is inert at evaluation time rather than
-fatal: it must never turn governed routes into 500s. A disabled policy is
-skipped entirely.
+fatal: it must never turn governed routes into 500s. Inert no longer means
+silent (Phase 6.13-D): the evaluation emits a structured warning naming the
+policy, increments `governance_invalid_policy_total`, and the compliance
+dashboard reports the invalid count. A disabled policy is skipped entirely.
+
+Phase 6.13-D closes the fail-open paths:
+
+| Situation | Behaviour |
+|---|---|
+| No matching enabled DENY policy | The RBAC + scope answer stands (`ALLOW`) |
+| Policy matches | `403 POLICY_DENIED`, audited before the raise |
+| Stored condition the engine cannot interpret | Rule inert for the request; structured warning + `governance_invalid_policy_total` + dashboard invalid count |
+| Governance database unavailable | `503 GOVERNANCE_UNAVAILABLE` — never an `ALLOW` |
+| Unexpected evaluator exception | `503 GOVERNANCE_UNAVAILABLE`, counted in `governance_evaluation_error_total`, structured log |
+
+The database session is a required dependency of evaluation; the former
+`session=None → allowed` test-compatibility branch is removed.
 
 A refusal is `403 POLICY_DENIED`, audited as `action=POLICY_DENIED`,
 `status=DENIED`, with the policy name, permission, method, path, and acting
@@ -315,6 +347,38 @@ The limiter **fails open** when Redis is unreachable, and logs that it did. This
 is a deliberate trade: the alternative is locking every operator out of a working
 platform because a cache is down. It is recorded here as a known limitation
 rather than hidden.
+
+## Governance invariants and readiness (Phase 6.13-D)
+
+Three structural guarantees keep the boundary from eroding as routes are
+added.
+
+**Mutation invariant.** Every `POST`/`PUT`/`PATCH`/`DELETE` under `/api` must
+declare a permission in its dependency tree, or appear on the explicit
+exception list (`test_route_coverage.py`): the auth bootstrap endpoints
+(`login`, `register`) and the read-shaped query POSTs (`knowledge/search`,
+`knowledge-context`), each with a written justification. There is no third
+category. The check walks the real route table, so a route shipped without
+its dependency fails the build.
+
+**No mutation on denial.** A `PERMISSION_DENIED`, `SCOPE_DENIED`, or
+`POLICY_DENIED` refusal happens before the route body; the tests assert the
+refused business object is unchanged (an alarm stays unacknowledged, a change
+record stays `DRAFT`, a gateway operation never starts).
+
+**Readiness.** `/ready` now includes a `security` check: the database is
+reachable, the applied `alembic_version` equals the head of the repository's
+migration scripts (read at probe time, never hardcoded), and the governance
+tables exist. Because enforcement is fail-closed, a stale or missing data
+layer means every governed request would be refused — the platform reports
+`not_ready` (503) instead of advertising itself while its governance layer is
+down. `/health` stays lightweight and carries no governance semantics.
+
+**Metrics.** Five label-free counters (low cardinality by design; the audit
+trail answers "who/where", the counters answer "how much"):
+`security_permission_denied_total`, `security_scope_denied_total`,
+`governance_policy_denied_total`, `governance_evaluation_error_total`,
+`governance_invalid_policy_total`.
 
 ## Audit
 

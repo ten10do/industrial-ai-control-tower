@@ -43,6 +43,12 @@ REQUIRED_METRIC_NAMES = (
     "workflow_failed_total",
     "mqtt_reconnect_total",
     "background_task_failure_total",
+    # Phase 6.13-D security / governance counters.
+    "security_permission_denied_total",
+    "security_scope_denied_total",
+    "governance_policy_denied_total",
+    "governance_evaluation_error_total",
+    "governance_invalid_policy_total",
 )
 
 
@@ -84,8 +90,28 @@ class _NullSessionContext:
 
 
 class _NullSession:
-    async def execute(self, statement: Any) -> None:
+    async def execute(self, statement: Any, parameters: Any = None) -> Any:
+        # The readiness probe asks three kinds of question. The plain
+        # "SELECT 1" needs no answer shape, the migration probe needs a
+        # current revision, and the table probe needs a non-null regclass —
+        # a stub that always answers "migrated and present" models a
+        # healthy data layer for the other readiness checks.
+        from app.security.readiness import expected_migration_head
+
+        sql = str(statement)
+        if "version_num" in sql:
+            return _FakeResult(expected_migration_head())
+        if "to_regclass" in sql:
+            return _FakeResult("table")
         return None
+
+
+class _FakeResult:
+    def __init__(self, value: Any) -> None:
+        self._value = value
+
+    def scalar_one(self) -> Any:
+        return self._value
 
 
 class FakeRedis:
@@ -154,6 +180,7 @@ def test_ready_all_dependencies_ok(stub_dependencies: None, fast_retry: None) ->
     assert body["status"] == "ready"
     assert body["checks"] == {
         "database": "ok",
+        "security": "ok",
         "redis": "ok",
         "mqtt": "connected",
         "model": "disabled",
@@ -168,6 +195,9 @@ def test_ready_reports_database_unavailable(stub_dependencies: None, fast_retry:
     body = response.json()
     assert body["status"] == "not_ready"
     assert body["checks"]["database"] == "unavailable"
+    # Governance enforcement fails closed, so a dead data layer also takes
+    # the security readiness check down with it.
+    assert body["checks"]["security"] == "unavailable"
     assert body["checks"]["redis"] == "ok"
 
 

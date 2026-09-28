@@ -115,6 +115,37 @@ background_task_failure_total = Counter(
     ["task"],
 )
 
+# Phase 6.13-D security / governance counters. Deliberately label-free: a
+# user_id, device_id, or trace_id label would make every refusal a new
+# Prometheus series and turn the metric into an unbounded-cardinality log.
+# The audit trail already answers "who was refused, where, when"; these
+# counters answer "how much, is it spiking".
+
+security_permission_denied_total = Counter(
+    "security_permission_denied_total",
+    "Requests refused by the RBAC permission check.",
+)
+
+security_scope_denied_total = Counter(
+    "security_scope_denied_total",
+    "Requests refused because the resource lies outside the caller's scope.",
+)
+
+governance_policy_denied_total = Counter(
+    "governance_policy_denied_total",
+    "Requests refused by an enabled governance DENY policy.",
+)
+
+governance_evaluation_error_total = Counter(
+    "governance_evaluation_error_total",
+    "Policy evaluations that failed instead of producing a decision; each one is a 503.",
+)
+
+governance_invalid_policy_total = Counter(
+    "governance_invalid_policy_total",
+    "Policy evaluations that met a stored rule the engine cannot interpret.",
+)
+
 
 def set_alarm_active_count(value: int) -> None:
     """Publish the scrape-time active-alarm gauge value."""

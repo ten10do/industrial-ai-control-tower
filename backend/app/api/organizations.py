@@ -42,6 +42,13 @@ from app.security.models import User
 from app.security.org_models import Area, DeviceScope, Organization, Plant, ScopeLevel, UserScope
 from app.security.rbac import ORG_MANAGE, ORG_READ, SCOPE_MANAGE, Principal
 from app.security.repository import UserRepository
+from app.security.scope_policy import (
+    ORG_RESOURCE,
+    PLANT_RESOURCE,
+    ScopeAccessMode,
+    ensure_organization_visible,
+    resolve_organization_access,
+)
 
 router = APIRouter(tags=["organization"])
 
@@ -188,7 +195,19 @@ def _audit(
 
 @router.get("/organizations", response_model=list[OrganizationRead])
 async def list_organizations(session: Session, principal: ReadOrg) -> list[OrganizationRead]:
+    """List the hierarchy the caller may see.
+
+    Phase 6.13-D read boundary: an unrestricted caller (the RBAC wildcard)
+    sees every organization; a bound caller sees the organizations its
+    subtrees live in; a caller with no bindings sees nothing. The filter is
+    the denial on a list route: per-row 403s would make the collection
+    unusable, so the reach itself is bounded instead.
+    """
+
+    access = await resolve_organization_access(session, principal)
     rows = list(await session.scalars(select(Organization).order_by(Organization.name)))
+    if access.mode is not ScopeAccessMode.UNRESTRICTED:
+        rows = [row for row in rows if row.id in access.organization_ids]
     return [OrganizationRead.model_validate(row) for row in rows]
 
 
@@ -220,6 +239,16 @@ async def create_organization(
 async def get_organization(
     organization_id: UUID, session: Session, principal: ReadOrg
 ) -> OrganizationRead:
+    access = await resolve_organization_access(session, principal)
+    await ensure_organization_visible(
+        session,
+        principal,
+        ORG_RESOURCE,
+        organization_id,
+        access,
+        method="GET",
+        path=f"/organizations/{organization_id}",
+    )
     return OrganizationRead.model_validate(await _require_organization(session, organization_id))
 
 
@@ -279,12 +308,24 @@ async def delete_organization(
 async def list_plants(
     organization_id: UUID, session: Session, principal: ReadOrg
 ) -> list[PlantRead]:
+    access = await resolve_organization_access(session, principal)
+    await ensure_organization_visible(
+        session,
+        principal,
+        ORG_RESOURCE,
+        organization_id,
+        access,
+        method="GET",
+        path=f"/organizations/{organization_id}/plants",
+    )
     await _require_organization(session, organization_id)
     rows = list(
         await session.scalars(
             select(Plant).where(Plant.organization_id == organization_id).order_by(Plant.name)
         )
     )
+    if access.mode is not ScopeAccessMode.UNRESTRICTED:
+        rows = [row for row in rows if row.id in access.plant_ids]
     return [PlantRead.model_validate(row) for row in rows]
 
 
@@ -362,10 +403,22 @@ async def delete_plant(
 
 @router.get("/plants/{plant_id}/areas", response_model=list[AreaRead])
 async def list_areas(plant_id: UUID, session: Session, principal: ReadOrg) -> list[AreaRead]:
+    access = await resolve_organization_access(session, principal)
+    await ensure_organization_visible(
+        session,
+        principal,
+        PLANT_RESOURCE,
+        plant_id,
+        access,
+        method="GET",
+        path=f"/plants/{plant_id}/areas",
+    )
     await _require_plant(session, plant_id)
     rows = list(
         await session.scalars(select(Area).where(Area.plant_id == plant_id).order_by(Area.name))
     )
+    if access.mode is not ScopeAccessMode.UNRESTRICTED:
+        rows = [row for row in rows if row.id in access.area_ids]
     return [AreaRead.model_validate(row) for row in rows]
 
 

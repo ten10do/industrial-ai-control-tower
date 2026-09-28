@@ -64,6 +64,7 @@ from app.ml.runtime import ModelCompatibilityError, ModelRuntime
 from app.observability.tracer import ObservableWorkflowService, WorkflowTracer
 from app.platform_observability.resilience import default_database_retry
 from app.security.context import security_context
+from app.security.readiness import security_readiness
 from app.services.diagnosis import OnlineDiagnosisCoordinator
 from app.services.telemetry import IngestionCounters
 from app.websocket.manager import WebSocketManager
@@ -436,7 +437,14 @@ async def ready(request: Request) -> JSONResponse:
     async def _probe_database() -> None:
         async with request.app.state.database.sessions() as session:
             await session.execute(text("SELECT 1"))
+            # Phase 6.13-D: governance enforcement fails closed, so its data
+            # layer is a readiness dependency like any other. The security
+            # probes ride the same retried database probe: stale security
+            # migrations or missing governance tables mean every governed
+            # request would be refused, and the platform must say not_ready.
+            dependencies["security"] = await security_readiness(session)
 
+    dependencies["security"] = "unavailable"
     try:
         # Bounded retry (3 attempts, 1s/2s/4s): a readiness probe tolerates a
         # transient blip but never hangs — exhaustion surfaces as an error.
@@ -444,6 +452,7 @@ async def ready(request: Request) -> JSONResponse:
         dependencies["postgres"] = "ok"
     except Exception:
         dependencies["postgres"] = "unavailable"
+        dependencies["security"] = "unavailable"
     try:
         await request.app.state.redis.ping()
         dependencies["redis"] = "ok"
@@ -476,7 +485,7 @@ async def ready(request: Request) -> JSONResponse:
         )
     else:
         dependencies["connectivity"] = "disabled"
-    ready_state = all(dependencies[name] == "ok" for name in ("postgres", "redis"))
+    ready_state = all(dependencies[name] == "ok" for name in ("postgres", "redis", "security"))
     if settings.diagnosis_enabled:
         ready_state = ready_state and dependencies["diagnosis"] == "loaded"
     if settings.knowledge_enabled:
@@ -487,6 +496,7 @@ async def ready(request: Request) -> JSONResponse:
         ready_state = ready_state and dependencies["connectivity"] == "available"
     checks: dict[str, str] = {
         "database": dependencies["postgres"],
+        "security": dependencies["security"],
         "redis": dependencies["redis"],
         "mqtt": dependencies["mqtt"],
         "model": (

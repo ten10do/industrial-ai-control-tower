@@ -26,9 +26,18 @@ An unknown condition key never matches (the policy is inert for that request)
 and never raises: a malformed rule must not turn every governed route into a
 500. Write-time validation in the API rejects unknown keys, so an inert policy
 requires out-of-band database editing to exist; the evaluate endpoint surfaces
-the reason either way. Denials are audited as ``POLICY_DENIED`` with the
-acting identity before the 403 is raised, exactly like ``PERMISSION_DENIED``
-and ``SCOPE_DENIED``.
+the reason either way. Phase 6.13-D removes the silence around it: an
+uninterpretable rule increments ``governance_invalid_policy_total`` and emits a
+structured warning carrying the policy name, and the compliance dashboard
+counts it, so a policy that enforces nothing is visible instead of quiet.
+
+Phase 6.13-D also closes the fail-open path. Evaluation requires a database
+session; there is no ``session=None → allowed`` compatibility branch left. A
+database failure or an unexpected evaluator error raises ``503
+GOVERNANCE_UNAVAILABLE`` — governance semantics are unavailable, so the
+request is refused, never waved through. Denials are audited as
+``POLICY_DENIED`` with the acting identity before the 403 is raised, exactly
+like ``PERMISSION_DENIED`` and ``SCOPE_DENIED``.
 """
 
 from __future__ import annotations
@@ -42,6 +51,11 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import AppError
+from app.platform_observability.metrics import (
+    governance_evaluation_error_total,
+    governance_invalid_policy_total,
+    governance_policy_denied_total,
+)
 from app.security.audit import (
     ACTION_POLICY_DENIED,
     POLICY_RESOURCE,
@@ -54,6 +68,7 @@ from app.security.rbac import Principal
 logger = logging.getLogger(__name__)
 
 POLICY_DENIED = "POLICY_DENIED"
+GOVERNANCE_UNAVAILABLE = "GOVERNANCE_UNAVAILABLE"
 
 #: Condition keys the engine understands. Anything else leaves the policy
 #: inert for the request; the API refuses to store such a rule in the first
@@ -108,14 +123,26 @@ def _matches_time_window(window: object, now: datetime) -> bool:
     return False
 
 
-def _conditions_match(conditions: dict[str, Any], principal: Principal, now: datetime) -> bool:
-    """All supported keys present must match; unsupported keys never match."""
+def _conditions_match(
+    conditions: dict[str, Any], principal: Principal, now: datetime, policy_name: str = ""
+) -> bool:
+    """All supported keys present must match; unsupported keys never match.
+
+    An unsupported key leaves the rule inert but not silent: the counter and
+    the structured warning name the policy, and the compliance dashboard
+    reports the invalid count, so a rule that enforces nothing is visible.
+    """
 
     if not conditions:
         return False
     for key, value in conditions.items():
         if key == "always":
             if value is not True:
+                governance_invalid_policy_total.inc()
+                logger.warning(
+                    "governance_policy_invalid_condition",
+                    extra={"policy": policy_name, "condition": key},
+                )
                 return False
         elif key == "roles":
             if not isinstance(value, list) or not (set(principal.roles) & set(value)):
@@ -124,13 +151,51 @@ def _conditions_match(conditions: dict[str, Any], principal: Principal, now: dat
             if not _matches_time_window(value, now):
                 return False
         else:
-            logger.warning("governance_policy_unsupported_condition", extra={"condition": key})
+            governance_invalid_policy_total.inc()
+            logger.warning(
+                "governance_policy_unsupported_condition",
+                extra={"policy": policy_name, "condition": key},
+            )
             return False
     return True
 
 
+async def _enabled_deny_policies(session: AsyncSession, permission: str) -> list[GovernancePolicy]:
+    """Load the enabled DENY policies for one permission.
+
+    Any database failure is a governance-layer failure, not an authorization
+    answer: it is counted, logged, and surfaced as ``503
+    GOVERNANCE_UNAVAILABLE``. Converting it into an empty policy list would be
+    the fail-open path this phase exists to remove.
+    """
+
+    try:
+        return list(
+            await session.scalars(
+                select(GovernancePolicy)
+                .where(
+                    GovernancePolicy.enabled.is_(True),
+                    GovernancePolicy.permission == permission,
+                    GovernancePolicy.effect == PolicyEffect.DENY.value,
+                )
+                .order_by(GovernancePolicy.name)
+            )
+        )
+    except Exception as exc:
+        governance_evaluation_error_total.inc()
+        logger.exception(
+            "governance_evaluation_failed",
+            extra={"permission": permission},
+        )
+        raise AppError(
+            GOVERNANCE_UNAVAILABLE,
+            "The governance policy backend is unavailable; the request is refused.",
+            503,
+        ) from exc
+
+
 async def evaluate(
-    session: AsyncSession | None,
+    session: AsyncSession,
     principal: Principal,
     permission: str,
     *,
@@ -138,35 +203,38 @@ async def evaluate(
 ) -> PolicyDecision:
     """Return whether any enabled policy refuses this permission right now.
 
-    ``session`` is ``None`` only when the request ran through a dependency
-    stub without a database (the platform's contract allows that: the audit
-    and policy layers are then inert for that request). Production sessions
-    are never ``None``, so this branch documents test behaviour, never a
-    production path.
+    The session is a required dependency: a caller without a database session
+    cannot reach this function, and a database failure inside it raises
+    ``503 GOVERNANCE_UNAVAILABLE`` rather than an ``allowed`` answer. There is
+    deliberately no branch that returns a decision without consulting the
+    policy store.
     """
 
-    if session is None:
-        return PolicyDecision(allowed=True)
     moment = now if now is not None else datetime.now(UTC)
-    policies = list(
-        await session.scalars(
-            select(GovernancePolicy)
-            .where(
-                GovernancePolicy.enabled.is_(True),
-                GovernancePolicy.permission == permission,
-                GovernancePolicy.effect == PolicyEffect.DENY.value,
-            )
-            .order_by(GovernancePolicy.name)
+    policies = await _enabled_deny_policies(session, permission)
+    try:
+        for policy in policies:
+            conditions = dict(policy.conditions or {})
+            if _conditions_match(conditions, principal, moment, policy.name):
+                return PolicyDecision(
+                    allowed=False,
+                    policy_name=policy.name,
+                    reason=f"Refused by governance policy {policy.name!r}.",
+                )
+    except Exception as exc:
+        # A crashing condition matcher must never be read as "no policy
+        # refused it". Same contract as a database failure: refuse, count,
+        # log.
+        governance_evaluation_error_total.inc()
+        logger.exception(
+            "governance_evaluation_failed",
+            extra={"permission": permission},
         )
-    )
-    for policy in policies:
-        conditions = dict(policy.conditions or {})
-        if _conditions_match(conditions, principal, moment):
-            return PolicyDecision(
-                allowed=False,
-                policy_name=policy.name,
-                reason=f"Refused by governance policy {policy.name!r}.",
-            )
+        raise AppError(
+            GOVERNANCE_UNAVAILABLE,
+            "The governance policy evaluator failed; the request is refused.",
+            503,
+        ) from exc
     return PolicyDecision(allowed=True)
 
 
@@ -188,6 +256,7 @@ async def ensure_policy_allows(
     decision = await evaluate(session, principal, permission)
     if decision.allowed:
         return decision
+    governance_policy_denied_total.inc()
     details: dict[str, str] = {"policy": decision.policy_name or "", "permission": permission}
     if method is not None:
         details["method"] = method
@@ -212,6 +281,7 @@ async def ensure_policy_allows(
 
 
 __all__ = [
+    "GOVERNANCE_UNAVAILABLE",
     "POLICY_DENIED",
     "POLICY_RESOURCE",
     "SUPPORTED_CONDITION_KEYS",

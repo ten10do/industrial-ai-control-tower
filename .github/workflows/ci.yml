@@ -37,6 +37,95 @@ jobs:
       - name: Test
         run: pytest
 
+  # Phase 6.13-D1: the security/governance suites make database claims
+  # (uniqueness, constraints, audit attribution, migration parity), so they
+  # must run against real PostgreSQL with the pgvector extension available,
+  # the same engine family production uses. A run without the database is a
+  # skipped suite, and a skipped suite proves nothing — that is exactly the
+  # gap this job closes.
+  security-integration:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: platform_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d platform_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+
+    env:
+      # Destructive-test safety: every database this run touches is a
+      # disposable *_test database the suites create and drop themselves.
+      ALARM_TEST_DATABASE_URL: postgresql+asyncpg://postgres:postgres@127.0.0.1:5432/alarm_security_test
+      ASSETCONFIG_TEST_DATABASE_URL: postgresql+asyncpg://postgres:postgres@127.0.0.1:5432/assetconfig_security_test
+      OBSERVABILITY_TEST_DATABASE_URL: postgresql+asyncpg://postgres:postgres@127.0.0.1:5432/observability_security_test
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+
+      - name: Migration gate
+        env:
+          DATABASE_URL: postgresql+asyncpg://postgres:postgres@127.0.0.1:5432/platform_ci
+        run: |
+          alembic upgrade head
+          alembic current
+          # The gate compares live schema state with the version scripts, so
+          # it can never pass by pointing at a stale hardcoded revision.
+          alembic check
+          current=$(alembic current | grep -oE '[0-9]{8}_[0-9]{2}' | head -1)
+          head=$(alembic heads | grep -oE '[0-9]{8}_[0-9]{2}' | head -1)
+          echo "migration gate: current=$current head=$head"
+          if [ "$current" != "$head" ]; then
+            echo "database is not at the head revision"
+            exit 1
+          fi
+
+      - name: DB-backed security and governance suites
+        run: |
+          pytest tests/security -q -rs 2>&1 | tee /tmp/security_suite.log
+          grep -E "^FAILED|^ERROR" /tmp/security_suite.log && exit 1 || true
+          # 0 skipped due to missing PostgreSQL: any skip naming a
+          # TEST_DATABASE_URL means the suite did not really run.
+          if grep -E "TEST_DATABASE_URL is not configured" /tmp/security_suite.log; then
+            echo "security suite skipped: test database was not provisioned"
+            exit 1
+          fi
+          skipped=$(grep -oE "[0-9]+ skipped" /tmp/security_suite.log | awk '{s+=$1} END {print s+0}')
+          if [ "$skipped" != "0" ]; then
+            echo "unexpected skips in the security suite: $skipped"
+            exit 1
+          fi
+
+      - name: DB-backed alarm / assetconfig / observability suites
+        run: |
+          pytest tests/incidents tests/assetconfig tests/test_observability_integration.py -q -rs 2>&1 | tee /tmp/db_suites.log
+          grep -E "^FAILED|^ERROR" /tmp/db_suites.log && exit 1 || true
+          if grep -E "TEST_DATABASE_URL is not configured" /tmp/db_suites.log; then
+            echo "db-backed suite skipped: test database was not provisioned"
+            exit 1
+          fi
+
   frontend:
     runs-on: ubuntu-latest
     defaults:

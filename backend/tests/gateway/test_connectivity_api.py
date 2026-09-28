@@ -66,21 +66,28 @@ def _gateway(sink: FakeSink, registration: FakeRegistration) -> IndustrialProtoc
 
 
 @pytest.fixture(autouse=True)
-def _acting_principal() -> Iterator[None]:
-    """Stub the authenticated caller for every test in this module.
+def _acting_principal(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
+    """Stub the authenticated caller and the governance layer for this module.
 
     ``require_permission`` pulls in the session dependency even when the
     principal itself is overridden, so both dependencies are stubbed: this
-    suite has no database and must not need one. The overrides are removed
-    afterwards so they cannot leak into another test module that drives the
-    same application object.
+    suite has no database and must not need one. Phase 6.13-D made the
+    policy engine fail closed on a missing session (503, never allow), so
+    its enforcement point is stubbed here too; the DB-backed security suite
+    is what proves real governance enforcement against PostgreSQL. The
+    overrides are removed afterwards so they cannot leak into another test
+    module that drives the same application object.
     """
 
     async def override_session() -> AsyncIterator[None]:
         yield None
 
+    async def allow_all(*args: object, **kwargs: object) -> None:
+        return None
+
     app.dependency_overrides[get_principal] = lambda: ACTING_PRINCIPAL
     app.dependency_overrides[get_session] = override_session
+    monkeypatch.setattr("app.security.dependencies.ensure_policy_allows", allow_all)
     yield
     app.dependency_overrides.pop(get_principal, None)
     app.dependency_overrides.pop(get_session, None)
