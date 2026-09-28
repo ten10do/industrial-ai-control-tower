@@ -78,7 +78,9 @@ def _load_role_ids(connection: sa.Connection) -> dict:
         ),
         {"names": sorted(GRANTS)},
     )
-    return dict(rows)
+    # dict(rows) is a trap here: CursorResult has a .keys() method, so dict()
+    # takes the mapping path and dies on subscript. Unpack the rows instead.
+    return {name: role_id for name, role_id in rows}  # noqa: C416
 
 
 def upgrade() -> None:
@@ -171,6 +173,7 @@ def upgrade() -> None:
 
 def _seed(now: datetime) -> None:
     permission_names = sorted({name for grants in GRANTS.values() for name in grants})
+    # noqa: C416 - see _load_role_ids: dict(result) takes the mapping path.
     permission_ids = {name: uuid4() for name in permission_names}
 
     op.bulk_insert(
@@ -223,14 +226,15 @@ def downgrade() -> None:
 
     permission_names = sorted({name for grants in GRANTS.values() for name in grants})
     connection = op.get_bind()
-    permission_ids = dict(
-        connection.execute(
+    permission_ids = {  # noqa: C416 - dict(result) takes the mapping path; see _load_role_ids.
+        name: permission_id
+        for name, permission_id in connection.execute(
             sa.text("SELECT name, id FROM permissions WHERE name IN :names").bindparams(
                 sa.bindparam("names", expanding=True)
             ),
             {"names": permission_names},
         )
-    )
+    }
     if permission_ids:
         connection.execute(
             delete(_role_permissions_table).where(
