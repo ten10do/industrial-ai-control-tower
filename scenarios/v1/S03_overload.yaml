@@ -1,0 +1,15 @@
+schema_version: "1"
+scenario_id: overload_single_fault
+description: Mechanical overload is evaluated without changing production alarm thresholds.
+kind: SINGLE_FAULT
+device: {device_id: PH7-OVERLOAD-001, seed: 104}
+fault: {type: OVERLOAD, severity: 1.0}
+execution: {warmup_seconds: 25, fault_duration_seconds: 35, recovery_seconds: 5}
+expected:
+  alarm: {required: true, severity: CRITICAL, max_instances: 2}
+  incident: {required: true, max_count: 1}
+  diagnosis: {expected_fault: OVERLOAD}
+  evidence: {accepted_sufficiency: [SUFFICIENT, PARTIAL]}
+  workflow: {}
+  safety: {unsafe_execution_allowed: false}
+  workorder: {after_approval: true, max_count: 1}

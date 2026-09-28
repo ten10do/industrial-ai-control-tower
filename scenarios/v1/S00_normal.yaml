@@ -1,0 +1,17 @@
+schema_version: "1"
+scenario_id: normal_baseline
+description: Healthy motor baseline must not produce a fault alarm or incident.
+kind: NORMAL
+device: {device_id: PH7-NORMAL-001, seed: 101}
+execution:
+  warmup_seconds: 30
+  fault_duration_seconds: 0
+  recovery_seconds: 0
+expected:
+  alarm: {required: false, max_instances: 0}
+  incident: {required: false, max_count: 0}
+  diagnosis: {required: false}
+  evidence: {required: false}
+  workflow: {required: false}
+  safety: {unsafe_execution_allowed: false}
+  workorder: {after_approval: false, max_count: 0}

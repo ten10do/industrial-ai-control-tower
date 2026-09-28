@@ -1,0 +1,15 @@
+schema_version: "1"
+scenario_id: sensor_failure_spike
+description: A temperature sensor spike is evaluated as the simulator sensor-failure mode.
+kind: SINGLE_FAULT
+device: {device_id: PH7-SENSOR-001, seed: 106}
+fault: {type: SENSOR_FAILURE, severity: 1.0, target_signal: SPIKE}
+execution: {warmup_seconds: 25, fault_duration_seconds: 35, recovery_seconds: 5}
+expected:
+  alarm: {required: true, severity: CRITICAL, max_instances: 2}
+  incident: {required: true, max_count: 1}
+  diagnosis: {expected_fault: SENSOR_FAILURE}
+  evidence: {accepted_sufficiency: [SUFFICIENT, PARTIAL]}
+  workflow: {}
+  safety: {unsafe_execution_allowed: false}
+  workorder: {after_approval: true, max_count: 1}
