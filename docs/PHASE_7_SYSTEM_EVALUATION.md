@@ -137,7 +137,7 @@ state machine, RBAC, governance semantics, or protocol architecture changed.
 - Frozen ML artifact and manifest: available and integrity checked
 - Local RAG index: available, but `backend/knowledge/index-v1.json` is ignored
   by Git and therefore is not reproducible in a clean CI checkout
-- CI PostgreSQL 16 + pgvector gate: implemented, awaiting remote execution
+- CI PostgreSQL 16 + pgvector deterministic scenario gate: PASS
 
 The missing tracked RAG artifact and missing real-provider run are acceptance
 blockers even after the DB-backed deterministic CI gate passes.
@@ -164,8 +164,13 @@ Local results recorded before the final report commit:
 - Environment template validation: PASS
 - Repository secret scan: PASS, 0 findings
 - Deployment foundation tests: 13 passed
-- Migration upgrade/current/check: NOT RUN (PostgreSQL unavailable)
-- CI: PENDING until the feature branch is pushed and evaluated remotely
+- Migration upgrade/current/check: PASS in CI PostgreSQL 16 + pgvector
+- CI run `36400870737`: PASS, 8/8 jobs
+- Scenario evaluation CI job: PASS; DB-backed production wiring, frozen ML
+  inference, duplicate/out-of-order behavior, and deterministic workflow
+  invariants ran without a missing-database skip
+- Security integration CI job: PASS; all security/governance and
+  alarm/assetconfig/observability DB-backed suites ran after the migration gate
 
 ## 10. Reproduction
 
