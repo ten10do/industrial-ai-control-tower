@@ -24,10 +24,12 @@ are in this file because they belong to the same phase contract.
 
 from __future__ import annotations
 
+from collections.abc import AsyncIterator
 from datetime import UTC, datetime, timedelta
 from typing import Any
 from uuid import uuid4
 
+import pytest_asyncio
 from httpx import AsyncClient, Response
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
@@ -94,6 +96,57 @@ async def seed_policy(
         await session.commit()
         await session.refresh(row)
         return row
+
+
+#: Every identity the DB-backed tests log in as. This suite never ran against a
+#: real database until Phase 6.13-D turned the CI gate on, which is when the
+#: missing registrations surfaced as INVALID_CREDENTIALS. The fixture resolves
+#: ``sessions`` lazily so the pure-function condition tests above keep passing
+#: without a database, and it runs after the per-test truncate ``sessions``
+#: performs, so the identities are never wiped mid-test.
+GOV_USERS: tuple[tuple[str, str], ...] = (
+    ("gov.admin", "ADMIN"),
+    ("gov.operator", "OPERATOR"),
+    ("gov.evaluator", "ADMIN"),
+    ("gov.evaluated", "OPERATOR"),
+    ("gov.enforcer", "ADMIN"),
+    ("gov.constrained", "OPERATOR"),
+    ("gov.freeze", "ADMIN"),
+    ("gov.resilient", "OPERATOR"),
+    ("gov.changer", "OPERATOR"),
+    ("gov.lister", "OPERATOR"),
+    ("gov.observer", "VIEWER"),
+    ("gov.canceller", "OPERATOR"),
+    ("gov.auditor", "OPERATOR"),
+    ("gov.peeper", "VIEWER"),
+    ("gov.guard", "OPERATOR"),
+    ("gov.intruder", "VIEWER"),
+    ("gov.dash.admin", "ADMIN"),
+    ("gov.dash.operator", "OPERATOR"),
+    ("gov.dash.viewer", "VIEWER"),
+    ("gov.wildcard", "ADMIN"),
+    ("gov.ledger-admin", "ADMIN"),
+    ("gov.ledger-operator", "OPERATOR"),
+    ("gov.dashboards", "ADMIN"),
+)
+
+
+@pytest_asyncio.fixture(autouse=True)
+async def seeded_gov_users(
+    sessions: async_sessionmaker[AsyncSession],
+) -> AsyncIterator[None]:
+    """Register every gov.* identity once the per-test truncate has run.
+
+    Depending on ``sessions`` directly (not lazily) is deliberate: an async
+    fixture cannot resolve another async fixture via ``getfixturevalue`` in a
+    running loop. The cost is that the pure-function condition tests also set
+    up the database in configured environments; without one they skip along
+    with the rest of the suite, which stays green either way.
+    """
+
+    for username, role in GOV_USERS:
+        await make_user(sessions, username, role)
+    yield
 
 
 # --------------------------------------------------------------------------- #
@@ -710,6 +763,9 @@ async def _seed_alarm(sessions: async_sessionmaker[AsyncSession], device_id: str
                 device_metadata={},
             )
         )
+        # The unit of work has no relationship between these two mappers (the
+        # FK is a plain string column), so flush the parent explicitly.
+        await session.flush()
         alarm = Alarm(
             device_id=device_id,
             rule_id="temperature_high",

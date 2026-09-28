@@ -39,6 +39,7 @@ CONNECTIVITY = "/api/v1/connectivity/devices/MOTOR-001/start"
 CONNECTIVITY_SUMMARY = "/api/v1/connectivity/summary"
 OBSERVABILITY = "/api/v1/observability/runs"
 CONFIGURATIONS = "/api/v1/devices/MOTOR-404/configurations"
+ORGANIZATIONS = "/api/v1/organizations"
 
 
 def auth(token: str) -> dict[str, str]:
@@ -99,6 +100,51 @@ async def seed_alarm(sessions: async_sessionmaker[AsyncSession]) -> object:
         session.add(alarm)
         await session.commit()
         return alarm.id
+
+
+async def grant_reach(
+    client: AsyncClient,
+    sessions: async_sessionmaker[AsyncSession],
+    user_id: object,
+    device_id: str,
+) -> None:
+    """Phase 6.13-D deny-by-default: reach is granted, never inherited.
+
+    The attribution claims here predate the scope gate, so each device-scoped
+    test first provisions an administrator, hangs a fresh org → plant → area
+    off it, assigns the device to that area, and binds the acting operator.
+    """
+
+    await make_user(sessions, "admin.provisioner", "ADMIN")
+    admin_token = await token_for(client, "admin.provisioner")
+    org = await client.post(
+        ORGANIZATIONS, json={"name": f"Enterprise {uuid4()}"}, headers=auth(admin_token)
+    )
+    assert org.status_code == 201, org.text
+    plant = await client.post(
+        f"{ORGANIZATIONS}/{org.json()['id']}/plants",
+        json={"name": "Plant A"},
+        headers=auth(admin_token),
+    )
+    assert plant.status_code == 201, plant.text
+    area = await client.post(
+        f"/api/v1/plants/{plant.json()['id']}/areas",
+        json={"name": "Area 1"},
+        headers=auth(admin_token),
+    )
+    assert area.status_code == 201, area.text
+    assigned = await client.put(
+        f"/api/v1/devices/{device_id}/scope",
+        json={"area_id": area.json()["id"]},
+        headers=auth(admin_token),
+    )
+    assert assigned.status_code == 200, assigned.text
+    bound = await client.put(
+        f"/api/v1/users/{user_id}/scopes",
+        json={"bindings": [{"scope_level": "AREA", "scope_id": area.json()["id"]}]},
+        headers=auth(admin_token),
+    )
+    assert bound.status_code == 200, bound.text
 
 
 # --------------------------------------------------------------------------- #
@@ -208,6 +254,7 @@ async def test_a_forged_label_does_not_become_the_audit_actor(
     user_id = await make_user(sessions, "operator.one", "OPERATOR")
     token = await token_for(client, "operator.one")
     alarm_id = await seed_alarm(sessions)
+    await grant_reach(client, sessions, user_id, "MOTOR-613")
 
     response = await client.post(
         f"{ALARMS}/{alarm_id}/acknowledge",
@@ -234,9 +281,10 @@ async def test_an_absent_label_leaves_no_legacy_metadata(
 ) -> None:
     """The metadata key appears only when a client actually sent the header."""
 
-    await make_user(sessions, "operator.one", "OPERATOR")
+    user_id = await make_user(sessions, "operator.one", "OPERATOR")
     token = await token_for(client, "operator.one")
     alarm_id = await seed_alarm(sessions)
+    await grant_reach(client, sessions, user_id, "MOTOR-613")
 
     await client.post(f"{ALARMS}/{alarm_id}/acknowledge", json={}, headers=auth(token))
 
@@ -271,6 +319,7 @@ async def test_an_alarm_acknowledgement_writes_actor_user_id(
     user_id = await make_user(sessions, "operator.one", "OPERATOR")
     token = await token_for(client, "operator.one")
     alarm_id = await seed_alarm(sessions)
+    await grant_reach(client, sessions, user_id, "MOTOR-613")
 
     response = await client.post(f"{ALARMS}/{alarm_id}/acknowledge", json={}, headers=auth(token))
 

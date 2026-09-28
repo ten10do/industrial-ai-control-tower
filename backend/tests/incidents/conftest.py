@@ -46,8 +46,10 @@ from app.models import (
     Alarm,
     Approval,
     AuditEvent,
+    ChangeRecord,
     Device,
     Diagnosis,
+    GovernancePolicy,
     Incident,
     MaintenancePlan,
     RetrievalRun,
@@ -102,6 +104,12 @@ def _tables() -> list[Any]:
         RetrievalRun.__table__,
         MaintenancePlan.__table__,
         Approval.__table__,
+        # Phase 6.13-D: policy enforcement is fail-closed, so every
+        # authenticated request reads governance_policies. Without the table
+        # the engine would answer 503 GOVERNANCE_UNAVAILABLE instead of the
+        # contract under test. No foreign keys point outward from these two.
+        GovernancePolicy.__table__,
+        ChangeRecord.__table__,
     ]
 
 

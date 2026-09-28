@@ -71,6 +71,20 @@ async def seed_device(sessions: async_sessionmaker[AsyncSession], device_id: str
 
 async def seed_alarm(sessions: async_sessionmaker[AsyncSession], device_id: str) -> object:
     async with sessions() as session:
+        # Out-of-scope devices appear in alarms but are never bound to the
+        # hierarchy, so ensure the master row exists before the FK is exercised.
+        existing = await session.scalar(select(Device).where(Device.device_id == device_id))
+        if existing is None:
+            session.add(
+                Device(
+                    device_id=device_id,
+                    device_type="MOTOR",
+                    name=device_id,
+                    status="ACTIVE",
+                    device_metadata={},
+                )
+            )
+            await session.flush()
         alarm = Alarm(
             device_id=device_id,
             rule_id="temperature_high",
@@ -203,8 +217,14 @@ async def test_deleting_a_plant_cascades_to_its_areas(
     assert deleted.status_code == 204
     gone = await client.get(f"/api/v1/plants/{plant['id']}/areas", headers=auth(token))
     assert gone.status_code == 404
-    missing = await client.get(f"/api/v1/areas/{area['id']}", headers=auth(token))
-    assert missing.status_code == 404
+    # Areas expose no read route of their own, so the cascade is proven where
+    # the ON DELETE rule actually lives: the database.
+    from uuid import UUID
+
+    from app.security.org_models import Area
+
+    async with sessions() as session:
+        assert await session.get(Area, UUID(area["id"])) is None
 
 
 async def test_user_scope_binding_replaces_wholesale(
@@ -261,6 +281,9 @@ async def test_device_scope_requires_a_known_device_and_area(
     assert unknown_device.status_code == 404
     assert unknown_device.json()["error"]["code"] == "DEVICE_NOT_FOUND"
 
+    # The area check runs after the device exists, so seed the master row and
+    # let the unknown area id produce its own 404.
+    await seed_device(sessions, "MOTOR-001")
     unknown_area = await client.put(
         "/api/v1/devices/MOTOR-001/scope",
         json={"area_id": str(uuid4())},
@@ -626,7 +649,9 @@ async def test_deleting_an_organization_removes_the_reach_it_granted(
     await client.delete(f"{ORGANIZATIONS}/{org_id}", headers=auth(admin_token))
 
     refused = await client.post(
-        f"/api/v1/alarms/{alarm_id}/clear", json={}, headers=auth(operator_token)
+        f"/api/v1/alarms/{alarm_id}/clear",
+        json={"reason": "verify the revoked reach"},
+        headers=auth(operator_token),
     )
     assert refused.status_code == 403
     assert refused.json()["error"]["code"] == "SCOPE_DENIED"

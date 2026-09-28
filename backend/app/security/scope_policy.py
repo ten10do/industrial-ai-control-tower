@@ -226,13 +226,9 @@ async def resolve_organization_access(
             area_ids.add(binding.scope_id)
 
     # Ancestors of every bound node, so the caller can navigate to its scope.
-    if plant_ids:
-        ancestor_plants = await session.execute(
-            select(Plant.id, Plant.organization_id).where(Plant.id.in_(plant_ids))
-        )
-        for plant_id, organization_id in ancestor_plants.all():
-            plant_ids.add(plant_id)
-            organization_ids.add(organization_id)
+    # Areas resolve first, then plants: an area binding reaches its
+    # organization only through the plant row the area hangs from, so the
+    # plant pass must run after the area pass has collected those plants.
     if area_ids:
         ancestor_areas = await session.execute(
             select(Area.id, Area.plant_id).where(Area.id.in_(area_ids))
@@ -240,6 +236,13 @@ async def resolve_organization_access(
         for area_id, plant_id in ancestor_areas.all():
             area_ids.add(area_id)
             plant_ids.add(plant_id)
+    if plant_ids:
+        ancestor_plants = await session.execute(
+            select(Plant.id, Plant.organization_id).where(Plant.id.in_(plant_ids))
+        )
+        for plant_id, organization_id in ancestor_plants.all():
+            plant_ids.add(plant_id)
+            organization_ids.add(organization_id)
 
     # Descendants of every bound node, because binding a subtree means seeing
     # everything inside it.

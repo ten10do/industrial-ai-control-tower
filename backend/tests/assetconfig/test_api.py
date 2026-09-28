@@ -570,10 +570,13 @@ async def test_the_legacy_actor_header_is_metadata_not_attribution(
     )
     assert created.status_code == 201
     events = (await client.get(f"{V1}/devices/MOTOR-001/configuration-audit")).json()
-    created_event = next(e for e in events if e["event_type"] == "CONFIG_DRAFT_CREATED")
+    # The audit trail is newest-first, so target the second draft explicitly
+    # by version rather than relying on list order.
+    created_event = next(
+        e for e in events if e["event_type"] == "CONFIG_DRAFT_CREATED" and e["config_version"] == 2
+    )
     assert created_event["actor"] == "operator.one"
     assert created_event["device_id"] == "MOTOR-001"
-    assert created_event["config_version"] == 1
 
 
 async def test_the_actor_is_the_authenticated_identity_without_a_header(

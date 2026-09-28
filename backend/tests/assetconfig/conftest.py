@@ -46,7 +46,7 @@ from app.assetconfig.models import (
     DeviceConfigurationRuntimeStatus,
 )
 from app.gateway.models import CANONICAL_SIGNAL_FIELDS, DeviceDefinition
-from app.models import Alarm, AuditEvent, Device, Telemetry
+from app.models import Alarm, AuditEvent, ChangeRecord, Device, GovernancePolicy, Telemetry
 
 TEST_DATABASE_ENV = "ASSETCONFIG_TEST_DATABASE_URL"
 ADMIN_DATABASE = "postgres"
@@ -75,7 +75,12 @@ def test_database_url() -> str:
 
 
 def _tables() -> list[Any]:
+    # Phase 6.13-D: policy enforcement is fail-closed, so every authenticated
+    # request reads governance_policies. Without the table the engine would
+    # answer 503 GOVERNANCE_UNAVAILABLE instead of the contract under test.
     return [
+        GovernancePolicy.__table__,
+        ChangeRecord.__table__,
         Device.__table__,
         AssetNode.__table__,
         DeviceConfiguration.__table__,
