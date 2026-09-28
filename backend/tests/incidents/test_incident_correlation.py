@@ -139,6 +139,8 @@ async def test_attaching_is_idempotent(session: AsyncSession) -> None:
     alarm = await make_alarm(session, "MOTOR-001", started_at=utc(2026, 9, 23, 10, 0))
     service = IncidentCorrelationService(session)
     incident, _ = await service.correlate_alarm(alarm)
+    later = utc(2026, 9, 23, 10, 5)
+    alarm.last_triggered_at = later
 
     first = await service.attach_alarm_to_incident(incident, alarm)
     second = await service.attach_alarm_to_incident(incident, alarm)
@@ -151,6 +153,7 @@ async def test_attaching_is_idempotent(session: AsyncSession) -> None:
     assert len(list(links)) == 1
     counts = await session.scalars(select(func.count()).select_from(IncidentAlarm))
     assert counts.one() == 1
+    assert incident.last_alarm_at == later
 
 
 async def test_attaching_across_devices_is_refused(session: AsyncSession) -> None:

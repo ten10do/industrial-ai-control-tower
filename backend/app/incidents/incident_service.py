@@ -314,6 +314,12 @@ class IncidentCorrelationService:
             )
         link = await self.links.link(incident.id, alarm.id)
         if link is None:
+            # The relation is already present, but the same open alarm instance
+            # may have received a newer breach since it was first linked. Keep
+            # the incident's correlation anchor current without creating a
+            # second link or audit event.
+            self._absorb_alarm(incident, alarm)
+            await self.session.flush()
             return False
         self._absorb_alarm(incident, alarm)
         await self.session.flush()
