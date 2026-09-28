@@ -112,9 +112,9 @@ code is caught instead of tolerated.
 
 | Role | Grants | Intent |
 |---|---|---|
-| `ADMIN` | `*`, `user.manage`, `org.manage`, `scope.manage` | Unrestricted authority, including identity, role, and enterprise-structure management |
-| `OPERATOR` | `telemetry.read`, `dashboard.read`, `incident.read`, `incident.create`, `incident.ack`, `incident.investigate`, `incident.resolve`, `incident.close`, `incident.reopen`, `workflow.read`, `workflow.start`, `workflow.cancel`, `approval.read`, `approval.review`, `workorder.read`, `alarm.read`, `alarm.ack`, `alarm.clear`, `alarmrule.read`, `alarmrule.create`, `alarmrule.update`, `asset.read`, `asset.manage`, `config.read`, `config.write`, `config.publish`, `connectivity.read`, `connectivity.control`, `observability.read`, `org.read` | Runs the plant loop: incidents, decisions, alarms, configuration, connectivity |
-| `VIEWER` | `telemetry.read`, `dashboard.read`, `incident.read`, `workflow.read`, `approval.read`, `workorder.read`, `alarm.read`, `alarmrule.read`, `asset.read`, `config.read`, `connectivity.read`, `observability.read`, `org.read` | Read-only observer |
+| `ADMIN` | `*`, `user.manage`, `org.manage`, `scope.manage`, `governance.manage` | Unrestricted authority, including identity, role, enterprise-structure, and policy management |
+| `OPERATOR` | `telemetry.read`, `dashboard.read`, `incident.read`, `incident.create`, `incident.ack`, `incident.investigate`, `incident.resolve`, `incident.close`, `incident.reopen`, `workflow.read`, `workflow.start`, `workflow.cancel`, `approval.read`, `approval.review`, `workorder.read`, `alarm.read`, `alarm.ack`, `alarm.clear`, `alarmrule.read`, `alarmrule.create`, `alarmrule.update`, `asset.read`, `asset.manage`, `config.read`, `config.write`, `config.publish`, `connectivity.read`, `connectivity.control`, `observability.read`, `org.read`, `audit.read`, `governance.read`, `change.read`, `change.manage` | Runs the plant loop: incidents, decisions, alarms, configuration, connectivity, changes |
+| `VIEWER` | `telemetry.read`, `dashboard.read`, `incident.read`, `workflow.read`, `approval.read`, `workorder.read`, `alarm.read`, `alarmrule.read`, `asset.read`, `config.read`, `connectivity.read`, `observability.read`, `org.read`, `governance.read`, `change.read` | Read-only observer |
 
 `*` is reserved for `ADMIN`. It is an **exact-match** grant, checked as
 `permission in permissions`, not an `fnmatch` pattern. A permission that
@@ -179,6 +179,16 @@ this matrix, so a route added without a permission fails the build.
 | DELETE | `/api/v1/organizations/{id}`, `/api/v1/plants/{id}`, `/api/v1/areas/{id}` | `org.manage` |
 | GET | `/api/v1/users/{id}/scopes`, `/api/v1/devices/{id}/scope` | `scope.manage` |
 | PUT | `/api/v1/users/{id}/scopes`, `/api/v1/devices/{id}/scope` | `scope.manage` |
+| GET | `/api/v1/governance/audit`, `/api/v1/governance/security-events` | `audit.read` |
+| GET | `/api/v1/governance/compliance/dashboard`, `/api/v1/governance/policies`, `/api/v1/governance/policies/{id}` | `governance.read` |
+| POST | `/api/v1/governance/policies/evaluate` | `governance.read` |
+| POST | `/api/v1/governance/policies` | `governance.manage` |
+| PATCH | `/api/v1/governance/policies/{id}` | `governance.manage` |
+| DELETE | `/api/v1/governance/policies/{id}` | `governance.manage` |
+| GET | `/api/v1/governance/changes`, `/api/v1/governance/changes/{id}` | `change.read` |
+| POST | `/api/v1/governance/changes` | `change.manage` |
+| PATCH | `/api/v1/governance/changes/{id}` | `change.manage` |
+| POST | `/api/v1/governance/changes/{id}/transition` | `change.manage` |
 
 The legacy `/api` prefix mirrors `/api/v1` and enforces exactly the same
 permissions; a test asserts that every mirror declares what its `/api/v1`
@@ -220,6 +230,46 @@ alarm list filter, every device-configuration route, connectivity
 detail/start/stop, and asset attach/detach. The alarm list narrows to the
 caller's reachable device set instead of failing, so a plant-scoped operator
 sees their plant's alarms and nobody else's.
+
+## Governance: policy above RBAC (Phase 6.13-C)
+
+A permission answers *what*; the scope layer answers *where*. Phase 6.13-C adds
+the answer to *when*: a governance policy can refuse a permission that RBAC
+grants, for as long as the rule is enabled. A policy never grants — it can only
+refuse — so removing the governance layer always leaves exactly the RBAC
+answer, and no second authorization system exists.
+
+**All policy decisions live in one module.** `app/security/policy_engine.py`
+evaluates `governance_policies`; the single enforcement point is
+`require_permission`, which asks RBAC first and the Policy Engine second. Every
+governed route in the platform inherits policy evaluation without a per-route
+edit, the same way every route inherits RBAC.
+
+| Policy condition | Matches when |
+|---|---|
+| `{"always": true}` | Every request. This is the change freeze: an unconditional DENY binds everyone, including ADMIN, because governance boundaries sit above RBAC |
+| `{"roles": ["OPERATOR", …]}` | The caller holds any of the listed roles |
+| `{"time_window": {"days": [1..7], "start": "HH:MM", "end": "HH:MM"}}` | The request arrives inside the UTC window; ISO weekdays (Monday=1); a window whose end precedes its start wraps midnight |
+
+Multiple condition keys compose with AND. An unknown condition key is a
+write-time rejection (422 `POLICY_CONDITION_INVALID`), and a rule edited
+out-of-band into an unsupported shape is inert at evaluation time rather than
+fatal: it must never turn governed routes into 500s. A disabled policy is
+skipped entirely.
+
+A refusal is `403 POLICY_DENIED`, audited as `action=POLICY_DENIED`,
+`status=DENIED`, with the policy name, permission, method, path, and acting
+identity, before the route body runs. The
+`POST /governance/policies/evaluate` endpoint answers "would this caller be
+refused right now" without changing anything.
+
+Change management is the ledger, not a second approval system: a
+`change_records` row moves through
+`DRAFT → SCHEDULED → IN_PROGRESS → COMPLETED`, cancelled from `DRAFT` or
+`SCHEDULED`; scheduling requires an execution window; edits end once the
+record is scheduled. It records changes, never performs or approves them, and
+the Workflow / Approval state machines are untouched. See
+`docs/GOVERNANCE_MODEL.md` for the full model.
 
 ## Security boundary
 
@@ -294,6 +344,8 @@ Security events use a single shape:
 | Alarm acknowledged / cleared, rule authored, configuration published | the business mutation, with the authenticated actor and its `actor_user_id` (Phase 6.13-A) |
 | Organization / plant / area authored, scope bound, device assigned | the structure mutation, with the authenticated actor and its `actor_user_id` (Phase 6.13-B) |
 | Device access refused by scope | `action=scope.denied`, `status=DENIED`, with the device id and the acting identity (Phase 6.13-B) |
+| Permission refused by a governance policy | `action=POLICY_DENIED`, `status=DENIED`, with the policy name and the acting identity (Phase 6.13-C) |
+| Policy authored / updated / deleted, change record created / edited / transitioned | the governance mutation, with the authenticated actor and its `actor_user_id` (Phase 6.13-C) |
 | Workflow started | the delegation to the engine |
 | Approval decided | the human decision |
 

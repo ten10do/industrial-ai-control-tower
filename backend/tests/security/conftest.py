@@ -47,8 +47,10 @@ from app.models import (
     Alarm,
     Approval,
     AuditEvent,
+    ChangeRecord,
     Device,
     Diagnosis,
+    GovernancePolicy,
     Incident,
     MaintenancePlan,
     Permission,
@@ -122,6 +124,9 @@ def _tables() -> list[Any]:
         Area.__table__,
         UserScope.__table__,
         DeviceScope.__table__,
+        # Phase 6.13-C governance, no foreign keys outward.
+        GovernancePolicy.__table__,
+        ChangeRecord.__table__,
     ]
 
 

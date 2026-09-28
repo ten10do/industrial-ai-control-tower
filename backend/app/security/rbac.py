@@ -83,6 +83,19 @@ ORG_READ: Final[str] = "org.read"
 ORG_MANAGE: Final[str] = "org.manage"
 SCOPE_MANAGE: Final[str] = "scope.manage"
 
+# Phase 6.13-C adds the enterprise governance and compliance surface.
+# ``audit.read`` queries the audit trail (granted to OPERATOR and above: the
+# trail carries IP addresses and client descriptions, which is more than a
+# read-only observer needs). ``governance.read`` sees the compliance dashboard
+# and the policy register; ``governance.manage`` authors policy, ADMIN only.
+# ``change.read`` / ``change.manage`` follow the read/manage split of the
+# change-management ledger.
+AUDIT_READ: Final[str] = "audit.read"
+GOVERNANCE_READ: Final[str] = "governance.read"
+GOVERNANCE_MANAGE: Final[str] = "governance.manage"
+CHANGE_READ: Final[str] = "change.read"
+CHANGE_MANAGE: Final[str] = "change.manage"
+
 USER_MANAGE: Final[str] = "user.manage"
 
 ADMIN: Final[str] = "ADMIN"
@@ -98,7 +111,7 @@ DEFAULT_ROLE_NAMES: Final[tuple[str, ...]] = (ADMIN, OPERATOR, VIEWER)
 DEFAULT_REGISTRATION_ROLE: Final[str] = VIEWER
 
 ROLE_PERMISSIONS: Final[dict[str, tuple[str, ...]]] = {
-    ADMIN: (WILDCARD, USER_MANAGE, ORG_MANAGE, SCOPE_MANAGE),
+    ADMIN: (WILDCARD, USER_MANAGE, ORG_MANAGE, SCOPE_MANAGE, GOVERNANCE_MANAGE),
     OPERATOR: (
         TELEMETRY_READ,
         DASHBOARD_READ,
@@ -130,6 +143,10 @@ ROLE_PERMISSIONS: Final[dict[str, tuple[str, ...]]] = {
         CONNECTIVITY_CONTROL,
         OBSERVABILITY_READ,
         ORG_READ,
+        AUDIT_READ,
+        GOVERNANCE_READ,
+        CHANGE_READ,
+        CHANGE_MANAGE,
     ),
     VIEWER: (
         TELEMETRY_READ,
@@ -145,6 +162,8 @@ ROLE_PERMISSIONS: Final[dict[str, tuple[str, ...]]] = {
         CONNECTIVITY_READ,
         OBSERVABILITY_READ,
         ORG_READ,
+        GOVERNANCE_READ,
+        CHANGE_READ,
     ),
 }
 

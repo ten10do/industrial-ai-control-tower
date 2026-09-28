@@ -12,7 +12,7 @@ from fastapi.testclient import TestClient
 
 from app.api.dependencies import get_session
 from app.main import app
-from app.models import Approval, Diagnosis
+from app.models import Approval, Diagnosis, GovernancePolicy
 from app.security.dependencies import get_principal
 from app.security.rbac import (
     INCIDENT_READ,
@@ -47,6 +47,15 @@ class FakeSession:
         self.objects = objects or {}
 
     async def scalars(self, statement: Any) -> list[Any]:
+        # Phase 6.13-C: the permission dependency consults the governance
+        # policy register before the route body runs. This suite has no
+        # database and queues results only for the queries under test, so a
+        # governance query must answer "no policies" without consuming the
+        # queued results.
+        descriptions = getattr(statement, "column_descriptions", None) or []
+        entities = {item.get("entity") for item in descriptions if hasattr(item, "get")}
+        if GovernancePolicy in entities:
+            return []
         return self.scalars_results.popleft()
 
     async def scalar(self, statement: Any) -> Any:

@@ -37,6 +37,14 @@ from app.observability.models import (
     ObservabilityRun,
     ObservabilityStep,
 )
+from app.security.governance_models import (
+    ChangeRecord,
+    ChangeRisk,
+    ChangeStatus,
+    ChangeType,
+    GovernancePolicy,
+    PolicyEffect,
+)
 from app.security.models import (
     Permission,
     Role,
@@ -94,4 +102,10 @@ __all__ = [
     "UserScope",
     "DeviceScope",
     "ScopeLevel",
+    "GovernancePolicy",
+    "PolicyEffect",
+    "ChangeRecord",
+    "ChangeStatus",
+    "ChangeRisk",
+    "ChangeType",
 ]

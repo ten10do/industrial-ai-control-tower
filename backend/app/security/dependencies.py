@@ -41,6 +41,7 @@ from app.security.errors import (
     SecurityNotConfiguredError,
 )
 from app.security.models import User, UserStatus
+from app.security.policy_engine import ensure_policy_allows
 from app.security.rate_limit import client_ip
 from app.security.rbac import Principal
 from app.security.service import IdentityService
@@ -188,30 +189,47 @@ def get_request_context(request: Request) -> SecurityContext:
 
 
 def require_permission(permission: str) -> Callable[..., Awaitable[Principal]]:
-    """Build a dependency that enforces one permission on a route."""
+    """Build a dependency that enforces one permission on a route.
+
+    Two layers decide, in order, and both live in the security boundary:
+
+    1. RBAC — the caller's role must hold the permission (403
+       ``PERMISSION_DENIED`` when not).
+    2. The governance Policy Engine — an enabled governance policy may still
+       refuse it (403 ``POLICY_DENIED``), which is how a change freeze or a
+       time-bound restriction is imposed above RBAC without touching a single
+       business route.
+    """
 
     async def dependency(
         request: Request,
         principal: Annotated[Principal, Depends(get_principal)],
         session: Annotated[AsyncSession, Depends(get_session)],
     ) -> Principal:
-        if principal.has_permission(permission):
-            return principal
-        await record_security_event(
+        if not principal.has_permission(permission):
+            await record_security_event(
+                session,
+                action=ACTION_PERMISSION_DENIED,
+                resource=PERMISSION_RESOURCE,
+                resource_id=permission,
+                status=STATUS_DENIED,
+                details={
+                    "method": request.method,
+                    "path": request.url.path,
+                    "roles": list(principal.roles),
+                },
+                actor=principal.username,
+                actor_user_id=principal.user_id,
+            )
+            raise PermissionDeniedError(permission)
+        await ensure_policy_allows(
             session,
-            action=ACTION_PERMISSION_DENIED,
-            resource=PERMISSION_RESOURCE,
-            resource_id=permission,
-            status=STATUS_DENIED,
-            details={
-                "method": request.method,
-                "path": request.url.path,
-                "roles": list(principal.roles),
-            },
-            actor=principal.username,
-            actor_user_id=principal.user_id,
+            principal,
+            permission,
+            method=request.method,
+            path=request.url.path,
         )
-        raise PermissionDeniedError(permission)
+        return principal
 
     # The permission is recorded on the dependency itself so the enforcement
     # surface is introspectable. A test walks the route table and fails when a

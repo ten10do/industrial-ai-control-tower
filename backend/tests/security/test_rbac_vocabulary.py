@@ -48,13 +48,15 @@ def _load_migration(name: str) -> Any:
 
 #: Phase 6.12 seeded the original vocabulary; Phase 6.13-A added the alarm,
 #: asset-configuration, connectivity, and observability names; Phase 6.13-B
-#: added the organization and scope names. Each migration must keep producing
-#: the rows it produced on the day it ran, so none may import the code table,
-#: and the parity claim is about their *combined* seed.
+#: added the organization and scope names; Phase 6.13-C added the audit,
+#: governance, and change names. Each migration must keep producing the rows
+#: it produced on the day it ran, so none may import the code table, and the
+#: parity claim is about their *combined* seed.
 _phase612 = _load_migration("20260924_09_phase6_12_security.py")
 _phase613a = _load_migration("20260924_10_phase6_13_a_actor_migration.py")
 _phase613b = _load_migration("20260924_11_phase6_13_b_org_scope.py")
-_MIGRATIONS = (_phase612, _phase613a, _phase613b)
+_phase613c = _load_migration("20260924_12_phase6_13_c_governance.py")
+_MIGRATIONS = (_phase612, _phase613a, _phase613b, _phase613c)
 
 
 # --------------------------------------------------------------------------- #
@@ -191,6 +193,21 @@ def test_the_migration_revision_chain_is_linear() -> None:
     assert _phase613a.down_revision == "20260924_09"
     assert _phase613b.revision == "20260924_11"
     assert _phase613b.down_revision == "20260924_10"
+    assert _phase613c.revision == "20260924_12"
+    assert _phase613c.down_revision == "20260924_11"
+
+
+def test_the_governance_grants_follow_the_read_manage_split() -> None:
+    """Policy authoring stays ADMIN-only; readers vary by surface sensitivity."""
+
+    seed = _seed_of(_phase613c)
+    assert "governance.manage" in seed["ADMIN"]
+    assert "governance.manage" not in seed["OPERATOR"]
+    assert "governance.manage" not in seed["VIEWER"]
+    assert "audit.read" in seed["OPERATOR"]
+    assert "audit.read" not in seed["VIEWER"]
+    assert {"governance.read", "change.read"} <= set(seed["VIEWER"])
+    assert "change.manage" in seed["OPERATOR"]
 
 
 # --------------------------------------------------------------------------- #

@@ -23,7 +23,7 @@ what makes "who acknowledged this incident" answerable for the first time.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Final
 from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -34,6 +34,12 @@ from app.security.context import SecurityContext, security_context
 
 AUTH_RESOURCE = "auth"
 PERMISSION_RESOURCE = "permission"
+#: Phase 6.13-C: the governance Policy Engine writes refusals against this
+#: resource type, and the change-management ledger writes its mutations as
+#: ``change`` rows attributed to the authenticated caller.
+POLICY_RESOURCE = "policy"
+CHANGE_RESOURCE = "change"
+GOVERNANCE_RESOURCE = "governance"
 
 ACTION_LOGIN = "AUTH_LOGIN"
 ACTION_LOGOUT = "AUTH_LOGOUT"
@@ -41,6 +47,19 @@ ACTION_REGISTER = "AUTH_REGISTER"
 ACTION_PERMISSION_DENIED = "PERMISSION_DENIED"
 #: Phase 6.13-B: a device-scoped request refused by the Scope Policy layer.
 ACTION_SCOPE_DENIED = "SCOPE_DENIED"
+#: Phase 6.13-C: a permission granted by RBAC but refused by a governance
+#: policy (for example a change freeze refusing ``change.manage``).
+ACTION_POLICY_DENIED = "POLICY_DENIED"
+
+#: The security-boundary actions the governance audit surface filters on.
+SECURITY_EVENT_ACTIONS: Final[tuple[str, ...]] = (
+    ACTION_LOGIN,
+    ACTION_LOGOUT,
+    ACTION_REGISTER,
+    ACTION_PERMISSION_DENIED,
+    "SCOPE_DENIED",
+    ACTION_POLICY_DENIED,
+)
 
 STATUS_SUCCESS = "SUCCESS"
 STATUS_FAILURE = "FAILURE"
