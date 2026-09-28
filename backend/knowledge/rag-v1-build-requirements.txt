@@ -1,0 +1,8 @@
+# Isolated, build-only lock for the already-frozen RAG v1 artifact.
+# The production runtime continues to use pypdf 6.16.1 from requirements.txt.
+annotated-types==0.8.0
+pydantic==2.13.5
+pydantic-core==2.46.5
+pypdf==6.0.0
+typing-extensions==4.16.0
+typing-inspection==0.4.4

@@ -54,6 +54,28 @@ skipped, a changed document replaces only its affected chunks, stale documents a
 all changes commit transactionally. The Docker backend runs the same ingestion with `--if-present`
 before serving.
 
+## Reproducing the frozen RAG v1 artifact
+
+The frozen index embeds third-party text and is therefore not committed. Its versioned integrity,
+source hashes, build constraints, and retrieval gates are recorded in
+`backend/knowledge/rag-v1-manifest.json`. Reproduce it in a disposable build-only Python 3.11
+environment; the production runtime remains on the patched `pypdf==6.16.1` dependency:
+
+```bash
+python3.11 -m venv .rag-v1-build
+.rag-v1-build/bin/python -m pip install -r backend/knowledge/rag-v1-build-requirements.txt
+PYTHONPATH=backend .rag-v1-build/bin/python -m app.knowledge.reproduce
+```
+
+PowerShell uses the same inputs with `.rag-v1-build\Scripts\python.exe` and
+`$env:PYTHONPATH = (Resolve-Path backend)`. The command obtains every official source, verifies its
+size and SHA-256 before parsing, builds with the original isolated parser, forces the frozen
+cross-platform serialization, verifies artifact SHA-256, loads it through `KnowledgeIndex.load`,
+and executes both sufficient-evidence and insufficient-evidence production retrieval gates.
+
+`pypdf==6.0.0` is intentionally confined to this historical artifact builder. It must not replace
+the production dependency or parse any input whose manifest hash has not already been verified.
+
 ## Security boundary
 
 Document text is untrusted data. Retrieval returns excerpts and citations; it does not execute

@@ -1,0 +1,149 @@
+{
+  "manifest_version": "rag-artifact-manifest-v1",
+  "artifact": {
+    "version": "knowledge-index-v1",
+    "path": "backend/knowledge/index-v1.json",
+    "format": "app.knowledge.contracts.IndexArtifact JSON",
+    "created_at": "2026-09-20T02:50:25.149358+00:00",
+    "size_bytes": 22499884,
+    "sha256": "416f0781156ef4d7512274c1bbdda31cdad02aebe79b53262d2e8894cce6e947"
+  },
+  "corpus": {
+    "version": "industrial-maintenance-corpus-v1",
+    "source_catalog_path": "backend/knowledge/source_catalog.json",
+    "source_catalog_sha256": "8880160a697ee62c43182a830cb9d2be02d9cd9cffcda99fedc210d9d3a1e780",
+    "manifest_path": "backend/knowledge/knowledge_corpus_manifest.json",
+    "manifest_sha256": "c352b01ddf2d6b3c868f6a4bd5269dbfa49651b12c98ec7601d67a5e36582a47",
+    "document_count": 13,
+    "page_count": 769,
+    "chunk_count": 2149
+  },
+  "sources": [
+    {
+      "document_id": "doe-motor-sourcebook-2014",
+      "sha256": "d4b8cf6ee742935767d5c902f68b10c94de7b74a74cc8d34da1938b8c0948369",
+      "size_bytes": 2084385,
+      "source_type": "public_authoritative"
+    },
+    {
+      "document_id": "doe-extend-motor-life-2012",
+      "sha256": "fbad2d32698eb98e7986eed138d6353f323ee57bb963526ffeecb6067c238f82",
+      "size_bytes": 469788,
+      "source_type": "public_authoritative"
+    },
+    {
+      "document_id": "doe-shaft-alignment-2012",
+      "sha256": "9edf460a75652b000c3f53d8ac5fa13735168be967dc44862c6cb0bde169635b",
+      "size_bytes": 487425,
+      "source_type": "public_authoritative"
+    },
+    {
+      "document_id": "doe-motor-repair-tech-brief",
+      "sha256": "fd1aa1043fa66fefbb4d2af1cdbb9dbdea00715d86feccccdf8c5a7a4a0d97e9",
+      "size_bytes": 964571,
+      "source_type": "public_authoritative"
+    },
+    {
+      "document_id": "doe-motor-load-efficiency",
+      "sha256": "2ac369e6a157bba8e74704bb7751ff07f93288ed33b1705123a87c26c49c9b72",
+      "size_bytes": 194822,
+      "source_type": "public_authoritative"
+    },
+    {
+      "document_id": "doe-voltage-unbalance-2012",
+      "sha256": "e39afc0a4f4a5e6e7d57baf219abd23eebce7a0b21f240337d0d6e70c232530a",
+      "size_bytes": 463517,
+      "source_type": "public_authoritative"
+    },
+    {
+      "document_id": "doe-nuisance-tripping-2012",
+      "sha256": "03f9eeef5f3b1446134636c8f6be601d651706fe1e8bc33f50fbdc50496b56bb",
+      "size_bytes": 436698,
+      "source_type": "public_authoritative"
+    },
+    {
+      "document_id": "doe-oversized-motor",
+      "sha256": "68c9059238f3e0763097e083c0e8a80aa947202473ff6306f44324df7585695d",
+      "size_bytes": 165533,
+      "source_type": "public_authoritative"
+    },
+    {
+      "document_id": "doe-model-repair-specifications",
+      "sha256": "fe9aaaa9ba0bc70da766cd32c8772c650a0435055d300740c6d5d7472333f376",
+      "size_bytes": 1369675,
+      "source_type": "public_authoritative"
+    },
+    {
+      "document_id": "doe-premium-motor-handbook-2014",
+      "sha256": "bf4476ec33d7498b042d72a79d3917a16ceab8cd9279eed56437497a780fbbfc",
+      "size_bytes": 3423565,
+      "source_type": "public_authoritative"
+    },
+    {
+      "document_id": "abb-low-voltage-motors-2004",
+      "sha256": "066f08cb465a4d78b0b86b2c5c071266e50c840f215d79cf2af5f768b82ddb35",
+      "size_bytes": 220922,
+      "source_type": "public_vendor_document"
+    },
+    {
+      "document_id": "skf-bearing-maintenance-handbook",
+      "sha256": "fb187363e7909b42f448eee2f9e15881138d6ffd6176699ea315175b70101bcf",
+      "size_bytes": 14182652,
+      "source_type": "public_vendor_document"
+    },
+    {
+      "document_id": "synthetic-motor-sensor-records-v1",
+      "sha256": "7058422eae1a42f258822f514931998e42e7ed973a2ee8d1095319e78d45a88b",
+      "size_bytes": 1988,
+      "source_type": "synthetic"
+    }
+  ],
+  "chunking": {
+    "max_chunk_tokens": 220,
+    "overlap_tokens": 35,
+    "heading_aware": true,
+    "table_aware": true,
+    "pdf_parser": "pypdf==6.0.0"
+  },
+  "embedding": {
+    "model": "local-hash-embedding-v1",
+    "dimension": 384,
+    "normalization": "l2"
+  },
+  "build": {
+    "strategy": "REBUILD_FROM_TRACKED_SOURCES",
+    "tool": "python -m app.knowledge.reproduce",
+    "requirements": "backend/knowledge/rag-v1-build-requirements.txt",
+    "python": "3.11",
+    "code_version": "242e872f6abf46213cf5a4f72c7a927f338651cc",
+    "serialization": "UTF-8 JSON with two-space indentation and CRLF line endings"
+  },
+  "retrieval_gates": [
+    {
+      "name": "supported-bearing-evidence",
+      "fault_type": "BEARING_WEAR",
+      "symptoms": [
+        "high vibration bearing temperature"
+      ],
+      "pipeline": "hybrid_rerank",
+      "top_k": 5,
+      "expected_sufficiency": "SUFFICIENT",
+      "expected_first_document_id": "doe-extend-motor-life-2012",
+      "expected_first_chunk_id": "kc-02d195293637e3238356cfbe"
+    },
+    {
+      "name": "unsupported-domain-refusal",
+      "fault_type": "QUANTUM_TELEPORT",
+      "symptoms": [],
+      "pipeline": "hybrid_rerank",
+      "top_k": 5,
+      "expected_sufficiency": "INSUFFICIENT_EVIDENCE"
+    }
+  ],
+  "redistribution": {
+    "artifact_tracked": false,
+    "raw_sources_tracked": false,
+    "reason": "The index embeds third-party source text. ABB and SKF documents are local-evaluation-only and are not redistributed by this repository.",
+    "owner": "Industrial AI Control Tower maintainers"
+  }
+}
