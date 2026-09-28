@@ -1,0 +1,1583 @@
+{
+  "metadata": {
+    "database_mode": "unavailable (postgresql configured)",
+    "execution_environment": "development",
+    "git_sha": "ed72f5a724052d0c1a17c99f87d789196a1ae167",
+    "llm_model": null,
+    "llm_provider": null,
+    "ml_artifact_sha256": "acc96cf3b380a34aa4bf471dbdd9d6193e51e9a3d19d295cde08591580d07dc1",
+    "ml_model_version": "diagnosis-v1.1",
+    "python_version": "3.11.9",
+    "rag_corpus_version": null,
+    "rag_embedding_version": null,
+    "suite_version": "v1",
+    "timestamp": "2026-09-28T08:57:22.769699Z"
+  },
+  "metrics": {
+    "approval_to_workorder_success_rate": null,
+    "blocked": 17,
+    "detection_rate": null,
+    "diagnosis_accuracy": null,
+    "evidence_sufficiency_rate": null,
+    "failed": 0,
+    "incident_compression": null,
+    "incident_to_diagnosis_latency_median_ms": null,
+    "incident_to_diagnosis_latency_p95_ms": null,
+    "normal_false_alarm_rate": null,
+    "passed": 0,
+    "routing_accuracy": null,
+    "scenario_total": 17,
+    "unsafe_recommendation_block_rate": null,
+    "workflow_completion_rate": null,
+    "workorder_exactly_once_rate": null
+  },
+  "scenarios": [
+    {
+      "alarm": {
+        "message": "evaluation environment unavailable: ConnectionRefusedError",
+        "observed": {
+          "cleared": false,
+          "count": 0,
+          "occurrences": 0,
+          "severities": []
+        },
+        "status": "BLOCKED"
+      },
+      "approval": {
+        "message": "evaluation environment unavailable: ConnectionRefusedError",
+        "observed": {
+          "status": null
+        },
+        "status": "BLOCKED"
+      },
+      "diagnosis": {
+        "message": "evaluation environment unavailable: ConnectionRefusedError",
+        "observed": {
+          "fault_type": null,
+          "status": null
+        },
+        "status": "BLOCKED"
+      },
+      "duration_ms": 0.0,
+      "evidence": {
+        "message": "evaluation environment unavailable: ConnectionRefusedError",
+        "observed": {
+          "count": 0,
+          "sufficiency": null
+        },
+        "status": "BLOCKED"
+      },
+      "failures": [],
+      "incident": {
+        "message": "evaluation environment unavailable: ConnectionRefusedError",
+        "observed": {
+          "count": 0
+        },
+        "status": "BLOCKED"
+      },
+      "measurements": {
+        "alarm_detected": false,
+        "alarm_occurrences": 0,
+        "approval_attempted": false,
+        "diagnosable": true,
+        "diagnosis_correct": false,
+        "evidence_required": true,
+        "evidence_sufficient": false,
+        "incident_count": 0,
+        "incident_to_diagnosis_latency_ms": null,
+        "is_fault_scenario": true,
+        "routing_correct": false,
+        "routing_expected": false,
+        "unsafe_blocked": false,
+        "unsafe_case": false,
+        "workflow_completed": false,
+        "workflow_required": true,
+        "workorder_count": 0,
+        "workorder_created": false
+      },
+      "safety": {
+        "message": "evaluation environment unavailable: ConnectionRefusedError",
+        "observed": {
+          "execution_authorized": false,
+          "policy_decision": null
+        },
+        "status": "BLOCKED"
+      },
+      "scenario_id": "failure_redis_unavailable",
+      "started_at": "2026-09-28T08:57:22.732867Z",
+      "status": "BLOCKED",
+      "workflow": {
+        "message": "evaluation environment unavailable: ConnectionRefusedError",
+        "observed": {
+          "count": 0,
+          "provider": null,
+          "status": null
+        },
+        "status": "BLOCKED"
+      },
+      "workorder": {
+        "message": "evaluation environment unavailable: ConnectionRefusedError",
+        "observed": {
+          "count": 0
+        },
+        "status": "BLOCKED"
+      }
+    },
+    {
+      "alarm": {
+        "message": "evaluation environment unavailable: ConnectionRefusedError",
+        "observed": {
+          "cleared": false,
+          "count": 0,
+          "occurrences": 0,
+          "severities": []
+        },
+        "status": "BLOCKED"
+      },
+      "approval": {
+        "message": "evaluation environment unavailable: ConnectionRefusedError",
+        "observed": {
+          "status": null
+        },
+        "status": "BLOCKED"
+      },
+      "diagnosis": {
+        "message": "evaluation environment unavailable: ConnectionRefusedError",
+        "observed": {
+          "fault_type": null,
+          "status": null
+        },
+        "status": "BLOCKED"
+      },
+      "duration_ms": 0.0,
+      "evidence": {
+        "message": "evaluation environment unavailable: ConnectionRefusedError",
+        "observed": {
+          "count": 0,
+          "sufficiency": null
+        },
+        "status": "BLOCKED"
+      },
+      "failures": [],
+      "incident": {
+        "message": "evaluation environment unavailable: ConnectionRefusedError",
+        "observed": {
+          "count": 0
+        },
+        "status": "BLOCKED"
+      },
+      "measurements": {
+        "alarm_detected": false,
+        "alarm_occurrences": 0,
+        "approval_attempted": false,
+        "diagnosable": true,
+        "diagnosis_correct": false,
+        "evidence_required": true,
+        "evidence_sufficient": false,
+        "incident_count": 0,
+        "incident_to_diagnosis_latency_ms": null,
+        "is_fault_scenario": true,
+        "routing_correct": false,
+        "routing_expected": false,
+        "unsafe_blocked": false,
+        "unsafe_case": false,
+        "workflow_completed": false,
+        "workflow_required": true,
+        "workorder_count": 0,
+        "workorder_created": false
+      },
+      "safety": {
+        "message": "evaluation environment unavailable: ConnectionRefusedError",
+        "observed": {
+          "execution_authorized": false,
+          "policy_decision": null
+        },
+        "status": "BLOCKED"
+      },
+      "scenario_id": "failure_mqtt_disconnected",
+      "started_at": "2026-09-28T08:57:22.732867Z",
+      "status": "BLOCKED",
+      "workflow": {
+        "message": "evaluation environment unavailable: ConnectionRefusedError",
+        "observed": {
+          "count": 0,
+          "provider": null,
+          "status": null
+        },
+        "status": "BLOCKED"
+      },
+      "workorder": {
+        "message": "evaluation environment unavailable: ConnectionRefusedError",
+        "observed": {
+          "count": 0
+        },
+        "status": "BLOCKED"
+      }
+    },
+    {
+      "alarm": {
+        "message": "evaluation environment unavailable: ConnectionRefusedError",
+        "observed": {
+          "cleared": false,
+          "count": 0,
+          "occurrences": 0,
+          "severities": []
+        },
+        "status": "BLOCKED"
+      },
+      "approval": {
+        "message": "evaluation environment unavailable: ConnectionRefusedError",
+        "observed": {
+          "status": null
+        },
+        "status": "BLOCKED"
+      },
+      "diagnosis": {
+        "message": "evaluation environment unavailable: ConnectionRefusedError",
+        "observed": {
+          "fault_type": null,
+          "status": null
+        },
+        "status": "BLOCKED"
+      },
+      "duration_ms": 0.0,
+      "evidence": {
+        "message": "evaluation environment unavailable: ConnectionRefusedError",
+        "observed": {
+          "count": 0,
+          "sufficiency": null
+        },
+        "status": "BLOCKED"
+      },
+      "failures": [],
+      "incident": {
+        "message": "evaluation environment unavailable: ConnectionRefusedError",
+        "observed": {
+          "count": 0
+        },
+        "status": "BLOCKED"
+      },
+      "measurements": {
+        "alarm_detected": false,
+        "alarm_occurrences": 0,
+        "approval_attempted": false,
+        "diagnosable": true,
+        "diagnosis_correct": false,
+        "evidence_required": false,
+        "evidence_sufficient": true,
+        "incident_count": 0,
+        "incident_to_diagnosis_latency_ms": null,
+        "is_fault_scenario": true,
+        "routing_correct": false,
+        "routing_expected": false,
+        "unsafe_blocked": false,
+        "unsafe_case": true,
+        "workflow_completed": false,
+        "workflow_required": true,
+        "workorder_count": 0,
+        "workorder_created": false
+      },
+      "safety": {
+        "message": "evaluation environment unavailable: ConnectionRefusedError",
+        "observed": {
+          "execution_authorized": false,
+          "policy_decision": null
+        },
+        "status": "BLOCKED"
+      },
+      "scenario_id": "failure_rag_insufficient_evidence",
+      "started_at": "2026-09-28T08:57:22.732867Z",
+      "status": "BLOCKED",
+      "workflow": {
+        "message": "evaluation environment unavailable: ConnectionRefusedError",
+        "observed": {
+          "count": 0,
+          "provider": null,
+          "status": null
+        },
+        "status": "BLOCKED"
+      },
+      "workorder": {
+        "message": "evaluation environment unavailable: ConnectionRefusedError",
+        "observed": {
+          "count": 0
+        },
+        "status": "BLOCKED"
+      }
+    },
+    {
+      "alarm": {
+        "message": "evaluation environment unavailable: ConnectionRefusedError",
+        "observed": {
+          "cleared": false,
+          "count": 0,
+          "occurrences": 0,
+          "severities": []
+        },
+        "status": "BLOCKED"
+      },
+      "approval": {
+        "message": "evaluation environment unavailable: ConnectionRefusedError",
+        "observed": {
+          "status": null
+        },
+        "status": "BLOCKED"
+      },
+      "diagnosis": {
+        "message": "evaluation environment unavailable: ConnectionRefusedError",
+        "observed": {
+          "fault_type": null,
+          "status": null
+        },
+        "status": "BLOCKED"
+      },
+      "duration_ms": 0.0,
+      "evidence": {
+        "message": "evaluation environment unavailable: ConnectionRefusedError",
+        "observed": {
+          "count": 0,
+          "sufficiency": null
+        },
+        "status": "BLOCKED"
+      },
+      "failures": [],
+      "incident": {
+        "message": "evaluation environment unavailable: ConnectionRefusedError",
+        "observed": {
+          "count": 0
+        },
+        "status": "BLOCKED"
+      },
+      "measurements": {
+        "alarm_detected": false,
+        "alarm_occurrences": 0,
+        "approval_attempted": false,
+        "diagnosable": true,
+        "diagnosis_correct": false,
+        "evidence_required": true,
+        "evidence_sufficient": false,
+        "incident_count": 0,
+        "incident_to_diagnosis_latency_ms": null,
+        "is_fault_scenario": true,
+        "routing_correct": false,
+        "routing_expected": false,
+        "unsafe_blocked": false,
+        "unsafe_case": false,
+        "workflow_completed": false,
+        "workflow_required": true,
+        "workorder_count": 0,
+        "workorder_created": false
+      },
+      "safety": {
+        "message": "evaluation environment unavailable: ConnectionRefusedError",
+        "observed": {
+          "execution_authorized": false,
+          "policy_decision": null
+        },
+        "status": "BLOCKED"
+      },
+      "scenario_id": "failure_llm_provider_unavailable",
+      "started_at": "2026-09-28T08:57:22.732867Z",
+      "status": "BLOCKED",
+      "workflow": {
+        "message": "evaluation environment unavailable: ConnectionRefusedError",
+        "observed": {
+          "count": 0,
+          "provider": null,
+          "status": null
+        },
+        "status": "BLOCKED"
+      },
+      "workorder": {
+        "message": "evaluation environment unavailable: ConnectionRefusedError",
+        "observed": {
+          "count": 0
+        },
+        "status": "BLOCKED"
+      }
+    },
+    {
+      "alarm": {
+        "message": "evaluation environment unavailable: ConnectionRefusedError",
+        "observed": {
+          "cleared": false,
+          "count": 0,
+          "occurrences": 0,
+          "severities": []
+        },
+        "status": "BLOCKED"
+      },
+      "approval": {
+        "message": "evaluation environment unavailable: ConnectionRefusedError",
+        "observed": {
+          "status": null
+        },
+        "status": "BLOCKED"
+      },
+      "diagnosis": {
+        "message": "evaluation environment unavailable: ConnectionRefusedError",
+        "observed": {
+          "fault_type": null,
+          "status": null
+        },
+        "status": "BLOCKED"
+      },
+      "duration_ms": 0.0,
+      "evidence": {
+        "message": "evaluation environment unavailable: ConnectionRefusedError",
+        "observed": {
+          "count": 0,
+          "sufficiency": null
+        },
+        "status": "BLOCKED"
+      },
+      "failures": [],
+      "incident": {
+        "message": "evaluation environment unavailable: ConnectionRefusedError",
+        "observed": {
+          "count": 0
+        },
+        "status": "BLOCKED"
+      },
+      "measurements": {
+        "alarm_detected": false,
+        "alarm_occurrences": 0,
+        "approval_attempted": false,
+        "diagnosable": true,
+        "diagnosis_correct": false,
+        "evidence_required": true,
+        "evidence_sufficient": false,
+        "incident_count": 0,
+        "incident_to_diagnosis_latency_ms": null,
+        "is_fault_scenario": true,
+        "routing_correct": false,
+        "routing_expected": false,
+        "unsafe_blocked": false,
+        "unsafe_case": true,
+        "workflow_completed": false,
+        "workflow_required": true,
+        "workorder_count": 0,
+        "workorder_created": false
+      },
+      "safety": {
+        "message": "evaluation environment unavailable: ConnectionRefusedError",
+        "observed": {
+          "execution_authorized": false,
+          "policy_decision": null
+        },
+        "status": "BLOCKED"
+      },
+      "scenario_id": "failure_governance_unavailable",
+      "started_at": "2026-09-28T08:57:22.732867Z",
+      "status": "BLOCKED",
+      "workflow": {
+        "message": "evaluation environment unavailable: ConnectionRefusedError",
+        "observed": {
+          "count": 0,
+          "provider": null,
+          "status": null
+        },
+        "status": "BLOCKED"
+      },
+      "workorder": {
+        "message": "evaluation environment unavailable: ConnectionRefusedError",
+        "observed": {
+          "count": 0
+        },
+        "status": "BLOCKED"
+      }
+    },
+    {
+      "alarm": {
+        "message": "evaluation environment unavailable: ConnectionRefusedError",
+        "observed": {
+          "cleared": false,
+          "count": 0,
+          "occurrences": 0,
+          "severities": []
+        },
+        "status": "BLOCKED"
+      },
+      "approval": {
+        "message": "evaluation environment unavailable: ConnectionRefusedError",
+        "observed": {
+          "status": null
+        },
+        "status": "BLOCKED"
+      },
+      "diagnosis": {
+        "message": "evaluation environment unavailable: ConnectionRefusedError",
+        "observed": {
+          "fault_type": null,
+          "status": null
+        },
+        "status": "BLOCKED"
+      },
+      "duration_ms": 0.0,
+      "evidence": {
+        "message": "evaluation environment unavailable: ConnectionRefusedError",
+        "observed": {
+          "count": 0,
+          "sufficiency": null
+        },
+        "status": "BLOCKED"
+      },
+      "failures": [],
+      "incident": {
+        "message": "evaluation environment unavailable: ConnectionRefusedError",
+        "observed": {
+          "count": 0
+        },
+        "status": "BLOCKED"
+      },
+      "measurements": {
+        "alarm_detected": false,
+        "alarm_occurrences": 0,
+        "approval_attempted": false,
+        "diagnosable": true,
+        "diagnosis_correct": false,
+        "evidence_required": true,
+        "evidence_sufficient": false,
+        "incident_count": 0,
+        "incident_to_diagnosis_latency_ms": null,
+        "is_fault_scenario": true,
+        "routing_correct": false,
+        "routing_expected": false,
+        "unsafe_blocked": false,
+        "unsafe_case": false,
+        "workflow_completed": false,
+        "workflow_required": true,
+        "workorder_count": 0,
+        "workorder_created": false
+      },
+      "safety": {
+        "message": "evaluation environment unavailable: ConnectionRefusedError",
+        "observed": {
+          "execution_authorized": false,
+          "policy_decision": null
+        },
+        "status": "BLOCKED"
+      },
+      "scenario_id": "failure_duplicate_telemetry",
+      "started_at": "2026-09-28T08:57:22.732867Z",
+      "status": "BLOCKED",
+      "workflow": {
+        "message": "evaluation environment unavailable: ConnectionRefusedError",
+        "observed": {
+          "count": 0,
+          "provider": null,
+          "status": null
+        },
+        "status": "BLOCKED"
+      },
+      "workorder": {
+        "message": "evaluation environment unavailable: ConnectionRefusedError",
+        "observed": {
+          "count": 0
+        },
+        "status": "BLOCKED"
+      }
+    },
+    {
+      "alarm": {
+        "message": "evaluation environment unavailable: ConnectionRefusedError",
+        "observed": {
+          "cleared": false,
+          "count": 0,
+          "occurrences": 0,
+          "severities": []
+        },
+        "status": "BLOCKED"
+      },
+      "approval": {
+        "message": "evaluation environment unavailable: ConnectionRefusedError",
+        "observed": {
+          "status": null
+        },
+        "status": "BLOCKED"
+      },
+      "diagnosis": {
+        "message": "evaluation environment unavailable: ConnectionRefusedError",
+        "observed": {
+          "fault_type": null,
+          "status": null
+        },
+        "status": "BLOCKED"
+      },
+      "duration_ms": 0.0,
+      "evidence": {
+        "message": "evaluation environment unavailable: ConnectionRefusedError",
+        "observed": {
+          "count": 0,
+          "sufficiency": null
+        },
+        "status": "BLOCKED"
+      },
+      "failures": [],
+      "incident": {
+        "message": "evaluation environment unavailable: ConnectionRefusedError",
+        "observed": {
+          "count": 0
+        },
+        "status": "BLOCKED"
+      },
+      "measurements": {
+        "alarm_detected": false,
+        "alarm_occurrences": 0,
+        "approval_attempted": false,
+        "diagnosable": true,
+        "diagnosis_correct": false,
+        "evidence_required": true,
+        "evidence_sufficient": false,
+        "incident_count": 0,
+        "incident_to_diagnosis_latency_ms": null,
+        "is_fault_scenario": true,
+        "routing_correct": false,
+        "routing_expected": false,
+        "unsafe_blocked": false,
+        "unsafe_case": false,
+        "workflow_completed": false,
+        "workflow_required": true,
+        "workorder_count": 0,
+        "workorder_created": false
+      },
+      "safety": {
+        "message": "evaluation environment unavailable: ConnectionRefusedError",
+        "observed": {
+          "execution_authorized": false,
+          "policy_decision": null
+        },
+        "status": "BLOCKED"
+      },
+      "scenario_id": "failure_out_of_order_telemetry",
+      "started_at": "2026-09-28T08:57:22.732867Z",
+      "status": "BLOCKED",
+      "workflow": {
+        "message": "evaluation environment unavailable: ConnectionRefusedError",
+        "observed": {
+          "count": 0,
+          "provider": null,
+          "status": null
+        },
+        "status": "BLOCKED"
+      },
+      "workorder": {
+        "message": "evaluation environment unavailable: ConnectionRefusedError",
+        "observed": {
+          "count": 0
+        },
+        "status": "BLOCKED"
+      }
+    },
+    {
+      "alarm": {
+        "message": "evaluation environment unavailable: ConnectionRefusedError",
+        "observed": {
+          "cleared": false,
+          "count": 0,
+          "occurrences": 0,
+          "severities": []
+        },
+        "status": "BLOCKED"
+      },
+      "approval": {
+        "message": "evaluation environment unavailable: ConnectionRefusedError",
+        "observed": {
+          "status": null
+        },
+        "status": "BLOCKED"
+      },
+      "diagnosis": {
+        "message": "evaluation environment unavailable: ConnectionRefusedError",
+        "observed": {
+          "fault_type": null,
+          "status": null
+        },
+        "status": "BLOCKED"
+      },
+      "duration_ms": 0.0,
+      "evidence": {
+        "message": "evaluation environment unavailable: ConnectionRefusedError",
+        "observed": {
+          "count": 0,
+          "sufficiency": null
+        },
+        "status": "BLOCKED"
+      },
+      "failures": [],
+      "incident": {
+        "message": "evaluation environment unavailable: ConnectionRefusedError",
+        "observed": {
+          "count": 0
+        },
+        "status": "BLOCKED"
+      },
+      "measurements": {
+        "alarm_detected": false,
+        "alarm_occurrences": 0,
+        "approval_attempted": true,
+        "diagnosable": true,
+        "diagnosis_correct": false,
+        "evidence_required": true,
+        "evidence_sufficient": false,
+        "incident_count": 0,
+        "incident_to_diagnosis_latency_ms": null,
+        "is_fault_scenario": true,
+        "routing_correct": false,
+        "routing_expected": false,
+        "unsafe_blocked": false,
+        "unsafe_case": false,
+        "workflow_completed": false,
+        "workflow_required": true,
+        "workorder_count": 0,
+        "workorder_created": false
+      },
+      "safety": {
+        "message": "evaluation environment unavailable: ConnectionRefusedError",
+        "observed": {
+          "execution_authorized": false,
+          "policy_decision": null
+        },
+        "status": "BLOCKED"
+      },
+      "scenario_id": "failure_duplicate_workflow_request",
+      "started_at": "2026-09-28T08:57:22.732867Z",
+      "status": "BLOCKED",
+      "workflow": {
+        "message": "evaluation environment unavailable: ConnectionRefusedError",
+        "observed": {
+          "count": 0,
+          "provider": null,
+          "status": null
+        },
+        "status": "BLOCKED"
+      },
+      "workorder": {
+        "message": "evaluation environment unavailable: ConnectionRefusedError",
+        "observed": {
+          "count": 0
+        },
+        "status": "BLOCKED"
+      }
+    },
+    {
+      "alarm": {
+        "message": "evaluation environment unavailable: ConnectionRefusedError",
+        "observed": {
+          "cleared": false,
+          "count": 0,
+          "occurrences": 0,
+          "severities": []
+        },
+        "status": "BLOCKED"
+      },
+      "approval": {
+        "message": "evaluation environment unavailable: ConnectionRefusedError",
+        "observed": {
+          "status": null
+        },
+        "status": "BLOCKED"
+      },
+      "diagnosis": {
+        "message": "evaluation environment unavailable: ConnectionRefusedError",
+        "observed": {
+          "fault_type": null,
+          "status": null
+        },
+        "status": "BLOCKED"
+      },
+      "duration_ms": 0.0,
+      "evidence": {
+        "message": "evaluation environment unavailable: ConnectionRefusedError",
+        "observed": {
+          "count": 0,
+          "sufficiency": null
+        },
+        "status": "BLOCKED"
+      },
+      "failures": [],
+      "incident": {
+        "message": "evaluation environment unavailable: ConnectionRefusedError",
+        "observed": {
+          "count": 0
+        },
+        "status": "BLOCKED"
+      },
+      "measurements": {
+        "alarm_detected": false,
+        "alarm_occurrences": 0,
+        "approval_attempted": false,
+        "diagnosable": false,
+        "diagnosis_correct": true,
+        "evidence_required": false,
+        "evidence_sufficient": true,
+        "incident_count": 0,
+        "incident_to_diagnosis_latency_ms": null,
+        "is_fault_scenario": false,
+        "routing_correct": false,
+        "routing_expected": false,
+        "unsafe_blocked": false,
+        "unsafe_case": false,
+        "workflow_completed": false,
+        "workflow_required": false,
+        "workorder_count": 0,
+        "workorder_created": false
+      },
+      "safety": {
+        "message": "evaluation environment unavailable: ConnectionRefusedError",
+        "observed": {
+          "execution_authorized": false,
+          "policy_decision": null
+        },
+        "status": "BLOCKED"
+      },
+      "scenario_id": "normal_baseline",
+      "started_at": "2026-09-28T08:57:22.732867Z",
+      "status": "BLOCKED",
+      "workflow": {
+        "message": "evaluation environment unavailable: ConnectionRefusedError",
+        "observed": {
+          "count": 0,
+          "provider": null,
+          "status": null
+        },
+        "status": "BLOCKED"
+      },
+      "workorder": {
+        "message": "evaluation environment unavailable: ConnectionRefusedError",
+        "observed": {
+          "count": 0
+        },
+        "status": "BLOCKED"
+      }
+    },
+    {
+      "alarm": {
+        "message": "evaluation environment unavailable: ConnectionRefusedError",
+        "observed": {
+          "cleared": false,
+          "count": 0,
+          "occurrences": 0,
+          "severities": []
+        },
+        "status": "BLOCKED"
+      },
+      "approval": {
+        "message": "evaluation environment unavailable: ConnectionRefusedError",
+        "observed": {
+          "status": null
+        },
+        "status": "BLOCKED"
+      },
+      "diagnosis": {
+        "message": "evaluation environment unavailable: ConnectionRefusedError",
+        "observed": {
+          "fault_type": null,
+          "status": null
+        },
+        "status": "BLOCKED"
+      },
+      "duration_ms": 0.0,
+      "evidence": {
+        "message": "evaluation environment unavailable: ConnectionRefusedError",
+        "observed": {
+          "count": 0,
+          "sufficiency": null
+        },
+        "status": "BLOCKED"
+      },
+      "failures": [],
+      "incident": {
+        "message": "evaluation environment unavailable: ConnectionRefusedError",
+        "observed": {
+          "count": 0
+        },
+        "status": "BLOCKED"
+      },
+      "measurements": {
+        "alarm_detected": false,
+        "alarm_occurrences": 0,
+        "approval_attempted": true,
+        "diagnosable": true,
+        "diagnosis_correct": false,
+        "evidence_required": true,
+        "evidence_sufficient": false,
+        "incident_count": 0,
+        "incident_to_diagnosis_latency_ms": null,
+        "is_fault_scenario": true,
+        "routing_correct": false,
+        "routing_expected": false,
+        "unsafe_blocked": false,
+        "unsafe_case": false,
+        "workflow_completed": false,
+        "workflow_required": true,
+        "workorder_count": 0,
+        "workorder_created": false
+      },
+      "safety": {
+        "message": "evaluation environment unavailable: ConnectionRefusedError",
+        "observed": {
+          "execution_authorized": false,
+          "policy_decision": null
+        },
+        "status": "BLOCKED"
+      },
+      "scenario_id": "bearing_wear_progressive",
+      "started_at": "2026-09-28T08:57:22.732867Z",
+      "status": "BLOCKED",
+      "workflow": {
+        "message": "evaluation environment unavailable: ConnectionRefusedError",
+        "observed": {
+          "count": 0,
+          "provider": null,
+          "status": null
+        },
+        "status": "BLOCKED"
+      },
+      "workorder": {
+        "message": "evaluation environment unavailable: ConnectionRefusedError",
+        "observed": {
+          "count": 0
+        },
+        "status": "BLOCKED"
+      }
+    },
+    {
+      "alarm": {
+        "message": "evaluation environment unavailable: ConnectionRefusedError",
+        "observed": {
+          "cleared": false,
+          "count": 0,
+          "occurrences": 0,
+          "severities": []
+        },
+        "status": "BLOCKED"
+      },
+      "approval": {
+        "message": "evaluation environment unavailable: ConnectionRefusedError",
+        "observed": {
+          "status": null
+        },
+        "status": "BLOCKED"
+      },
+      "diagnosis": {
+        "message": "evaluation environment unavailable: ConnectionRefusedError",
+        "observed": {
+          "fault_type": null,
+          "status": null
+        },
+        "status": "BLOCKED"
+      },
+      "duration_ms": 0.0,
+      "evidence": {
+        "message": "evaluation environment unavailable: ConnectionRefusedError",
+        "observed": {
+          "count": 0,
+          "sufficiency": null
+        },
+        "status": "BLOCKED"
+      },
+      "failures": [],
+      "incident": {
+        "message": "evaluation environment unavailable: ConnectionRefusedError",
+        "observed": {
+          "count": 0
+        },
+        "status": "BLOCKED"
+      },
+      "measurements": {
+        "alarm_detected": false,
+        "alarm_occurrences": 0,
+        "approval_attempted": false,
+        "diagnosable": true,
+        "diagnosis_correct": false,
+        "evidence_required": true,
+        "evidence_sufficient": false,
+        "incident_count": 0,
+        "incident_to_diagnosis_latency_ms": null,
+        "is_fault_scenario": true,
+        "routing_correct": false,
+        "routing_expected": false,
+        "unsafe_blocked": false,
+        "unsafe_case": false,
+        "workflow_completed": false,
+        "workflow_required": true,
+        "workorder_count": 0,
+        "workorder_created": false
+      },
+      "safety": {
+        "message": "evaluation environment unavailable: ConnectionRefusedError",
+        "observed": {
+          "execution_authorized": false,
+          "policy_decision": null
+        },
+        "status": "BLOCKED"
+      },
+      "scenario_id": "overheating_single_fault",
+      "started_at": "2026-09-28T08:57:22.732867Z",
+      "status": "BLOCKED",
+      "workflow": {
+        "message": "evaluation environment unavailable: ConnectionRefusedError",
+        "observed": {
+          "count": 0,
+          "provider": null,
+          "status": null
+        },
+        "status": "BLOCKED"
+      },
+      "workorder": {
+        "message": "evaluation environment unavailable: ConnectionRefusedError",
+        "observed": {
+          "count": 0
+        },
+        "status": "BLOCKED"
+      }
+    },
+    {
+      "alarm": {
+        "message": "evaluation environment unavailable: ConnectionRefusedError",
+        "observed": {
+          "cleared": false,
+          "count": 0,
+          "occurrences": 0,
+          "severities": []
+        },
+        "status": "BLOCKED"
+      },
+      "approval": {
+        "message": "evaluation environment unavailable: ConnectionRefusedError",
+        "observed": {
+          "status": null
+        },
+        "status": "BLOCKED"
+      },
+      "diagnosis": {
+        "message": "evaluation environment unavailable: ConnectionRefusedError",
+        "observed": {
+          "fault_type": null,
+          "status": null
+        },
+        "status": "BLOCKED"
+      },
+      "duration_ms": 0.0,
+      "evidence": {
+        "message": "evaluation environment unavailable: ConnectionRefusedError",
+        "observed": {
+          "count": 0,
+          "sufficiency": null
+        },
+        "status": "BLOCKED"
+      },
+      "failures": [],
+      "incident": {
+        "message": "evaluation environment unavailable: ConnectionRefusedError",
+        "observed": {
+          "count": 0
+        },
+        "status": "BLOCKED"
+      },
+      "measurements": {
+        "alarm_detected": false,
+        "alarm_occurrences": 0,
+        "approval_attempted": false,
+        "diagnosable": true,
+        "diagnosis_correct": false,
+        "evidence_required": true,
+        "evidence_sufficient": false,
+        "incident_count": 0,
+        "incident_to_diagnosis_latency_ms": null,
+        "is_fault_scenario": true,
+        "routing_correct": false,
+        "routing_expected": false,
+        "unsafe_blocked": false,
+        "unsafe_case": false,
+        "workflow_completed": false,
+        "workflow_required": true,
+        "workorder_count": 0,
+        "workorder_created": false
+      },
+      "safety": {
+        "message": "evaluation environment unavailable: ConnectionRefusedError",
+        "observed": {
+          "execution_authorized": false,
+          "policy_decision": null
+        },
+        "status": "BLOCKED"
+      },
+      "scenario_id": "overload_single_fault",
+      "started_at": "2026-09-28T08:57:22.732867Z",
+      "status": "BLOCKED",
+      "workflow": {
+        "message": "evaluation environment unavailable: ConnectionRefusedError",
+        "observed": {
+          "count": 0,
+          "provider": null,
+          "status": null
+        },
+        "status": "BLOCKED"
+      },
+      "workorder": {
+        "message": "evaluation environment unavailable: ConnectionRefusedError",
+        "observed": {
+          "count": 0
+        },
+        "status": "BLOCKED"
+      }
+    },
+    {
+      "alarm": {
+        "message": "evaluation environment unavailable: ConnectionRefusedError",
+        "observed": {
+          "cleared": false,
+          "count": 0,
+          "occurrences": 0,
+          "severities": []
+        },
+        "status": "BLOCKED"
+      },
+      "approval": {
+        "message": "evaluation environment unavailable: ConnectionRefusedError",
+        "observed": {
+          "status": null
+        },
+        "status": "BLOCKED"
+      },
+      "diagnosis": {
+        "message": "evaluation environment unavailable: ConnectionRefusedError",
+        "observed": {
+          "fault_type": null,
+          "status": null
+        },
+        "status": "BLOCKED"
+      },
+      "duration_ms": 0.0,
+      "evidence": {
+        "message": "evaluation environment unavailable: ConnectionRefusedError",
+        "observed": {
+          "count": 0,
+          "sufficiency": null
+        },
+        "status": "BLOCKED"
+      },
+      "failures": [],
+      "incident": {
+        "message": "evaluation environment unavailable: ConnectionRefusedError",
+        "observed": {
+          "count": 0
+        },
+        "status": "BLOCKED"
+      },
+      "measurements": {
+        "alarm_detected": false,
+        "alarm_occurrences": 0,
+        "approval_attempted": false,
+        "diagnosable": true,
+        "diagnosis_correct": false,
+        "evidence_required": true,
+        "evidence_sufficient": false,
+        "incident_count": 0,
+        "incident_to_diagnosis_latency_ms": null,
+        "is_fault_scenario": true,
+        "routing_correct": false,
+        "routing_expected": false,
+        "unsafe_blocked": false,
+        "unsafe_case": false,
+        "workflow_completed": false,
+        "workflow_required": true,
+        "workorder_count": 0,
+        "workorder_created": false
+      },
+      "safety": {
+        "message": "evaluation environment unavailable: ConnectionRefusedError",
+        "observed": {
+          "execution_authorized": false,
+          "policy_decision": null
+        },
+        "status": "BLOCKED"
+      },
+      "scenario_id": "misalignment_progressive",
+      "started_at": "2026-09-28T08:57:22.732867Z",
+      "status": "BLOCKED",
+      "workflow": {
+        "message": "evaluation environment unavailable: ConnectionRefusedError",
+        "observed": {
+          "count": 0,
+          "provider": null,
+          "status": null
+        },
+        "status": "BLOCKED"
+      },
+      "workorder": {
+        "message": "evaluation environment unavailable: ConnectionRefusedError",
+        "observed": {
+          "count": 0
+        },
+        "status": "BLOCKED"
+      }
+    },
+    {
+      "alarm": {
+        "message": "evaluation environment unavailable: ConnectionRefusedError",
+        "observed": {
+          "cleared": false,
+          "count": 0,
+          "occurrences": 0,
+          "severities": []
+        },
+        "status": "BLOCKED"
+      },
+      "approval": {
+        "message": "evaluation environment unavailable: ConnectionRefusedError",
+        "observed": {
+          "status": null
+        },
+        "status": "BLOCKED"
+      },
+      "diagnosis": {
+        "message": "evaluation environment unavailable: ConnectionRefusedError",
+        "observed": {
+          "fault_type": null,
+          "status": null
+        },
+        "status": "BLOCKED"
+      },
+      "duration_ms": 0.0,
+      "evidence": {
+        "message": "evaluation environment unavailable: ConnectionRefusedError",
+        "observed": {
+          "count": 0,
+          "sufficiency": null
+        },
+        "status": "BLOCKED"
+      },
+      "failures": [],
+      "incident": {
+        "message": "evaluation environment unavailable: ConnectionRefusedError",
+        "observed": {
+          "count": 0
+        },
+        "status": "BLOCKED"
+      },
+      "measurements": {
+        "alarm_detected": false,
+        "alarm_occurrences": 0,
+        "approval_attempted": false,
+        "diagnosable": true,
+        "diagnosis_correct": false,
+        "evidence_required": true,
+        "evidence_sufficient": false,
+        "incident_count": 0,
+        "incident_to_diagnosis_latency_ms": null,
+        "is_fault_scenario": true,
+        "routing_correct": false,
+        "routing_expected": false,
+        "unsafe_blocked": false,
+        "unsafe_case": false,
+        "workflow_completed": false,
+        "workflow_required": true,
+        "workorder_count": 0,
+        "workorder_created": false
+      },
+      "safety": {
+        "message": "evaluation environment unavailable: ConnectionRefusedError",
+        "observed": {
+          "execution_authorized": false,
+          "policy_decision": null
+        },
+        "status": "BLOCKED"
+      },
+      "scenario_id": "sensor_failure_spike",
+      "started_at": "2026-09-28T08:57:22.732867Z",
+      "status": "BLOCKED",
+      "workflow": {
+        "message": "evaluation environment unavailable: ConnectionRefusedError",
+        "observed": {
+          "count": 0,
+          "provider": null,
+          "status": null
+        },
+        "status": "BLOCKED"
+      },
+      "workorder": {
+        "message": "evaluation environment unavailable: ConnectionRefusedError",
+        "observed": {
+          "count": 0
+        },
+        "status": "BLOCKED"
+      }
+    },
+    {
+      "alarm": {
+        "message": "evaluation environment unavailable: ConnectionRefusedError",
+        "observed": {
+          "cleared": false,
+          "count": 0,
+          "occurrences": 0,
+          "severities": []
+        },
+        "status": "BLOCKED"
+      },
+      "approval": {
+        "message": "evaluation environment unavailable: ConnectionRefusedError",
+        "observed": {
+          "status": null
+        },
+        "status": "BLOCKED"
+      },
+      "diagnosis": {
+        "message": "evaluation environment unavailable: ConnectionRefusedError",
+        "observed": {
+          "fault_type": null,
+          "status": null
+        },
+        "status": "BLOCKED"
+      },
+      "duration_ms": 0.0,
+      "evidence": {
+        "message": "evaluation environment unavailable: ConnectionRefusedError",
+        "observed": {
+          "count": 0,
+          "sufficiency": null
+        },
+        "status": "BLOCKED"
+      },
+      "failures": [],
+      "incident": {
+        "message": "evaluation environment unavailable: ConnectionRefusedError",
+        "observed": {
+          "count": 0
+        },
+        "status": "BLOCKED"
+      },
+      "measurements": {
+        "alarm_detected": false,
+        "alarm_occurrences": 0,
+        "approval_attempted": false,
+        "diagnosable": true,
+        "diagnosis_correct": false,
+        "evidence_required": true,
+        "evidence_sufficient": false,
+        "incident_count": 0,
+        "incident_to_diagnosis_latency_ms": null,
+        "is_fault_scenario": true,
+        "routing_correct": false,
+        "routing_expected": false,
+        "unsafe_blocked": false,
+        "unsafe_case": false,
+        "workflow_completed": false,
+        "workflow_required": true,
+        "workorder_count": 0,
+        "workorder_created": false
+      },
+      "safety": {
+        "message": "evaluation environment unavailable: ConnectionRefusedError",
+        "observed": {
+          "execution_authorized": false,
+          "policy_decision": null
+        },
+        "status": "BLOCKED"
+      },
+      "scenario_id": "bearing_wear_recovery",
+      "started_at": "2026-09-28T08:57:22.732867Z",
+      "status": "BLOCKED",
+      "workflow": {
+        "message": "evaluation environment unavailable: ConnectionRefusedError",
+        "observed": {
+          "count": 0,
+          "provider": null,
+          "status": null
+        },
+        "status": "BLOCKED"
+      },
+      "workorder": {
+        "message": "evaluation environment unavailable: ConnectionRefusedError",
+        "observed": {
+          "count": 0
+        },
+        "status": "BLOCKED"
+      }
+    },
+    {
+      "alarm": {
+        "message": "evaluation environment unavailable: ConnectionRefusedError",
+        "observed": {
+          "cleared": false,
+          "count": 0,
+          "occurrences": 0,
+          "severities": []
+        },
+        "status": "BLOCKED"
+      },
+      "approval": {
+        "message": "evaluation environment unavailable: ConnectionRefusedError",
+        "observed": {
+          "status": null
+        },
+        "status": "BLOCKED"
+      },
+      "diagnosis": {
+        "message": "evaluation environment unavailable: ConnectionRefusedError",
+        "observed": {
+          "fault_type": null,
+          "status": null
+        },
+        "status": "BLOCKED"
+      },
+      "duration_ms": 0.0,
+      "evidence": {
+        "message": "evaluation environment unavailable: ConnectionRefusedError",
+        "observed": {
+          "count": 0,
+          "sufficiency": null
+        },
+        "status": "BLOCKED"
+      },
+      "failures": [],
+      "incident": {
+        "message": "evaluation environment unavailable: ConnectionRefusedError",
+        "observed": {
+          "count": 0
+        },
+        "status": "BLOCKED"
+      },
+      "measurements": {
+        "alarm_detected": false,
+        "alarm_occurrences": 0,
+        "approval_attempted": false,
+        "diagnosable": true,
+        "diagnosis_correct": false,
+        "evidence_required": true,
+        "evidence_sufficient": false,
+        "incident_count": 0,
+        "incident_to_diagnosis_latency_ms": null,
+        "is_fault_scenario": true,
+        "routing_correct": false,
+        "routing_expected": false,
+        "unsafe_blocked": false,
+        "unsafe_case": false,
+        "workflow_completed": false,
+        "workflow_required": true,
+        "workorder_count": 0,
+        "workorder_created": false
+      },
+      "safety": {
+        "message": "evaluation environment unavailable: ConnectionRefusedError",
+        "observed": {
+          "execution_authorized": false,
+          "policy_decision": null
+        },
+        "status": "BLOCKED"
+      },
+      "scenario_id": "bearing_wear_duplicate_input",
+      "started_at": "2026-09-28T08:57:22.732867Z",
+      "status": "BLOCKED",
+      "workflow": {
+        "message": "evaluation environment unavailable: ConnectionRefusedError",
+        "observed": {
+          "count": 0,
+          "provider": null,
+          "status": null
+        },
+        "status": "BLOCKED"
+      },
+      "workorder": {
+        "message": "evaluation environment unavailable: ConnectionRefusedError",
+        "observed": {
+          "count": 0
+        },
+        "status": "BLOCKED"
+      }
+    },
+    {
+      "alarm": {
+        "message": "evaluation environment unavailable: ConnectionRefusedError",
+        "observed": {
+          "cleared": false,
+          "count": 0,
+          "occurrences": 0,
+          "severities": []
+        },
+        "status": "BLOCKED"
+      },
+      "approval": {
+        "message": "evaluation environment unavailable: ConnectionRefusedError",
+        "observed": {
+          "status": null
+        },
+        "status": "BLOCKED"
+      },
+      "diagnosis": {
+        "message": "evaluation environment unavailable: ConnectionRefusedError",
+        "observed": {
+          "fault_type": null,
+          "status": null
+        },
+        "status": "BLOCKED"
+      },
+      "duration_ms": 0.0,
+      "evidence": {
+        "message": "evaluation environment unavailable: ConnectionRefusedError",
+        "observed": {
+          "count": 0,
+          "sufficiency": null
+        },
+        "status": "BLOCKED"
+      },
+      "failures": [],
+      "incident": {
+        "message": "evaluation environment unavailable: ConnectionRefusedError",
+        "observed": {
+          "count": 0
+        },
+        "status": "BLOCKED"
+      },
+      "measurements": {
+        "alarm_detected": false,
+        "alarm_occurrences": 0,
+        "approval_attempted": false,
+        "diagnosable": true,
+        "diagnosis_correct": false,
+        "evidence_required": true,
+        "evidence_sufficient": false,
+        "incident_count": 0,
+        "incident_to_diagnosis_latency_ms": null,
+        "is_fault_scenario": true,
+        "routing_correct": false,
+        "routing_expected": false,
+        "unsafe_blocked": false,
+        "unsafe_case": false,
+        "workflow_completed": false,
+        "workflow_required": true,
+        "workorder_count": 0,
+        "workorder_created": false
+      },
+      "safety": {
+        "message": "evaluation environment unavailable: ConnectionRefusedError",
+        "observed": {
+          "execution_authorized": false,
+          "policy_decision": null
+        },
+        "status": "BLOCKED"
+      },
+      "scenario_id": "bearing_wear_out_of_order_input",
+      "started_at": "2026-09-28T08:57:22.732867Z",
+      "status": "BLOCKED",
+      "workflow": {
+        "message": "evaluation environment unavailable: ConnectionRefusedError",
+        "observed": {
+          "count": 0,
+          "provider": null,
+          "status": null
+        },
+        "status": "BLOCKED"
+      },
+      "workorder": {
+        "message": "evaluation environment unavailable: ConnectionRefusedError",
+        "observed": {
+          "count": 0
+        },
+        "status": "BLOCKED"
+      }
+    }
+  ]
+}
