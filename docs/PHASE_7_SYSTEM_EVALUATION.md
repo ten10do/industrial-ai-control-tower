@@ -2,10 +2,12 @@
 
 ## Status
 
-`PHASE_7_0_BLOCKED`
+`PHASE_7_0_BLOCKED` — `REAL_LLM_PROVIDER_NOT_AVAILABLE`
 
-The evaluation framework and deterministic gates are implemented, but the full
-acceptance run has not occurred. No blocked or mock-backed result is reported as
+The evaluation framework and deterministic gates are implemented. The frozen
+RAG reproducibility blocker was removed after the initial blocked run, but the
+full real-provider acceptance run has not occurred because no approved provider
+credential/model is available. No blocked or mock-backed result is reported as
 a system PASS.
 
 ## 1. System under test
@@ -127,7 +129,7 @@ The fixes wire existing services together and add DB-backed regression tests.
 No model, threshold, RAG algorithm, prompt, graph topology, policy semantics,
 state machine, RBAC, governance semantics, or protocol architecture changed.
 
-## 8. Evaluation environment and blockers
+## 8. Initial evaluation environment and blockers
 
 - Local PostgreSQL 5432: unavailable
 - Local Redis 6379: unavailable
@@ -139,8 +141,10 @@ state machine, RBAC, governance semantics, or protocol architecture changed.
   by Git and therefore is not reproducible in a clean CI checkout
 - CI PostgreSQL 16 + pgvector deterministic scenario gate: PASS
 
-The missing tracked RAG artifact and missing real-provider run are acceptance
-blockers even after the DB-backed deterministic CI gate passes.
+At the time of the initial run, the undocumented local RAG artifact and missing
+real-provider run were acceptance blockers even after the DB-backed
+deterministic CI gate passed. Section 13 records the subsequent RAG unblock and
+the remaining real-provider blocker without rewriting this history.
 
 ## 9. Regression evidence
 
@@ -188,14 +192,103 @@ expectation, and 2 when required evaluation remains blocked.
 
 ## 11. Known limitations and Phase 7.1 recommendation
 
-Do not begin Phase 7.1. First make the frozen RAG index reproducibly available
-to a clean evaluation environment, run the PostgreSQL scenario gate, configure
-an approved real LLM provider, execute the full frozen suite, and append the
-resulting raw artifact without changing scenario labels, thresholds, or metric
-definitions. Only then can Phase 7.0 move from `BLOCKED` to `COMPLETE`.
+Do not begin Phase 7.1. The frozen RAG index is now reproducible, but an approved
+real LLM provider must still be configured before executing the full frozen
+suite and appending a new raw artifact without changing scenario labels,
+thresholds, or metric definitions. Only then can Phase 7.0 move from `BLOCKED`
+to `COMPLETE`.
 
 ## 12. Release integrity
 
 The v2.0.0 tag remains
 `c10072ae397ea14869c42a6bbd3ab67f2fdbf6ba`. No tag, release, main-history
 rewrite, or automatic merge is part of this work.
+
+## 13. Phase 7.0 unblock attempt
+
+The unblock work started at
+`2ff014409f603266ac4573581345fd1f712679de`. The scenario definitions were not
+edited. Their frozen suite fingerprint is
+`e0a04cdf835db172f4b4c1d41568940bf3bd63ae1eda39b79db09ca40a1489c9`, computed
+over sorted relative path, NUL, file bytes, and NUL for every file in
+`scenarios/v1`.
+
+### Frozen RAG v1 audit and strategy
+
+`RAG_ARTIFACT_STRATEGY=REBUILD_FROM_TRACKED_SOURCES`.
+
+- The local artifact is 22,499,884 bytes of Pydantic `IndexArtifact` JSON and
+  contains 2,149 chunks, their source text, 384-dimensional
+  `local-hash-embedding-v1` vectors, citations, page/section metadata, and 13
+  source records.
+- No credential pattern was found. Two source excerpts contain ordinary
+  absolute-path-looking text, but the artifact contains no developer filesystem
+  path or runtime dependency on one.
+- The artifact cannot be committed: it embeds ABB and SKF copyrighted text
+  whose catalog terms permit local retrieval evaluation, not redistribution.
+- The frozen artifact was originally parsed with `pypdf==6.0.0`. Production was
+  later upgraded to `pypdf==6.16.1`; the newer parser produces 2,148 chunks and
+  cannot byte-reproduce the frozen input. The historical parser is therefore
+  isolated in a build-only environment after source hash verification, while
+  the production runtime remains on 6.16.1.
+- Versioned manifest:
+  `backend/knowledge/rag-v1-manifest.json`, SHA-256
+  `9149d091226af992fdd5d0d17aa88ae852bdc3c5906160f524699dcc1a9c0cdd`.
+- Frozen artifact SHA-256:
+  `416f0781156ef4d7512274c1bbdda31cdad02aebe79b53262d2e8894cce6e947`.
+- Corpus manifest SHA-256:
+  `c352b01ddf2d6b3c868f6a4bd5269dbfa49651b12c98ec7601d67a5e36582a47`.
+
+### Clean-checkout reproduction evidence
+
+A new clone at RAG-unblock commit `9ac7614c26a0cfbcefbcbaaa709b862195298f35`
+started with both `backend/knowledge/raw/` and
+`backend/knowledge/index-v1.json` absent. In a newly created Python 3.11
+environment, `python -m app.knowledge.reproduce`:
+
+1. downloaded all 12 official HTTPS documents and copied the tracked synthetic
+   record;
+2. verified all 13 source sizes and SHA-256 values before parsing;
+3. rebuilt exactly 2,149 chunks and the expected corpus manifest;
+4. reproduced the 22,499,884-byte artifact with exact SHA-256 `416f0781...e947`;
+5. loaded it through the production `KnowledgeIndex.load` path;
+6. returned `SUFFICIENT` with first chunk
+   `kc-02d195293637e3238356cfbe` for the supported bearing query; and
+7. returned `INSUFFICIENT_EVIDENCE` for an unsupported-domain query.
+
+The clean clone remained free of tracked modifications after the gate. This
+removes the frozen RAG reproducibility blocker without tracking raw third-party
+content or using an ephemeral CI artifact as the source of truth.
+
+### Real-provider gate and stop condition
+
+The environment contained no `AGENT_API_KEY`; `AGENT_MODEL`, `AGENT_BASE_URL`,
+and `AGENT_PROVIDER` were unset. No provider discovery/request could be made
+without an approved credential, and no secret was logged or persisted.
+
+Result: `REAL_LLM_PROVIDER_NOT_AVAILABLE`.
+
+Per the acceptance protocol, the 17-scenario suite was not rerun, the previous
+blocked raw artifact was not replaced with inferred values, and all real-run
+metrics, failure-injection outcomes, and safety outcomes remain uncomputed. The
+only remaining Phase 7.0 acceptance blocker is execution of the unchanged suite
+through PostgreSQL 16 + pgvector and the existing production workflow using an
+approved real provider, followed by the complete regression and CI gates.
+
+### Unblock regression evidence
+
+- Backend Ruff/format: PASS; mypy: PASS, 202 source files.
+- Backend pytest: 450 passed, 326 skipped, 1 pre-existing Windows environment
+  failure. The failure is the documented WSL launcher without `/bin/bash` in
+  `test_restore_refuses_without_confirmation`; it is unrelated to this diff.
+- Frozen RAG manifest/serialization and existing knowledge tests: 8 passed.
+- Scenario contracts/evaluators/metrics: 6 passed.
+- Frontend lint: PASS; tests: 56 passed; production build: PASS.
+- ML Ruff/format/mypy: PASS; tests: 16 passed with one existing scikit-learn
+  warning.
+- Simulator Ruff/format/mypy: PASS; tests: 24 passed.
+- Environment template validation: PASS; repository secret scan: PASS with zero
+  findings; Compose configuration validation: PASS.
+- Local Docker daemon: unavailable. Migration, PostgreSQL 16 + pgvector,
+  security integration, and scenario-evaluation DB gates therefore remain CI
+  evidence rather than new local evidence.
