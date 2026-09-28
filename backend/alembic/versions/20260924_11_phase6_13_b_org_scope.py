@@ -141,6 +141,7 @@ def upgrade() -> None:
         sa.Column("scope_level", sa.String(20), primary_key=True),
         sa.Column("scope_id", UUID, primary_key=True),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
+        sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False),
         sa.CheckConstraint(
             "scope_level IN ('ORGANIZATION', 'PLANT', 'AREA')",
             name="ck_user_scopes_level",
@@ -165,6 +166,7 @@ def upgrade() -> None:
             nullable=False,
         ),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
+        sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False),
     )
     op.create_index("ix_device_scopes_area_id", "device_scopes", ["area_id"])
 

@@ -134,6 +134,7 @@ class DeviceScope(SecurityTimestampMixin, Base):
     """
 
     __tablename__ = "device_scopes"
+    __table_args__ = (Index("ix_device_scopes_area_id", "area_id"),)
 
     device_id: Mapped[str] = mapped_column(
         ForeignKey("devices.device_id", ondelete="CASCADE", name="fk_device_scopes_device_id"),
