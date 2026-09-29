@@ -61,6 +61,29 @@ services:
       timeout: 5s
       retries: 5
 
+  phase7-mosquitto:
+    profiles: ["phase7-acceptance"]
+    image: industrial-ai-control-tower-phase7-mosquitto:2.0.22
+    build:
+      context: ./infra/mosquitto
+    tmpfs:
+      - /mosquitto/data
+    healthcheck:
+      test: ["CMD", "mosquitto_pub", "-h", "localhost", "-t", "health", "-m", "ok"]
+      interval: 2s
+      timeout: 2s
+      retries: 10
+
+  phase7-toxiproxy:
+    profiles: ["phase7-acceptance"]
+    image: ghcr.io/shopify/toxiproxy:2.12.0
+    ports:
+      - "18474:8474"
+      - "11884:1884"
+    depends_on:
+      phase7-mosquitto:
+        condition: service_healthy
+
   backend:
     restart: unless-stopped
     deploy:

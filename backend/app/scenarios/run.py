@@ -6,6 +6,7 @@ import argparse
 import asyncio
 import hashlib
 import json
+import os
 import platform
 import subprocess
 from contextlib import AsyncExitStack
@@ -30,8 +31,11 @@ from app.scenarios.contracts import (
 from app.scenarios.evaluator import ObservedScenario, evaluate
 from app.scenarios.loader import load_scenario, load_suite
 from app.scenarios.metrics import compute_metrics
+from app.scenarios.mqtt_failure import MqttFailureHarness
 from app.scenarios.runner import ScenarioRunner
 from app.services.diagnosis import OnlineDiagnosisCoordinator
+from app.services.telemetry import IngestionCounters
+from app.websocket.manager import WebSocketManager
 from app.workflow.provider import OpenAICompatibleProvider, TestProvider
 from app.workflow.service import WorkflowService
 
@@ -100,6 +104,39 @@ async def _workflow(
     )
 
 
+def _unavailable_workflow(
+    settings: Settings,
+    database: Database,
+    index: KnowledgeIndex | None,
+    workflow: WorkflowService | None,
+) -> WorkflowService | None:
+    """Build a real-provider service aimed at a controlled unreachable endpoint."""
+
+    if (
+        workflow is None
+        or settings.agent_provider != "openai_compatible"
+        or settings.agent_api_key is None
+    ):
+        return None
+    provider = OpenAICompatibleProvider(
+        api_key=settings.agent_api_key.get_secret_value(),
+        base_url="http://127.0.0.1:1/v1",
+        model=settings.agent_model,
+        temperature=settings.agent_temperature,
+        timeout_seconds=min(settings.agent_timeout_seconds, 5.0),
+        schema_max_attempts=settings.agent_schema_max_attempts,
+    )
+    return WorkflowService(
+        sessions=database.sessions,
+        knowledge_index=index,
+        provider=provider,
+        checkpointer=workflow.checkpointer,
+        max_attempts=settings.agent_max_attempts,
+        backoff_seconds=settings.agent_backoff_seconds,
+        timeout_seconds=min(settings.agent_timeout_seconds, 5.0),
+    )
+
+
 async def _run(definitions: list[ScenarioDefinition], output: Path, suite_version: str) -> int:
     settings = Settings()
     database = Database(settings)
@@ -124,12 +161,32 @@ async def _run(definitions: list[ScenarioDefinition], output: Path, suite_versio
                 else None
             )
             workflow = await _workflow(settings, database, index, stack)
+            unavailable_workflow = _unavailable_workflow(settings, database, index, workflow)
+            mqtt_failure = None
+            mqtt_control_url = os.environ.get("PHASE7_MQTT_CONTROL_URL", "").strip()
+            if mqtt_control_url:
+                mqtt_failure = MqttFailureHarness(
+                    settings=settings,
+                    sessions=database.sessions,
+                    redis=redis,
+                    diagnosis=diagnosis,
+                    websocket_manager=WebSocketManager(),
+                    counters=IngestionCounters(),
+                    control_url=mqtt_control_url,
+                    proxy_name=os.environ.get("PHASE7_MQTT_PROXY_NAME", "phase7_mqtt"),
+                    listen=os.environ.get("PHASE7_MQTT_PROXY_LISTEN", "0.0.0.0:1884"),
+                    upstream=os.environ.get("PHASE7_MQTT_PROXY_UPSTREAM", "phase7-mosquitto:1883"),
+                    broker_host=os.environ.get("PHASE7_MQTT_BROKER_HOST", "phase7-toxiproxy"),
+                    broker_port=int(os.environ.get("PHASE7_MQTT_BROKER_PORT", "1884")),
+                )
             runner = ScenarioRunner(
                 sessions=database.sessions,
                 redis=redis,
                 diagnosis=diagnosis,
                 knowledge_index=index,
                 workflow=workflow,
+                unavailable_workflow=unavailable_workflow,
+                mqtt_failure=mqtt_failure,
             )
             results = [await runner.run(definition) for definition in definitions]
         except (OSError, ConnectionError, SQLAlchemyError, ModelCompatibilityError) as exc:

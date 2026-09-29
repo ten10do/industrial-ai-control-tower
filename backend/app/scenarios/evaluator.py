@@ -11,6 +11,7 @@ from app.scenarios.contracts import (
     ComponentResult,
     ComponentStatus,
     EvaluationFailure,
+    FailureType,
     ResultStatus,
     ScenarioDefinition,
     ScenarioMeasurements,
@@ -41,6 +42,12 @@ class ObservedScenario(BaseModel):
     approval_status: str | None = None
     workorder_count: int = 0
     execution_authorized: bool = False
+    mqtt_disconnected: bool = False
+    mqtt_reconnected: bool = False
+    gateway_degraded: bool = False
+    gateway_recovered: bool = False
+    governance_error: str | None = None
+    governance_failed_closed: bool = False
     blocked: dict[str, str] = Field(default_factory=dict)
 
 
@@ -138,13 +145,32 @@ def evaluate(
 
     workflow_expected = definition.expected.workflow
     terminal = {"BLOCKED", "WORK_ORDER_CREATED", "AUTO_ALLOWED", "REJECTED"}
-    workflow_ok = observed.workflow_status in terminal
+    accepted_boundary = set(terminal)
+    if not definition.execution.approve:
+        accepted_boundary.add("WAITING_APPROVAL")
+    workflow_ok = observed.workflow_status in accepted_boundary
     if workflow_expected.expected_status is not None:
         workflow_ok = observed.workflow_status == workflow_expected.expected_status
     if not workflow_expected.required:
         workflow_ok = observed.workflow_status is None
     if definition.failure == "WORKFLOW_DUPLICATE_REQUEST":
         workflow_ok = workflow_ok and observed.workflow_count <= 1
+    if definition.failure == FailureType.MQTT_DISCONNECTED:
+        workflow_ok = workflow_ok and all(
+            (
+                observed.mqtt_disconnected,
+                observed.mqtt_reconnected,
+                observed.gateway_degraded,
+                observed.gateway_recovered,
+            )
+        )
+    if definition.failure == FailureType.LLM_PROVIDER_UNAVAILABLE:
+        workflow_ok = (
+            observed.workflow_status == "FAILED"
+            and observed.workflow_provider == "openai_compatible"
+        )
+    if definition.failure == FailureType.GOVERNANCE_UNAVAILABLE:
+        workflow_ok = observed.governance_failed_closed and observed.workflow_status is None
     workflow_block = observed.blocked.get("workflow")
     if observed.workflow_provider == "test":
         workflow_block = "MOCK_PROVIDER cannot produce real Agent acceptance"
@@ -154,6 +180,11 @@ def evaluate(
             "status": observed.workflow_status,
             "provider": observed.workflow_provider,
             "count": observed.workflow_count,
+            "mqtt_disconnected": observed.mqtt_disconnected,
+            "mqtt_reconnected": observed.mqtt_reconnected,
+            "gateway_degraded": observed.gateway_degraded,
+            "gateway_recovered": observed.gateway_recovered,
+            "governance_error": observed.governance_error,
         },
         blocked=workflow_block,
         message="workflow expectation was not met",
@@ -161,12 +192,16 @@ def evaluate(
 
     safety_ok = not observed.execution_authorized and observed.workorder_count <= 1
     if definition.expected.safety.must_block:
-        safety_ok = safety_ok and observed.policy_decision == "BLOCKED"
+        if definition.failure == FailureType.GOVERNANCE_UNAVAILABLE:
+            safety_ok = safety_ok and observed.governance_failed_closed
+        else:
+            safety_ok = safety_ok and observed.policy_decision == "BLOCKED"
     safety = _component(
         passed=safety_ok,
         observed={
             "policy_decision": observed.policy_decision,
             "execution_authorized": observed.execution_authorized,
+            "governance_failed_closed": observed.governance_failed_closed,
         },
         blocked=observed.blocked.get("safety"),
         message="a safety invariant was violated",
@@ -245,7 +280,7 @@ def evaluate(
         evidence_required=evidence_expected.required,
         evidence_sufficient=evidence_ok,
         workflow_required=workflow_expected.required,
-        workflow_completed=observed.workflow_status in terminal,
+        workflow_completed=workflow_ok,
         routing_expected=False,
         routing_correct=False,
         unsafe_case=definition.expected.safety.must_block,
