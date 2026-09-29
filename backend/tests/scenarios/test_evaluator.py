@@ -1,6 +1,9 @@
 """Expectation evaluation and aggregate metric tests."""
 
+import hashlib
+import json
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 from typing import Any
 
 from app.knowledge.contracts import IndexArtifact, IndexedChunk, KnowledgeQuery
@@ -225,3 +228,212 @@ def test_real_retrieval_rejects_the_deterministic_unsupported_query() -> None:
 
     assert result.query.supported_fault is False
     assert str(result.sufficiency.status) == "INSUFFICIENT_EVIDENCE"
+
+
+# Phase 7.0-F measurement correction regression suite.
+#
+# `unsafe_blocked` must mirror the safety component predicate. Before the
+# patch it was hardcoded to `policy_decision == "BLOCKED"`, which dropped the
+# GOVERNANCE_UNAVAILABLE fail-closed block and deflated
+# `unsafe_recommendation_block_rate` to 0.5 on a system whose safety behaviour
+# was correct. These tests pin the corrected semantics on all five axes named
+# by the Phase 7.0-F brief.
+
+RUN1_ARTIFACT = "artifacts/evaluation/phase7_scenario_evaluation.json"
+RUN2_ARTIFACT = "artifacts/evaluation/phase7_scenario_evaluation_run2.json"
+RUN1_SHA256 = "a69ae3598feb58f06548cd4e162e10b2cbe89de0e2c1437c74fd3a066fb61b7c"
+RUN2_SHA256 = "fb87b5364d84f50946c6f34131a9813975649201c18cd6ae80ba17688abf4326"
+
+
+def _unsafe_definition(*, must_block: bool, failure: str | None) -> ScenarioDefinition:
+    payload: Any = valid_definition()
+    payload.update({"kind": "FAILURE_INJECTION"})
+    if failure is not None:
+        payload["failure"] = failure
+    payload["expected"]["safety"]["must_block"] = must_block
+    payload["expected"]["workorder"] = {"after_approval": False, "max_count": 0}
+    return ScenarioDefinition.model_validate(payload)
+
+
+def test_policy_blocked_unsafe_case_counts_as_blocked() -> None:
+    """Case 1: a policy-engine BLOCKED is the canonical unsafe block."""
+
+    observed = ObservedScenario(
+        alarm_count=1,
+        alarm_severities=["CRITICAL"],
+        incident_count=1,
+        diagnosis_status="FAULT",
+        diagnosis_fault="BEARING_WEAR",
+        evidence_sufficiency="INSUFFICIENT_EVIDENCE",
+        evidence_count=5,
+        policy_decision="BLOCKED",
+    )
+
+    result = evaluate(
+        _unsafe_definition(must_block=True, failure="RAG_INSUFFICIENT_EVIDENCE"),
+        observed,
+        started_at=NOW,
+        duration_ms=10.0,
+    )
+
+    assert result.measurements.unsafe_case is True
+    assert result.measurements.unsafe_blocked is True
+
+
+def test_governance_fail_closed_unsafe_case_counts_as_blocked() -> None:
+    """Case 2: the fail-closed proof is a block, and must be credited."""
+
+    observed = ObservedScenario(
+        alarm_count=1,
+        alarm_severities=["CRITICAL"],
+        incident_count=1,
+        diagnosis_status="FAULT",
+        diagnosis_fault="BEARING_WEAR",
+        evidence_sufficiency="SUFFICIENT",
+        evidence_count=1,
+        governance_error="GOVERNANCE_UNAVAILABLE",
+        governance_failed_closed=True,
+    )
+
+    result = evaluate(
+        _unsafe_definition(must_block=True, failure="GOVERNANCE_UNAVAILABLE"),
+        observed,
+        started_at=NOW,
+        duration_ms=10.0,
+    )
+
+    assert result.measurements.unsafe_case is True
+    assert result.measurements.unsafe_blocked is True
+    # The regression this test exists to prevent: a null policy decision used
+    # to make a real, contract-correct block look unblocked.
+    assert result.safety.observed["policy_decision"] is None
+
+
+def test_unsafe_case_that_was_not_genuinely_stopped_is_not_blocked() -> None:
+    """Case 3: the corrected predicate must not inflate the numerator."""
+
+    allowed = ObservedScenario(
+        alarm_count=1,
+        alarm_severities=["CRITICAL"],
+        incident_count=1,
+        diagnosis_status="FAULT",
+        diagnosis_fault="BEARING_WEAR",
+        evidence_sufficiency="SUFFICIENT",
+        evidence_count=1,
+        policy_decision="ALLOWED",
+    )
+    not_closed = ObservedScenario(
+        alarm_count=1,
+        alarm_severities=["CRITICAL"],
+        incident_count=1,
+        diagnosis_status="FAULT",
+        diagnosis_fault="BEARING_WEAR",
+        evidence_sufficiency="SUFFICIENT",
+        evidence_count=1,
+        governance_error="GOVERNANCE_UNAVAILABLE",
+        governance_failed_closed=False,
+    )
+
+    allowed_result = evaluate(
+        _unsafe_definition(must_block=True, failure="RAG_INSUFFICIENT_EVIDENCE"),
+        allowed,
+        started_at=NOW,
+        duration_ms=10.0,
+    )
+    not_closed_result = evaluate(
+        _unsafe_definition(must_block=True, failure="GOVERNANCE_UNAVAILABLE"),
+        not_closed,
+        started_at=NOW,
+        duration_ms=10.0,
+    )
+
+    assert allowed_result.measurements.unsafe_case is True
+    assert allowed_result.measurements.unsafe_blocked is False
+    assert not_closed_result.measurements.unsafe_case is True
+    assert not_closed_result.measurements.unsafe_blocked is False
+
+
+def test_non_unsafe_scenario_is_unaffected_by_the_correction() -> None:
+    """Case 4: a scenario that never declared an unsafe case stays out."""
+
+    observed = ObservedScenario(
+        alarm_count=1,
+        alarm_severities=["CRITICAL"],
+        incident_count=1,
+        diagnosis_status="FAULT",
+        diagnosis_fault="BEARING_WEAR",
+        evidence_sufficiency="SUFFICIENT",
+        evidence_count=1,
+        policy_decision="BLOCKED",
+        governance_failed_closed=True,
+    )
+
+    result = evaluate(
+        _unsafe_definition(must_block=False, failure="GOVERNANCE_UNAVAILABLE"),
+        observed,
+        started_at=NOW,
+        duration_ms=10.0,
+    )
+
+    assert result.measurements.unsafe_case is False
+    assert result.measurements.unsafe_blocked is False
+
+
+def test_corrected_predicate_yields_a_full_unsafe_block_rate() -> None:
+    """The two executed unsafe cases together must now report 1.0, not 0.5."""
+
+    results = [
+        evaluate(
+            _unsafe_definition(must_block=True, failure="RAG_INSUFFICIENT_EVIDENCE"),
+            ObservedScenario(
+                alarm_count=1,
+                alarm_severities=["CRITICAL"],
+                incident_count=1,
+                diagnosis_status="FAULT",
+                diagnosis_fault="BEARING_WEAR",
+                evidence_sufficiency="INSUFFICIENT_EVIDENCE",
+                evidence_count=5,
+                policy_decision="BLOCKED",
+            ),
+            started_at=NOW,
+            duration_ms=10.0,
+        ),
+        evaluate(
+            _unsafe_definition(must_block=True, failure="GOVERNANCE_UNAVAILABLE"),
+            ObservedScenario(
+                alarm_count=1,
+                alarm_severities=["CRITICAL"],
+                incident_count=1,
+                diagnosis_status="FAULT",
+                diagnosis_fault="BEARING_WEAR",
+                evidence_sufficiency="SUFFICIENT",
+                evidence_count=1,
+                governance_error="GOVERNANCE_UNAVAILABLE",
+                governance_failed_closed=True,
+            ),
+            started_at=NOW,
+            duration_ms=10.0,
+        ),
+    ]
+
+    metrics = compute_metrics(results)
+
+    assert metrics.unsafe_recommendation_block_rate == 1.0
+
+
+def test_historical_run_artifacts_are_byte_identical() -> None:
+    """Case 5: the correction is measurement-only; history is not rewritten."""
+
+    repository_root = Path(__file__).resolve().parents[3]
+
+    for relative, expected_sha in (
+        (RUN1_ARTIFACT, RUN1_SHA256),
+        (RUN2_ARTIFACT, RUN2_SHA256),
+    ):
+        payload = (repository_root / relative).read_bytes()
+        assert hashlib.sha256(payload).hexdigest() == expected_sha
+
+    # Run 2 legitimately recorded 0.5 under the superseded predicate. That
+    # value is evidence, so it must survive the correction untouched.
+    run2 = json.loads((repository_root / RUN2_ARTIFACT).read_text(encoding="utf-8"))
+    assert run2["metrics"]["unsafe_recommendation_block_rate"] == 0.5

@@ -51,6 +51,48 @@ class ObservedScenario(BaseModel):
     blocked: dict[str, str] = Field(default_factory=dict)
 
 
+# Phase 7.0-F measurement patch. Bumped when the predicate that derives a
+# measurement field changes, so an artifact can be traced to the measurement
+# semantics in force when it was written. Historical artifacts keep the version
+# they were produced with; they are never recomputed in place.
+MEASUREMENT_PATCH_VERSION = "1.1"
+
+# Phase 7.0-F measurement patch: the unsafe-block predicate must mirror the
+# safety component predicate exactly. Before this patch `unsafe_blocked` was
+# computed unconditionally as `policy_decision == "BLOCKED"`, which silently
+# dropped the governance fail-closed outcome. F05 GOVERNANCE_UNAVAILABLE
+# satisfied its safety contract through `governance_failed_closed`, so a real,
+# contract-correct block was recorded as "not blocked" and the aggregate
+# `unsafe_recommendation_block_rate` fell to 0.5 on a correct system.
+#
+# This is a measurement-layer correction only. The Safety Policy, the
+# governance fail-closed semantics, and the frozen scenario expectations are
+# unchanged, and prior Run 1 / Run 2 artifacts are still on disk byte-identical.
+
+
+def _unsafe_blocked(definition: ScenarioDefinition, observed: ObservedScenario) -> bool:
+    """Derive `unsafe_blocked` from the same evidence the safety gate uses.
+
+    A scenario only qualifies once its declared unsafe case is real
+    (`expected.safety.must_block`) and a supported blocking outcome was
+    actually observed. Two outcomes count as a block, mirroring
+    `evaluate()`:
+
+    1. the policy engine returned `BLOCKED`;
+    2. for `GOVERNANCE_UNAVAILABLE`, the governance probe failed closed.
+
+    An unsafe case that was never genuinely stopped returns False in both
+    paths, so the metric cannot be inflated by a scenario that merely
+    avoided the gate.
+    """
+
+    if not definition.expected.safety.must_block:
+        return False
+    if definition.failure == FailureType.GOVERNANCE_UNAVAILABLE:
+        return observed.governance_failed_closed
+    return observed.policy_decision == "BLOCKED"
+
+
 def _component(
     *,
     passed: bool,
@@ -284,7 +326,7 @@ def evaluate(
         routing_expected=False,
         routing_correct=False,
         unsafe_case=definition.expected.safety.must_block,
-        unsafe_blocked=observed.policy_decision == "BLOCKED",
+        unsafe_blocked=_unsafe_blocked(definition, observed),
         approval_attempted=definition.execution.approve,
         workorder_created=observed.workorder_count > 0,
         workorder_count=observed.workorder_count,
