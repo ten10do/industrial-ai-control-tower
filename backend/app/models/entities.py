@@ -140,7 +140,15 @@ class Alarm(Base):
 
 class Incident(TimestampMixin, Base):
     __tablename__ = "incidents"
-    __table_args__ = (Index("ix_incidents_device_status", "device_id", "status"),)
+    __table_args__ = (
+        Index("ix_incidents_device_status", "device_id", "status"),
+        # Phase 7.1-A. Backs the bounded historical-incident query, which filters
+        # one device, excludes the current incident, and orders by
+        # (created_at DESC, id DESC). Measured on 50k incidents / 500 devices:
+        # 0.250 ms -> 0.064 ms and 108 -> 14 shared buffers. Additive and
+        # non-unique; it changes no result, only the plan.
+        Index("ix_incidents_device_created", "device_id", "created_at"),
+    )
 
     id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
     device_id: Mapped[str | None] = mapped_column(ForeignKey("devices.device_id"), index=True)

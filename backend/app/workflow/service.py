@@ -33,6 +33,7 @@ from app.platform_observability.metrics import (
     workflow_waiting_approval_total,
 )
 from app.repositories.audit import AuditRepository
+from app.workflow.context import DecisionContextBuilder
 from app.workflow.contracts import (
     ApprovalSnapshot,
     DiagnosisSnapshot,
@@ -292,12 +293,17 @@ class WorkflowService:
                     latency_ms=retrieval.latency_ms,
                 )
             )
+            # Phase 7.1-A. Assemble the bounded decision context before the graph
+            # runs, so the deterministic risk node and the agents read one frozen
+            # snapshot. The builder only reads; it never writes business state.
+            decision_context = await DecisionContextBuilder(session).build(incident, diagnosis)
             state = WorkflowState(
                 workflow_run_id=workflow_id,
                 trace_id=trace_id,
                 device_id=diagnosis.device_id,
                 incident_id=incident_id,
                 diagnosis_id=diagnosis_id,
+                decision_context=decision_context,
                 diagnosis=DiagnosisSnapshot.model_validate(
                     {
                         "id": diagnosis.id,
