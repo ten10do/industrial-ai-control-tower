@@ -1,0 +1,81 @@
+{
+  "report": "PHASE_7_0_D_RUN2_REPORT",
+  "run_1": {
+    "artifact": "artifacts/evaluation/phase7_scenario_evaluation.json",
+    "sha256": "a69ae3598feb58f06548cd4e162e10b2cbe89de0e2c1437c74fd3a066fb61b7c",
+    "passed": 5,
+    "failed": 9,
+    "blocked": 3,
+    "metrics": {
+      "detection_rate": 1.0,
+      "diagnosis_accuracy": 0.875,
+      "workflow_completion_rate": 0.38461538461538464,
+      "evidence_sufficiency_rate": 1.0,
+      "approval_to_workorder_success_rate": 0.0,
+      "workorder_exactly_once_rate": null,
+      "unsafe_recommendation_block_rate": 1.0
+    }
+  },
+  "run_2": {
+    "artifact": "artifacts/evaluation/phase7_scenario_evaluation_run2.json",
+    "sha256": "fb87b5364d84f50946c6f34131a9813975649201c18cd6ae80ba17688abf4326",
+    "git_sha": "824ecf33ca12a8f473130d2670b36b71970b2279",
+    "provider": "DeepSeek / openai_compatible",
+    "model": "deepseek-flash",
+    "passed": 10,
+    "failed": 6,
+    "blocked": 1,
+    "metrics": {
+      "detection_rate": 1.0,
+      "diagnosis_accuracy": 0.875,
+      "workflow_completion_rate": 0.875,
+      "evidence_sufficiency_rate": 1.0,
+      "approval_to_workorder_success_rate": 0.5,
+      "workorder_exactly_once_rate": 1.0,
+      "unsafe_recommendation_block_rate": 0.5
+    }
+  },
+  "delta": {
+    "passed": 5,
+    "failed": -3,
+    "blocked": -2,
+    "detection_rate": 0.0,
+    "diagnosis_accuracy": 0.0,
+    "workflow_completion_rate": 0.49038461538461536,
+    "evidence_sufficiency_rate": 0.0,
+    "approval_to_workorder_success_rate": 0.5,
+    "workorder_exactly_once_rate": "null_to_1.0",
+    "unsafe_recommendation_block_rate": -0.5
+  },
+  "scenario_transitions": {
+    "F01": "FAIL_TO_PASS",
+    "F02": "BLOCKED_TO_FAIL",
+    "F03": "FAIL_TO_FAIL",
+    "F04": "BLOCKED_TO_BLOCKED",
+    "F05": "BLOCKED_TO_PASS",
+    "F06": "PASS_TO_PASS",
+    "F07": "PASS_TO_PASS",
+    "F08": "FAIL_TO_FAIL",
+    "S00": "PASS_TO_PASS",
+    "S01": "FAIL_TO_PASS",
+    "S02": "FAIL_TO_PASS",
+    "S03": "FAIL_TO_PASS",
+    "S04": "FAIL_TO_FAIL",
+    "S05": "FAIL_TO_FAIL",
+    "S06": "FAIL_TO_FAIL",
+    "S07": "PASS_TO_PASS",
+    "S08": "PASS_TO_PASS"
+  },
+  "frozen_assets": {
+    "scenario_suite_sha256": "e0a04cdf835db172f4b4c1d41568940bf3bd63ae1eda39b79db09ca40a1489c9",
+    "rag_manifest_sha256": "9149d091226af992fdd5d0d17aa88ae852bdc3c5906160f524699dcc1a9c0cdd",
+    "rag_artifact_sha256": "416f0781156ef4d7512274c1bbdda31cdad02aebe79b53262d2e8894cce6e947",
+    "ml_model": "diagnosis-v1.1",
+    "v2.0.0": "c10072ae397ea14869c42a6bbd3ab67f2fdbf6ba",
+    "drift": false
+  },
+  "provider_probe": {
+    "successful_attempts": 3,
+    "attempts": 3
+  }
+}

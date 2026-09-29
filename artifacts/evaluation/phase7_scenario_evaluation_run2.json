@@ -1,0 +1,1774 @@
+{
+  "metadata": {
+    "database_mode": "postgresql",
+    "execution_environment": "development",
+    "git_sha": "824ecf33ca12a8f473130d2670b36b71970b2279",
+    "llm_model": "deepseek-flash",
+    "llm_provider": "openai_compatible",
+    "ml_artifact_sha256": "acc96cf3b380a34aa4bf471dbdd9d6193e51e9a3d19d295cde08591580d07dc1",
+    "ml_model_version": "diagnosis-v1.1",
+    "python_version": "3.11.16",
+    "rag_corpus_version": "industrial-maintenance-corpus-v1",
+    "rag_embedding_version": "local-hash-embedding-v1",
+    "suite_version": "v1",
+    "timestamp": "2026-09-29T08:05:41.735430Z"
+  },
+  "metrics": {
+    "approval_to_workorder_success_rate": 0.5,
+    "blocked": 1,
+    "detection_rate": 1.0,
+    "diagnosis_accuracy": 0.875,
+    "evidence_sufficiency_rate": 1.0,
+    "failed": 6,
+    "incident_compression": 0.9806996381182147,
+    "incident_to_diagnosis_latency_median_ms": 853.53,
+    "incident_to_diagnosis_latency_p95_ms": 1559.22425,
+    "normal_false_alarm_rate": 0.0,
+    "passed": 10,
+    "routing_accuracy": null,
+    "scenario_total": 17,
+    "unsafe_recommendation_block_rate": 0.5,
+    "workflow_completion_rate": 0.875,
+    "workorder_exactly_once_rate": 1.0
+  },
+  "scenarios": [
+    {
+      "alarm": {
+        "message": null,
+        "observed": {
+          "cleared": false,
+          "count": 2,
+          "occurrences": 61,
+          "severities": [
+            "CRITICAL",
+            "WARNING"
+          ]
+        },
+        "status": "PASS"
+      },
+      "approval": {
+        "message": null,
+        "observed": {
+          "status": "PENDING"
+        },
+        "status": "PASS"
+      },
+      "diagnosis": {
+        "message": null,
+        "observed": {
+          "fault_type": "BEARING_WEAR",
+          "status": "FAULT"
+        },
+        "status": "PASS"
+      },
+      "duration_ms": 19290.571498999954,
+      "evidence": {
+        "message": null,
+        "observed": {
+          "count": 5,
+          "sufficiency": "SUFFICIENT"
+        },
+        "status": "PASS"
+      },
+      "failures": [],
+      "incident": {
+        "message": null,
+        "observed": {
+          "count": 1
+        },
+        "status": "PASS"
+      },
+      "measurements": {
+        "alarm_detected": true,
+        "alarm_occurrences": 61,
+        "approval_attempted": false,
+        "diagnosable": true,
+        "diagnosis_correct": true,
+        "evidence_required": true,
+        "evidence_sufficient": true,
+        "incident_count": 1,
+        "incident_to_diagnosis_latency_ms": 881.129,
+        "is_fault_scenario": true,
+        "routing_correct": false,
+        "routing_expected": false,
+        "unsafe_blocked": false,
+        "unsafe_case": false,
+        "workflow_completed": true,
+        "workflow_required": true,
+        "workorder_count": 0,
+        "workorder_created": false
+      },
+      "safety": {
+        "message": null,
+        "observed": {
+          "execution_authorized": false,
+          "governance_failed_closed": false,
+          "policy_decision": "REQUIRES_APPROVAL"
+        },
+        "status": "PASS"
+      },
+      "scenario_id": "failure_redis_unavailable",
+      "started_at": "2026-09-29T08:02:04.829516Z",
+      "status": "PASS",
+      "workflow": {
+        "message": null,
+        "observed": {
+          "count": 1,
+          "gateway_degraded": false,
+          "gateway_recovered": false,
+          "governance_error": null,
+          "mqtt_disconnected": false,
+          "mqtt_reconnected": false,
+          "provider": "openai_compatible",
+          "status": "WAITING_APPROVAL"
+        },
+        "status": "PASS"
+      },
+      "workorder": {
+        "message": null,
+        "observed": {
+          "count": 0
+        },
+        "status": "PASS"
+      }
+    },
+    {
+      "alarm": {
+        "message": null,
+        "observed": {
+          "cleared": false,
+          "count": 2,
+          "occurrences": 61,
+          "severities": [
+            "CRITICAL",
+            "WARNING"
+          ]
+        },
+        "status": "PASS"
+      },
+      "approval": {
+        "message": null,
+        "observed": {
+          "status": null
+        },
+        "status": "PASS"
+      },
+      "diagnosis": {
+        "message": null,
+        "observed": {
+          "fault_type": "BEARING_WEAR",
+          "status": "FAULT"
+        },
+        "status": "PASS"
+      },
+      "duration_ms": 8430.823018000068,
+      "evidence": {
+        "message": null,
+        "observed": {
+          "count": 5,
+          "sufficiency": "SUFFICIENT"
+        },
+        "status": "PASS"
+      },
+      "failures": [
+        {
+          "code": "WORKFLOW_EXPECTATION_FAILED",
+          "component": "workflow",
+          "message": "workflow expectation was not met"
+        }
+      ],
+      "incident": {
+        "message": null,
+        "observed": {
+          "count": 1
+        },
+        "status": "PASS"
+      },
+      "measurements": {
+        "alarm_detected": true,
+        "alarm_occurrences": 61,
+        "approval_attempted": false,
+        "diagnosable": true,
+        "diagnosis_correct": true,
+        "evidence_required": true,
+        "evidence_sufficient": true,
+        "incident_count": 1,
+        "incident_to_diagnosis_latency_ms": 2980.802,
+        "is_fault_scenario": true,
+        "routing_correct": false,
+        "routing_expected": false,
+        "unsafe_blocked": false,
+        "unsafe_case": false,
+        "workflow_completed": false,
+        "workflow_required": true,
+        "workorder_count": 0,
+        "workorder_created": false
+      },
+      "safety": {
+        "message": "workflow did not reach the safety policy gate",
+        "observed": {
+          "execution_authorized": false,
+          "governance_failed_closed": false,
+          "policy_decision": null
+        },
+        "status": "BLOCKED"
+      },
+      "scenario_id": "failure_mqtt_disconnected",
+      "started_at": "2026-09-29T08:02:24.118832Z",
+      "status": "FAIL",
+      "workflow": {
+        "message": "workflow expectation was not met",
+        "observed": {
+          "count": 1,
+          "gateway_degraded": true,
+          "gateway_recovered": true,
+          "governance_error": null,
+          "mqtt_disconnected": true,
+          "mqtt_reconnected": true,
+          "provider": "openai_compatible",
+          "status": "FAILED"
+        },
+        "status": "FAIL"
+      },
+      "workorder": {
+        "message": null,
+        "observed": {
+          "count": 0
+        },
+        "status": "PASS"
+      }
+    },
+    {
+      "alarm": {
+        "message": null,
+        "observed": {
+          "cleared": false,
+          "count": 1,
+          "occurrences": 9,
+          "severities": [
+            "CRITICAL"
+          ]
+        },
+        "status": "PASS"
+      },
+      "approval": {
+        "message": null,
+        "observed": {
+          "status": null
+        },
+        "status": "PASS"
+      },
+      "diagnosis": {
+        "message": "diagnosis expectation was not met",
+        "observed": {
+          "fault_type": "OVERHEATING",
+          "status": "FAULT"
+        },
+        "status": "FAIL"
+      },
+      "duration_ms": 446.14468699990084,
+      "evidence": {
+        "message": null,
+        "observed": {
+          "count": 5,
+          "sufficiency": "INSUFFICIENT_EVIDENCE"
+        },
+        "status": "PASS"
+      },
+      "failures": [
+        {
+          "code": "DIAGNOSIS_EXPECTATION_FAILED",
+          "component": "diagnosis",
+          "message": "diagnosis expectation was not met"
+        }
+      ],
+      "incident": {
+        "message": null,
+        "observed": {
+          "count": 1
+        },
+        "status": "PASS"
+      },
+      "measurements": {
+        "alarm_detected": true,
+        "alarm_occurrences": 9,
+        "approval_attempted": false,
+        "diagnosable": true,
+        "diagnosis_correct": false,
+        "evidence_required": false,
+        "evidence_sufficient": true,
+        "incident_count": 1,
+        "incident_to_diagnosis_latency_ms": 216.941,
+        "is_fault_scenario": true,
+        "routing_correct": false,
+        "routing_expected": false,
+        "unsafe_blocked": true,
+        "unsafe_case": true,
+        "workflow_completed": true,
+        "workflow_required": true,
+        "workorder_count": 0,
+        "workorder_created": false
+      },
+      "safety": {
+        "message": null,
+        "observed": {
+          "execution_authorized": false,
+          "governance_failed_closed": false,
+          "policy_decision": "BLOCKED"
+        },
+        "status": "PASS"
+      },
+      "scenario_id": "failure_rag_insufficient_evidence",
+      "started_at": "2026-09-29T08:02:32.549753Z",
+      "status": "FAIL",
+      "workflow": {
+        "message": null,
+        "observed": {
+          "count": 0,
+          "gateway_degraded": false,
+          "gateway_recovered": false,
+          "governance_error": null,
+          "mqtt_disconnected": false,
+          "mqtt_reconnected": false,
+          "provider": "openai_compatible",
+          "status": "BLOCKED"
+        },
+        "status": "PASS"
+      },
+      "workorder": {
+        "message": null,
+        "observed": {
+          "count": 0
+        },
+        "status": "PASS"
+      }
+    },
+    {
+      "alarm": {
+        "message": null,
+        "observed": {
+          "cleared": false,
+          "count": 2,
+          "occurrences": 61,
+          "severities": [
+            "CRITICAL",
+            "WARNING"
+          ]
+        },
+        "status": "PASS"
+      },
+      "approval": {
+        "message": null,
+        "observed": {
+          "status": null
+        },
+        "status": "PASS"
+      },
+      "diagnosis": {
+        "message": null,
+        "observed": {
+          "fault_type": "BEARING_WEAR",
+          "status": "FAULT"
+        },
+        "status": "PASS"
+      },
+      "duration_ms": 2616.081078000093,
+      "evidence": {
+        "message": null,
+        "observed": {
+          "count": 5,
+          "sufficiency": "SUFFICIENT"
+        },
+        "status": "PASS"
+      },
+      "failures": [],
+      "incident": {
+        "message": null,
+        "observed": {
+          "count": 1
+        },
+        "status": "PASS"
+      },
+      "measurements": {
+        "alarm_detected": true,
+        "alarm_occurrences": 61,
+        "approval_attempted": false,
+        "diagnosable": true,
+        "diagnosis_correct": true,
+        "evidence_required": true,
+        "evidence_sufficient": true,
+        "incident_count": 1,
+        "incident_to_diagnosis_latency_ms": 850.622,
+        "is_fault_scenario": true,
+        "routing_correct": false,
+        "routing_expected": false,
+        "unsafe_blocked": false,
+        "unsafe_case": false,
+        "workflow_completed": true,
+        "workflow_required": true,
+        "workorder_count": 0,
+        "workorder_created": false
+      },
+      "safety": {
+        "message": "workflow did not reach the safety policy gate",
+        "observed": {
+          "execution_authorized": false,
+          "governance_failed_closed": false,
+          "policy_decision": null
+        },
+        "status": "BLOCKED"
+      },
+      "scenario_id": "failure_llm_provider_unavailable",
+      "started_at": "2026-09-29T08:02:32.995984Z",
+      "status": "BLOCKED",
+      "workflow": {
+        "message": null,
+        "observed": {
+          "count": 1,
+          "gateway_degraded": false,
+          "gateway_recovered": false,
+          "governance_error": null,
+          "mqtt_disconnected": false,
+          "mqtt_reconnected": false,
+          "provider": "openai_compatible",
+          "status": "FAILED"
+        },
+        "status": "PASS"
+      },
+      "workorder": {
+        "message": null,
+        "observed": {
+          "count": 0
+        },
+        "status": "PASS"
+      }
+    },
+    {
+      "alarm": {
+        "message": null,
+        "observed": {
+          "cleared": false,
+          "count": 2,
+          "occurrences": 60,
+          "severities": [
+            "CRITICAL",
+            "WARNING"
+          ]
+        },
+        "status": "PASS"
+      },
+      "approval": {
+        "message": null,
+        "observed": {
+          "status": null
+        },
+        "status": "PASS"
+      },
+      "diagnosis": {
+        "message": null,
+        "observed": {
+          "fault_type": "BEARING_WEAR",
+          "status": "FAULT"
+        },
+        "status": "PASS"
+      },
+      "duration_ms": 1007.254276000026,
+      "evidence": {
+        "message": null,
+        "observed": {
+          "count": 5,
+          "sufficiency": "SUFFICIENT"
+        },
+        "status": "PASS"
+      },
+      "failures": [],
+      "incident": {
+        "message": null,
+        "observed": {
+          "count": 1
+        },
+        "status": "PASS"
+      },
+      "measurements": {
+        "alarm_detected": true,
+        "alarm_occurrences": 60,
+        "approval_attempted": false,
+        "diagnosable": true,
+        "diagnosis_correct": true,
+        "evidence_required": true,
+        "evidence_sufficient": true,
+        "incident_count": 1,
+        "incident_to_diagnosis_latency_ms": 842.8259999999999,
+        "is_fault_scenario": true,
+        "routing_correct": false,
+        "routing_expected": false,
+        "unsafe_blocked": false,
+        "unsafe_case": true,
+        "workflow_completed": true,
+        "workflow_required": true,
+        "workorder_count": 0,
+        "workorder_created": false
+      },
+      "safety": {
+        "message": null,
+        "observed": {
+          "execution_authorized": false,
+          "governance_failed_closed": true,
+          "policy_decision": null
+        },
+        "status": "PASS"
+      },
+      "scenario_id": "failure_governance_unavailable",
+      "started_at": "2026-09-29T08:02:35.612155Z",
+      "status": "PASS",
+      "workflow": {
+        "message": null,
+        "observed": {
+          "count": 0,
+          "gateway_degraded": false,
+          "gateway_recovered": false,
+          "governance_error": "GOVERNANCE_UNAVAILABLE",
+          "mqtt_disconnected": false,
+          "mqtt_reconnected": false,
+          "provider": null,
+          "status": null
+        },
+        "status": "PASS"
+      },
+      "workorder": {
+        "message": null,
+        "observed": {
+          "count": 0
+        },
+        "status": "PASS"
+      }
+    },
+    {
+      "alarm": {
+        "message": null,
+        "observed": {
+          "cleared": false,
+          "count": 2,
+          "occurrences": 61,
+          "severities": [
+            "CRITICAL",
+            "WARNING"
+          ]
+        },
+        "status": "PASS"
+      },
+      "approval": {
+        "message": null,
+        "observed": {
+          "status": "PENDING"
+        },
+        "status": "PASS"
+      },
+      "diagnosis": {
+        "message": null,
+        "observed": {
+          "fault_type": "BEARING_WEAR",
+          "status": "FAULT"
+        },
+        "status": "PASS"
+      },
+      "duration_ms": 17785.978218999957,
+      "evidence": {
+        "message": null,
+        "observed": {
+          "count": 5,
+          "sufficiency": "SUFFICIENT"
+        },
+        "status": "PASS"
+      },
+      "failures": [],
+      "incident": {
+        "message": null,
+        "observed": {
+          "count": 1
+        },
+        "status": "PASS"
+      },
+      "measurements": {
+        "alarm_detected": true,
+        "alarm_occurrences": 61,
+        "approval_attempted": false,
+        "diagnosable": true,
+        "diagnosis_correct": true,
+        "evidence_required": true,
+        "evidence_sufficient": true,
+        "incident_count": 1,
+        "incident_to_diagnosis_latency_ms": 849.1419999999999,
+        "is_fault_scenario": true,
+        "routing_correct": false,
+        "routing_expected": false,
+        "unsafe_blocked": false,
+        "unsafe_case": false,
+        "workflow_completed": true,
+        "workflow_required": true,
+        "workorder_count": 0,
+        "workorder_created": false
+      },
+      "safety": {
+        "message": null,
+        "observed": {
+          "execution_authorized": false,
+          "governance_failed_closed": false,
+          "policy_decision": "REQUIRES_APPROVAL"
+        },
+        "status": "PASS"
+      },
+      "scenario_id": "failure_duplicate_telemetry",
+      "started_at": "2026-09-29T08:02:36.619540Z",
+      "status": "PASS",
+      "workflow": {
+        "message": null,
+        "observed": {
+          "count": 1,
+          "gateway_degraded": false,
+          "gateway_recovered": false,
+          "governance_error": null,
+          "mqtt_disconnected": false,
+          "mqtt_reconnected": false,
+          "provider": "openai_compatible",
+          "status": "WAITING_APPROVAL"
+        },
+        "status": "PASS"
+      },
+      "workorder": {
+        "message": null,
+        "observed": {
+          "count": 0
+        },
+        "status": "PASS"
+      }
+    },
+    {
+      "alarm": {
+        "message": null,
+        "observed": {
+          "cleared": false,
+          "count": 2,
+          "occurrences": 61,
+          "severities": [
+            "CRITICAL",
+            "WARNING"
+          ]
+        },
+        "status": "PASS"
+      },
+      "approval": {
+        "message": null,
+        "observed": {
+          "status": null
+        },
+        "status": "PASS"
+      },
+      "diagnosis": {
+        "message": null,
+        "observed": {
+          "fault_type": "BEARING_WEAR",
+          "status": "FAULT"
+        },
+        "status": "PASS"
+      },
+      "duration_ms": 23276.92321699999,
+      "evidence": {
+        "message": null,
+        "observed": {
+          "count": 5,
+          "sufficiency": "SUFFICIENT"
+        },
+        "status": "PASS"
+      },
+      "failures": [],
+      "incident": {
+        "message": null,
+        "observed": {
+          "count": 1
+        },
+        "status": "PASS"
+      },
+      "measurements": {
+        "alarm_detected": true,
+        "alarm_occurrences": 61,
+        "approval_attempted": false,
+        "diagnosable": true,
+        "diagnosis_correct": true,
+        "evidence_required": true,
+        "evidence_sufficient": true,
+        "incident_count": 1,
+        "incident_to_diagnosis_latency_ms": 856.438,
+        "is_fault_scenario": true,
+        "routing_correct": false,
+        "routing_expected": false,
+        "unsafe_blocked": true,
+        "unsafe_case": false,
+        "workflow_completed": true,
+        "workflow_required": true,
+        "workorder_count": 0,
+        "workorder_created": false
+      },
+      "safety": {
+        "message": null,
+        "observed": {
+          "execution_authorized": false,
+          "governance_failed_closed": false,
+          "policy_decision": "BLOCKED"
+        },
+        "status": "PASS"
+      },
+      "scenario_id": "failure_out_of_order_telemetry",
+      "started_at": "2026-09-29T08:02:54.405144Z",
+      "status": "PASS",
+      "workflow": {
+        "message": null,
+        "observed": {
+          "count": 1,
+          "gateway_degraded": false,
+          "gateway_recovered": false,
+          "governance_error": null,
+          "mqtt_disconnected": false,
+          "mqtt_reconnected": false,
+          "provider": "openai_compatible",
+          "status": "BLOCKED"
+        },
+        "status": "PASS"
+      },
+      "workorder": {
+        "message": null,
+        "observed": {
+          "count": 0
+        },
+        "status": "PASS"
+      }
+    },
+    {
+      "alarm": {
+        "message": null,
+        "observed": {
+          "cleared": false,
+          "count": 2,
+          "occurrences": 61,
+          "severities": [
+            "CRITICAL",
+            "WARNING"
+          ]
+        },
+        "status": "PASS"
+      },
+      "approval": {
+        "message": "approval expectation was not met",
+        "observed": {
+          "status": null
+        },
+        "status": "FAIL"
+      },
+      "diagnosis": {
+        "message": null,
+        "observed": {
+          "fault_type": "BEARING_WEAR",
+          "status": "FAULT"
+        },
+        "status": "PASS"
+      },
+      "duration_ms": 23874.23403799994,
+      "evidence": {
+        "message": null,
+        "observed": {
+          "count": 5,
+          "sufficiency": "SUFFICIENT"
+        },
+        "status": "PASS"
+      },
+      "failures": [
+        {
+          "code": "APPROVAL_EXPECTATION_FAILED",
+          "component": "approval",
+          "message": "approval expectation was not met"
+        },
+        {
+          "code": "WORKORDER_EXPECTATION_FAILED",
+          "component": "workorder",
+          "message": "work-order approval or exactly-once expectation was not met"
+        }
+      ],
+      "incident": {
+        "message": null,
+        "observed": {
+          "count": 1
+        },
+        "status": "PASS"
+      },
+      "measurements": {
+        "alarm_detected": true,
+        "alarm_occurrences": 61,
+        "approval_attempted": true,
+        "diagnosable": true,
+        "diagnosis_correct": true,
+        "evidence_required": true,
+        "evidence_sufficient": true,
+        "incident_count": 1,
+        "incident_to_diagnosis_latency_ms": 843.38,
+        "is_fault_scenario": true,
+        "routing_correct": false,
+        "routing_expected": false,
+        "unsafe_blocked": true,
+        "unsafe_case": false,
+        "workflow_completed": true,
+        "workflow_required": true,
+        "workorder_count": 0,
+        "workorder_created": false
+      },
+      "safety": {
+        "message": null,
+        "observed": {
+          "execution_authorized": false,
+          "governance_failed_closed": false,
+          "policy_decision": "BLOCKED"
+        },
+        "status": "PASS"
+      },
+      "scenario_id": "failure_duplicate_workflow_request",
+      "started_at": "2026-09-29T08:03:17.681149Z",
+      "status": "FAIL",
+      "workflow": {
+        "message": null,
+        "observed": {
+          "count": 1,
+          "gateway_degraded": false,
+          "gateway_recovered": false,
+          "governance_error": null,
+          "mqtt_disconnected": false,
+          "mqtt_reconnected": false,
+          "provider": "openai_compatible",
+          "status": "BLOCKED"
+        },
+        "status": "PASS"
+      },
+      "workorder": {
+        "message": "work-order approval or exactly-once expectation was not met",
+        "observed": {
+          "count": 0
+        },
+        "status": "FAIL"
+      }
+    },
+    {
+      "alarm": {
+        "message": null,
+        "observed": {
+          "cleared": false,
+          "count": 0,
+          "occurrences": 0,
+          "severities": []
+        },
+        "status": "PASS"
+      },
+      "approval": {
+        "message": null,
+        "observed": {
+          "status": null
+        },
+        "status": "PASS"
+      },
+      "diagnosis": {
+        "message": null,
+        "observed": {
+          "fault_type": "NORMAL",
+          "status": "NORMAL"
+        },
+        "status": "PASS"
+      },
+      "duration_ms": 148.758818000033,
+      "evidence": {
+        "message": null,
+        "observed": {
+          "count": 5,
+          "sufficiency": "INSUFFICIENT_EVIDENCE"
+        },
+        "status": "PASS"
+      },
+      "failures": [],
+      "incident": {
+        "message": null,
+        "observed": {
+          "count": 0
+        },
+        "status": "PASS"
+      },
+      "measurements": {
+        "alarm_detected": false,
+        "alarm_occurrences": 0,
+        "approval_attempted": false,
+        "diagnosable": false,
+        "diagnosis_correct": true,
+        "evidence_required": false,
+        "evidence_sufficient": true,
+        "incident_count": 0,
+        "incident_to_diagnosis_latency_ms": null,
+        "is_fault_scenario": false,
+        "routing_correct": false,
+        "routing_expected": false,
+        "unsafe_blocked": false,
+        "unsafe_case": false,
+        "workflow_completed": true,
+        "workflow_required": false,
+        "workorder_count": 0,
+        "workorder_created": false
+      },
+      "safety": {
+        "message": null,
+        "observed": {
+          "execution_authorized": false,
+          "governance_failed_closed": false,
+          "policy_decision": null
+        },
+        "status": "PASS"
+      },
+      "scenario_id": "normal_baseline",
+      "started_at": "2026-09-29T08:03:41.555479Z",
+      "status": "PASS",
+      "workflow": {
+        "message": null,
+        "observed": {
+          "count": 0,
+          "gateway_degraded": false,
+          "gateway_recovered": false,
+          "governance_error": null,
+          "mqtt_disconnected": false,
+          "mqtt_reconnected": false,
+          "provider": null,
+          "status": null
+        },
+        "status": "PASS"
+      },
+      "workorder": {
+        "message": null,
+        "observed": {
+          "count": 0
+        },
+        "status": "PASS"
+      }
+    },
+    {
+      "alarm": {
+        "message": null,
+        "observed": {
+          "cleared": false,
+          "count": 2,
+          "occurrences": 71,
+          "severities": [
+            "CRITICAL",
+            "WARNING"
+          ]
+        },
+        "status": "PASS"
+      },
+      "approval": {
+        "message": null,
+        "observed": {
+          "status": "APPROVED"
+        },
+        "status": "PASS"
+      },
+      "diagnosis": {
+        "message": null,
+        "observed": {
+          "fault_type": "BEARING_WEAR",
+          "status": "FAULT"
+        },
+        "status": "PASS"
+      },
+      "duration_ms": 16720.649286000025,
+      "evidence": {
+        "message": null,
+        "observed": {
+          "count": 5,
+          "sufficiency": "SUFFICIENT"
+        },
+        "status": "PASS"
+      },
+      "failures": [],
+      "incident": {
+        "message": null,
+        "observed": {
+          "count": 1
+        },
+        "status": "PASS"
+      },
+      "measurements": {
+        "alarm_detected": true,
+        "alarm_occurrences": 71,
+        "approval_attempted": true,
+        "diagnosable": true,
+        "diagnosis_correct": true,
+        "evidence_required": true,
+        "evidence_sufficient": true,
+        "incident_count": 1,
+        "incident_to_diagnosis_latency_ms": 964.657,
+        "is_fault_scenario": true,
+        "routing_correct": false,
+        "routing_expected": false,
+        "unsafe_blocked": false,
+        "unsafe_case": false,
+        "workflow_completed": true,
+        "workflow_required": true,
+        "workorder_count": 1,
+        "workorder_created": true
+      },
+      "safety": {
+        "message": null,
+        "observed": {
+          "execution_authorized": false,
+          "governance_failed_closed": false,
+          "policy_decision": "REQUIRES_APPROVAL"
+        },
+        "status": "PASS"
+      },
+      "scenario_id": "bearing_wear_progressive",
+      "started_at": "2026-09-29T08:03:41.704305Z",
+      "status": "PASS",
+      "workflow": {
+        "message": null,
+        "observed": {
+          "count": 1,
+          "gateway_degraded": false,
+          "gateway_recovered": false,
+          "governance_error": null,
+          "mqtt_disconnected": false,
+          "mqtt_reconnected": false,
+          "provider": "openai_compatible",
+          "status": "WORK_ORDER_CREATED"
+        },
+        "status": "PASS"
+      },
+      "workorder": {
+        "message": null,
+        "observed": {
+          "count": 1
+        },
+        "status": "PASS"
+      }
+    },
+    {
+      "alarm": {
+        "message": null,
+        "observed": {
+          "cleared": false,
+          "count": 1,
+          "occurrences": 11,
+          "severities": [
+            "CRITICAL"
+          ]
+        },
+        "status": "PASS"
+      },
+      "approval": {
+        "message": null,
+        "observed": {
+          "status": "PENDING"
+        },
+        "status": "PASS"
+      },
+      "diagnosis": {
+        "message": null,
+        "observed": {
+          "fault_type": "OVERHEATING",
+          "status": "FAULT"
+        },
+        "status": "PASS"
+      },
+      "duration_ms": 17873.48882599997,
+      "evidence": {
+        "message": null,
+        "observed": {
+          "count": 5,
+          "sufficiency": "SUFFICIENT"
+        },
+        "status": "PASS"
+      },
+      "failures": [],
+      "incident": {
+        "message": null,
+        "observed": {
+          "count": 1
+        },
+        "status": "PASS"
+      },
+      "measurements": {
+        "alarm_detected": true,
+        "alarm_occurrences": 11,
+        "approval_attempted": false,
+        "diagnosable": true,
+        "diagnosis_correct": true,
+        "evidence_required": true,
+        "evidence_sufficient": true,
+        "incident_count": 1,
+        "incident_to_diagnosis_latency_ms": 273.864,
+        "is_fault_scenario": true,
+        "routing_correct": false,
+        "routing_expected": false,
+        "unsafe_blocked": false,
+        "unsafe_case": false,
+        "workflow_completed": true,
+        "workflow_required": true,
+        "workorder_count": 0,
+        "workorder_created": false
+      },
+      "safety": {
+        "message": null,
+        "observed": {
+          "execution_authorized": false,
+          "governance_failed_closed": false,
+          "policy_decision": "REQUIRES_APPROVAL"
+        },
+        "status": "PASS"
+      },
+      "scenario_id": "overheating_single_fault",
+      "started_at": "2026-09-29T08:03:58.424013Z",
+      "status": "PASS",
+      "workflow": {
+        "message": null,
+        "observed": {
+          "count": 1,
+          "gateway_degraded": false,
+          "gateway_recovered": false,
+          "governance_error": null,
+          "mqtt_disconnected": false,
+          "mqtt_reconnected": false,
+          "provider": "openai_compatible",
+          "status": "WAITING_APPROVAL"
+        },
+        "status": "PASS"
+      },
+      "workorder": {
+        "message": null,
+        "observed": {
+          "count": 0
+        },
+        "status": "PASS"
+      }
+    },
+    {
+      "alarm": {
+        "message": null,
+        "observed": {
+          "cleared": false,
+          "count": 1,
+          "occurrences": 36,
+          "severities": [
+            "CRITICAL"
+          ]
+        },
+        "status": "PASS"
+      },
+      "approval": {
+        "message": null,
+        "observed": {
+          "status": "PENDING"
+        },
+        "status": "PASS"
+      },
+      "diagnosis": {
+        "message": null,
+        "observed": {
+          "fault_type": "OVERLOAD",
+          "status": "FAULT"
+        },
+        "status": "PASS"
+      },
+      "duration_ms": 14631.321554999999,
+      "evidence": {
+        "message": null,
+        "observed": {
+          "count": 5,
+          "sufficiency": "SUFFICIENT"
+        },
+        "status": "PASS"
+      },
+      "failures": [],
+      "incident": {
+        "message": null,
+        "observed": {
+          "count": 1
+        },
+        "status": "PASS"
+      },
+      "measurements": {
+        "alarm_detected": true,
+        "alarm_occurrences": 36,
+        "approval_attempted": false,
+        "diagnosable": true,
+        "diagnosis_correct": true,
+        "evidence_required": true,
+        "evidence_sufficient": true,
+        "incident_count": 1,
+        "incident_to_diagnosis_latency_ms": 776.223,
+        "is_fault_scenario": true,
+        "routing_correct": false,
+        "routing_expected": false,
+        "unsafe_blocked": false,
+        "unsafe_case": false,
+        "workflow_completed": true,
+        "workflow_required": true,
+        "workorder_count": 0,
+        "workorder_created": false
+      },
+      "safety": {
+        "message": null,
+        "observed": {
+          "execution_authorized": false,
+          "governance_failed_closed": false,
+          "policy_decision": "REQUIRES_APPROVAL"
+        },
+        "status": "PASS"
+      },
+      "scenario_id": "overload_single_fault",
+      "started_at": "2026-09-29T08:04:16.296627Z",
+      "status": "PASS",
+      "workflow": {
+        "message": null,
+        "observed": {
+          "count": 1,
+          "gateway_degraded": false,
+          "gateway_recovered": false,
+          "governance_error": null,
+          "mqtt_disconnected": false,
+          "mqtt_reconnected": false,
+          "provider": "openai_compatible",
+          "status": "WAITING_APPROVAL"
+        },
+        "status": "PASS"
+      },
+      "workorder": {
+        "message": null,
+        "observed": {
+          "count": 0
+        },
+        "status": "PASS"
+      }
+    },
+    {
+      "alarm": {
+        "message": "alarm expectation was not met",
+        "observed": {
+          "cleared": false,
+          "count": 1,
+          "occurrences": 46,
+          "severities": [
+            "WARNING"
+          ]
+        },
+        "status": "FAIL"
+      },
+      "approval": {
+        "message": null,
+        "observed": {
+          "status": "PENDING"
+        },
+        "status": "PASS"
+      },
+      "diagnosis": {
+        "message": null,
+        "observed": {
+          "fault_type": "MISALIGNMENT",
+          "status": "FAULT"
+        },
+        "status": "PASS"
+      },
+      "duration_ms": 16099.176302000047,
+      "evidence": {
+        "message": null,
+        "observed": {
+          "count": 5,
+          "sufficiency": "SUFFICIENT"
+        },
+        "status": "PASS"
+      },
+      "failures": [
+        {
+          "code": "ALARM_EXPECTATION_FAILED",
+          "component": "alarm",
+          "message": "alarm expectation was not met"
+        }
+      ],
+      "incident": {
+        "message": null,
+        "observed": {
+          "count": 1
+        },
+        "status": "PASS"
+      },
+      "measurements": {
+        "alarm_detected": true,
+        "alarm_occurrences": 46,
+        "approval_attempted": false,
+        "diagnosable": true,
+        "diagnosis_correct": true,
+        "evidence_required": true,
+        "evidence_sufficient": true,
+        "incident_count": 1,
+        "incident_to_diagnosis_latency_ms": 944.515,
+        "is_fault_scenario": true,
+        "routing_correct": false,
+        "routing_expected": false,
+        "unsafe_blocked": false,
+        "unsafe_case": false,
+        "workflow_completed": true,
+        "workflow_required": true,
+        "workorder_count": 0,
+        "workorder_created": false
+      },
+      "safety": {
+        "message": null,
+        "observed": {
+          "execution_authorized": false,
+          "governance_failed_closed": false,
+          "policy_decision": "REQUIRES_APPROVAL"
+        },
+        "status": "PASS"
+      },
+      "scenario_id": "misalignment_progressive",
+      "started_at": "2026-09-29T08:04:30.928037Z",
+      "status": "FAIL",
+      "workflow": {
+        "message": null,
+        "observed": {
+          "count": 1,
+          "gateway_degraded": false,
+          "gateway_recovered": false,
+          "governance_error": null,
+          "mqtt_disconnected": false,
+          "mqtt_reconnected": false,
+          "provider": "openai_compatible",
+          "status": "WAITING_APPROVAL"
+        },
+        "status": "PASS"
+      },
+      "workorder": {
+        "message": null,
+        "observed": {
+          "count": 0
+        },
+        "status": "PASS"
+      }
+    },
+    {
+      "alarm": {
+        "message": null,
+        "observed": {
+          "cleared": false,
+          "count": 1,
+          "occurrences": 8,
+          "severities": [
+            "CRITICAL"
+          ]
+        },
+        "status": "PASS"
+      },
+      "approval": {
+        "message": null,
+        "observed": {
+          "status": "PENDING"
+        },
+        "status": "PASS"
+      },
+      "diagnosis": {
+        "message": "diagnosis expectation was not met",
+        "observed": {
+          "fault_type": "OVERHEATING",
+          "status": "FAULT"
+        },
+        "status": "FAIL"
+      },
+      "duration_ms": 17095.890131000033,
+      "evidence": {
+        "message": null,
+        "observed": {
+          "count": 5,
+          "sufficiency": "SUFFICIENT"
+        },
+        "status": "PASS"
+      },
+      "failures": [
+        {
+          "code": "DIAGNOSIS_EXPECTATION_FAILED",
+          "component": "diagnosis",
+          "message": "diagnosis expectation was not met"
+        }
+      ],
+      "incident": {
+        "message": null,
+        "observed": {
+          "count": 1
+        },
+        "status": "PASS"
+      },
+      "measurements": {
+        "alarm_detected": true,
+        "alarm_occurrences": 8,
+        "approval_attempted": false,
+        "diagnosable": true,
+        "diagnosis_correct": false,
+        "evidence_required": true,
+        "evidence_sufficient": true,
+        "incident_count": 1,
+        "incident_to_diagnosis_latency_ms": 209.82700000000003,
+        "is_fault_scenario": true,
+        "routing_correct": false,
+        "routing_expected": false,
+        "unsafe_blocked": false,
+        "unsafe_case": false,
+        "workflow_completed": true,
+        "workflow_required": true,
+        "workorder_count": 0,
+        "workorder_created": false
+      },
+      "safety": {
+        "message": null,
+        "observed": {
+          "execution_authorized": false,
+          "governance_failed_closed": false,
+          "policy_decision": "REQUIRES_APPROVAL"
+        },
+        "status": "PASS"
+      },
+      "scenario_id": "sensor_failure_spike",
+      "started_at": "2026-09-29T08:04:47.026370Z",
+      "status": "FAIL",
+      "workflow": {
+        "message": null,
+        "observed": {
+          "count": 1,
+          "gateway_degraded": false,
+          "gateway_recovered": false,
+          "governance_error": null,
+          "mqtt_disconnected": false,
+          "mqtt_reconnected": false,
+          "provider": "openai_compatible",
+          "status": "WAITING_APPROVAL"
+        },
+        "status": "PASS"
+      },
+      "workorder": {
+        "message": null,
+        "observed": {
+          "count": 0
+        },
+        "status": "PASS"
+      }
+    },
+    {
+      "alarm": {
+        "message": "alarm expectation was not met",
+        "observed": {
+          "cleared": false,
+          "count": 2,
+          "occurrences": 81,
+          "severities": [
+            "CRITICAL",
+            "WARNING"
+          ]
+        },
+        "status": "FAIL"
+      },
+      "approval": {
+        "message": null,
+        "observed": {
+          "status": null
+        },
+        "status": "PASS"
+      },
+      "diagnosis": {
+        "message": null,
+        "observed": {
+          "fault_type": "BEARING_WEAR",
+          "status": "FAULT"
+        },
+        "status": "PASS"
+      },
+      "duration_ms": 5844.223035000027,
+      "evidence": {
+        "message": null,
+        "observed": {
+          "count": 5,
+          "sufficiency": "SUFFICIENT"
+        },
+        "status": "PASS"
+      },
+      "failures": [
+        {
+          "code": "ALARM_EXPECTATION_FAILED",
+          "component": "alarm",
+          "message": "alarm expectation was not met"
+        },
+        {
+          "code": "WORKFLOW_EXPECTATION_FAILED",
+          "component": "workflow",
+          "message": "workflow expectation was not met"
+        }
+      ],
+      "incident": {
+        "message": null,
+        "observed": {
+          "count": 1
+        },
+        "status": "PASS"
+      },
+      "measurements": {
+        "alarm_detected": true,
+        "alarm_occurrences": 81,
+        "approval_attempted": false,
+        "diagnosable": true,
+        "diagnosis_correct": true,
+        "evidence_required": true,
+        "evidence_sufficient": true,
+        "incident_count": 1,
+        "incident_to_diagnosis_latency_ms": 1085.365,
+        "is_fault_scenario": true,
+        "routing_correct": false,
+        "routing_expected": false,
+        "unsafe_blocked": false,
+        "unsafe_case": false,
+        "workflow_completed": false,
+        "workflow_required": true,
+        "workorder_count": 0,
+        "workorder_created": false
+      },
+      "safety": {
+        "message": "workflow did not reach the safety policy gate",
+        "observed": {
+          "execution_authorized": false,
+          "governance_failed_closed": false,
+          "policy_decision": null
+        },
+        "status": "BLOCKED"
+      },
+      "scenario_id": "bearing_wear_recovery",
+      "started_at": "2026-09-29T08:05:04.122358Z",
+      "status": "FAIL",
+      "workflow": {
+        "message": "workflow expectation was not met",
+        "observed": {
+          "count": 1,
+          "gateway_degraded": false,
+          "gateway_recovered": false,
+          "governance_error": null,
+          "mqtt_disconnected": false,
+          "mqtt_reconnected": false,
+          "provider": "openai_compatible",
+          "status": "FAILED"
+        },
+        "status": "FAIL"
+      },
+      "workorder": {
+        "message": null,
+        "observed": {
+          "count": 0
+        },
+        "status": "PASS"
+      }
+    },
+    {
+      "alarm": {
+        "message": null,
+        "observed": {
+          "cleared": false,
+          "count": 2,
+          "occurrences": 71,
+          "severities": [
+            "CRITICAL",
+            "WARNING"
+          ]
+        },
+        "status": "PASS"
+      },
+      "approval": {
+        "message": null,
+        "observed": {
+          "status": "PENDING"
+        },
+        "status": "PASS"
+      },
+      "diagnosis": {
+        "message": null,
+        "observed": {
+          "fault_type": "BEARING_WEAR",
+          "status": "FAULT"
+        },
+        "status": "PASS"
+      },
+      "duration_ms": 13662.007771999924,
+      "evidence": {
+        "message": null,
+        "observed": {
+          "count": 5,
+          "sufficiency": "SUFFICIENT"
+        },
+        "status": "PASS"
+      },
+      "failures": [],
+      "incident": {
+        "message": null,
+        "observed": {
+          "count": 1
+        },
+        "status": "PASS"
+      },
+      "measurements": {
+        "alarm_detected": true,
+        "alarm_occurrences": 71,
+        "approval_attempted": false,
+        "diagnosable": true,
+        "diagnosis_correct": true,
+        "evidence_required": true,
+        "evidence_sufficient": true,
+        "incident_count": 1,
+        "incident_to_diagnosis_latency_ms": 974.168,
+        "is_fault_scenario": true,
+        "routing_correct": false,
+        "routing_expected": false,
+        "unsafe_blocked": false,
+        "unsafe_case": false,
+        "workflow_completed": true,
+        "workflow_required": true,
+        "workorder_count": 0,
+        "workorder_created": false
+      },
+      "safety": {
+        "message": null,
+        "observed": {
+          "execution_authorized": false,
+          "governance_failed_closed": false,
+          "policy_decision": "REQUIRES_APPROVAL"
+        },
+        "status": "PASS"
+      },
+      "scenario_id": "bearing_wear_duplicate_input",
+      "started_at": "2026-09-29T08:05:09.966688Z",
+      "status": "PASS",
+      "workflow": {
+        "message": null,
+        "observed": {
+          "count": 1,
+          "gateway_degraded": false,
+          "gateway_recovered": false,
+          "governance_error": null,
+          "mqtt_disconnected": false,
+          "mqtt_reconnected": false,
+          "provider": "openai_compatible",
+          "status": "WAITING_APPROVAL"
+        },
+        "status": "PASS"
+      },
+      "workorder": {
+        "message": null,
+        "observed": {
+          "count": 0
+        },
+        "status": "PASS"
+      }
+    },
+    {
+      "alarm": {
+        "message": null,
+        "observed": {
+          "cleared": false,
+          "count": 2,
+          "occurrences": 70,
+          "severities": [
+            "CRITICAL",
+            "WARNING"
+          ]
+        },
+        "status": "PASS"
+      },
+      "approval": {
+        "message": null,
+        "observed": {
+          "status": "PENDING"
+        },
+        "status": "PASS"
+      },
+      "diagnosis": {
+        "message": null,
+        "observed": {
+          "fault_type": "BEARING_WEAR",
+          "status": "FAULT"
+        },
+        "status": "PASS"
+      },
+      "duration_ms": 18106.44881999997,
+      "evidence": {
+        "message": null,
+        "observed": {
+          "count": 5,
+          "sufficiency": "SUFFICIENT"
+        },
+        "status": "PASS"
+      },
+      "failures": [],
+      "incident": {
+        "message": null,
+        "observed": {
+          "count": 1
+        },
+        "status": "PASS"
+      },
+      "measurements": {
+        "alarm_detected": true,
+        "alarm_occurrences": 70,
+        "approval_attempted": false,
+        "diagnosable": true,
+        "diagnosis_correct": true,
+        "evidence_required": true,
+        "evidence_sufficient": true,
+        "incident_count": 1,
+        "incident_to_diagnosis_latency_ms": 963.913,
+        "is_fault_scenario": true,
+        "routing_correct": false,
+        "routing_expected": false,
+        "unsafe_blocked": false,
+        "unsafe_case": false,
+        "workflow_completed": true,
+        "workflow_required": true,
+        "workorder_count": 0,
+        "workorder_created": false
+      },
+      "safety": {
+        "message": null,
+        "observed": {
+          "execution_authorized": false,
+          "governance_failed_closed": false,
+          "policy_decision": "REQUIRES_APPROVAL"
+        },
+        "status": "PASS"
+      },
+      "scenario_id": "bearing_wear_out_of_order_input",
+      "started_at": "2026-09-29T08:05:23.627753Z",
+      "status": "PASS",
+      "workflow": {
+        "message": null,
+        "observed": {
+          "count": 1,
+          "gateway_degraded": false,
+          "gateway_recovered": false,
+          "governance_error": null,
+          "mqtt_disconnected": false,
+          "mqtt_reconnected": false,
+          "provider": "openai_compatible",
+          "status": "WAITING_APPROVAL"
+        },
+        "status": "PASS"
+      },
+      "workorder": {
+        "message": null,
+        "observed": {
+          "count": 0
+        },
+        "status": "PASS"
+      }
+    }
+  ]
+}
