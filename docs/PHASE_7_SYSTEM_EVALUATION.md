@@ -579,7 +579,7 @@ not attempt to reach 17/17, and it deletes no historical result.
 | Item | Run 1 | Run 2 |
 | --- | --- | --- |
 | Artifact | `artifacts/evaluation/phase7_scenario_evaluation.json` | `artifacts/evaluation/phase7_scenario_evaluation_run2.json` |
-| Artifact SHA-256 | `a69ae359…6fb61b7c` | `fb87b536…8abf4326` |
+| Artifact SHA-256 | `2f8d8e06…6f1f686f` | `fb87b536…8abf4326` |
 | git SHA | `4b8f8f0` | `824ecf33` |
 | Provider / model | DeepSeek / `openai_compatible` / `deepseek-flash` | DeepSeek / `openai_compatible` / `deepseek-flash` |
 | Result | 5 PASS / 9 FAIL / 3 BLOCKED | 10 PASS / 6 FAIL / 1 BLOCKED |
@@ -751,12 +751,32 @@ or fabricated.
 Unchanged by Phase 7.0-F: the Safety Policy (`safety-policy-v1`), the
 governance fail-closed semantics, `scenarios/v1`, and both historical
 artifacts. `artifacts/evaluation/phase7_scenario_evaluation.json`
-(`a69ae359…6fb61b7c`) and
+(`2f8d8e06…6f1f686f`) and
 `artifacts/evaluation/phase7_scenario_evaluation_run2.json`
 (`fb87b536…8abf4326`) remain byte-identical, and their SHA-256 values are
 pinned by `tests/scenarios/test_evaluator.py`.
 
-### 16.4 Regression tests
+### 16.4 Line-ending canonicalisation of the recorded hashes
+
+Section 15.1 previously recorded the Run 1 artifact SHA-256 as
+`a69ae359…6fb61b7c`. That value was computed from a Windows working tree where
+`core.autocrlf=true` had rewritten the file to CRLF, so it described the local
+checkout rather than the artifact. `.gitattributes` declares
+`*.json text eol=lf`, and the committed blob is LF:
+
+| View | Bytes | CRLF | SHA-256 |
+| --- | --- | --- | --- |
+| Worktree, `core.autocrlf=true` (Windows) | 86,816 | 2,805 | `a69ae359…6fb61b7c` |
+| Committed blob, LF (canonical) | 84,011 | 0 | `2f8d8e06…6f1f686f` |
+
+The Run 2 artifact is unaffected (`fb87b536…8abf4326` in both views) and the
+comparison artifact is `a516dc71…b0f6809aa`. The committed blobs were never
+modified; only the externally recorded digest of Run 1 was describing the wrong
+view. The immutability test now hashes the committed blob via `git cat-file`, so
+it asserts artifact bytes rather than local line-ending policy and produces the
+same result on Windows and on the Linux runner.
+
+### 16.5 Regression tests
 
 Six tests in `backend/tests/scenarios/test_evaluator.py` pin the correction:
 policy-`BLOCKED` counts as blocked; governance fail-closed counts as blocked;

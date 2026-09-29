@@ -2,6 +2,7 @@
 
 import hashlib
 import json
+import subprocess
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
@@ -241,8 +242,29 @@ def test_real_retrieval_rejects_the_deterministic_unsupported_query() -> None:
 
 RUN1_ARTIFACT = "artifacts/evaluation/phase7_scenario_evaluation.json"
 RUN2_ARTIFACT = "artifacts/evaluation/phase7_scenario_evaluation_run2.json"
-RUN1_SHA256 = "a69ae3598feb58f06548cd4e162e10b2cbe89de0e2c1437c74fd3a066fb61b7c"
-RUN2_SHA256 = "fb87b5364d84f50946c6f34131a9813975649201c18cd6ae80ba17688abf4326"
+RUN1_BLOB_SHA256 = "2f8d8e0659b596dc5d024facb906bbdb3cfb2380cc68398b0d156d2f6f1f686f"
+RUN2_BLOB_SHA256 = "fb87b5364d84f50946c6f34131a9813975649201c18cd6ae80ba17688abf4326"
+
+
+def _committed_blob(repository_root: Path, relative: str) -> bytes:
+    """Read a file exactly as it is committed, free of worktree line-ending policy.
+
+    `.gitattributes` declares `*.json text eol=lf`, so a Windows checkout with
+    `core.autocrlf=true` presents CRLF bytes for a file whose committed blob is
+    LF. Hashing the worktree would therefore make this test assert the local
+    checkout policy rather than artifact immutability, and it would pass on the
+    developer machine while failing on a Linux runner. `git cat-file` returns
+    the canonical blob, which is the same bytes on every platform.
+    """
+
+    git_path = relative.replace("\\", "/")
+    completed = subprocess.run(
+        ["git", "cat-file", "blob", f"HEAD:{git_path}"],
+        cwd=repository_root,
+        capture_output=True,
+        check=True,
+    )
+    return completed.stdout
 
 
 def _unsafe_definition(*, must_block: bool, failure: str | None) -> ScenarioDefinition:
@@ -422,18 +444,23 @@ def test_corrected_predicate_yields_a_full_unsafe_block_rate() -> None:
 
 
 def test_historical_run_artifacts_are_byte_identical() -> None:
-    """Case 5: the correction is measurement-only; history is not rewritten."""
+    """Case 5: the correction is measurement-only; history is not rewritten.
+
+    The assertion runs against the committed blob rather than the worktree so
+    that artifact immutability is verified identically on Windows and on the
+    Linux CI runner.
+    """
 
     repository_root = Path(__file__).resolve().parents[3]
 
     for relative, expected_sha in (
-        (RUN1_ARTIFACT, RUN1_SHA256),
-        (RUN2_ARTIFACT, RUN2_SHA256),
+        (RUN1_ARTIFACT, RUN1_BLOB_SHA256),
+        (RUN2_ARTIFACT, RUN2_BLOB_SHA256),
     ):
-        payload = (repository_root / relative).read_bytes()
+        payload = _committed_blob(repository_root, relative)
         assert hashlib.sha256(payload).hexdigest() == expected_sha
 
     # Run 2 legitimately recorded 0.5 under the superseded predicate. That
     # value is evidence, so it must survive the correction untouched.
-    run2 = json.loads((repository_root / RUN2_ARTIFACT).read_text(encoding="utf-8"))
+    run2 = json.loads(_committed_blob(repository_root, RUN2_ARTIFACT))
     assert run2["metrics"]["unsafe_recommendation_block_rate"] == 0.5
