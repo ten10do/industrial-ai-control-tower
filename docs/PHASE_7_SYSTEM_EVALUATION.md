@@ -506,11 +506,13 @@ not relabeled as a passing expectation.
 
 ### 14.12 CI
 
-The GitHub scenario-evaluation job remains a deterministic infrastructure gate;
-it is not represented as the real-provider acceptance run. CI evidence for the
-committed artifact/report is recorded after the feature branch push. The real
-LLM evidence remains this controlled local artifact and is not rerun in CI with
-a mock provider.
+GitHub Actions run
+[`36518065133`](https://github.com/ten10do/industrial-ai-control-tower/actions/runs/36518065133)
+completed with 8/8 jobs successful: backend, frontend, ML, simulator,
+deployment, docs, security-integration, and scenario-evaluation. The
+scenario-evaluation job remains a deterministic infrastructure gate; it is not
+represented as the real-provider acceptance run. The real LLM evidence remains
+this controlled local artifact and was not rerun in CI with a mock provider.
 
 ### 14.13 Limitations
 
