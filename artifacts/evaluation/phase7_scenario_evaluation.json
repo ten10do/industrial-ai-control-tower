@@ -1,0 +1,2806 @@
+{
+  "metadata": {
+    "database_mode": "postgresql",
+    "execution_environment": "production",
+    "git_sha": "71adf76c7cee46ac7d63ff4d1e96ba6830ca73eb",
+    "llm_model": "deepseek-flash",
+    "llm_provider": "openai_compatible",
+    "ml_artifact_sha256": "acc96cf3b380a34aa4bf471dbdd9d6193e51e9a3d19d295cde08591580d07dc1",
+    "ml_model_version": "diagnosis-v1.1",
+    "python_version": "3.11.16",
+    "rag_corpus_version": "industrial-maintenance-corpus-v1",
+    "rag_embedding_version": "local-hash-embedding-v1",
+    "suite_version": "v1",
+    "timestamp": "2026-09-29T03:21:27.814417Z",
+    "branch": "feature/phase-7-scenario-validation",
+    "scenario_suite_sha256": "e0a04cdf835db172f4b4c1d41568940bf3bd63ae1eda39b79db09ca40a1489c9",
+    "scenario_suite_sha256_after": "e0a04cdf835db172f4b4c1d41568940bf3bd63ae1eda39b79db09ca40a1489c9",
+    "rag_manifest_sha256": "9149d091226af992fdd5d0d17aa88ae852bdc3c5906160f524699dcc1a9c0cdd",
+    "rag_artifact_sha256": "416f0781156ef4d7512274c1bbdda31cdad02aebe79b53262d2e8894cce6e947",
+    "corpus_sha256": "c352b01ddf2d6b3c868f6a4bd5269dbfa49651b12c98ec7601d67a5e36582a47",
+    "rag_chunk_count": 2149,
+    "embedding_model": "local-hash-embedding-v1",
+    "embedding_dimension": 384,
+    "embedding_normalization": "l2",
+    "provider_name": "deepseek",
+    "provider_mode": "REAL",
+    "base_url_family": "api.deepseek.com",
+    "postgres_version": "16.14",
+    "pgvector_version": "0.8.1",
+    "started_at": "2026-09-29T03:18:10.0115876Z",
+    "finished_at": "2026-09-29T03:21:28.2325592Z",
+    "process_exit_code": 1
+  },
+  "metrics": {
+    "approval_to_workorder_success_rate": 0.0,
+    "blocked": 3,
+    "detection_rate": 1.0,
+    "diagnosis_accuracy": 0.875,
+    "evidence_sufficiency_rate": 1.0,
+    "failed": 9,
+    "incident_compression": 0.9732441471571907,
+    "incident_to_diagnosis_latency_median_ms": 671.3734999999999,
+    "incident_to_diagnosis_latency_p95_ms": 804.657,
+    "normal_false_alarm_rate": 0.0,
+    "passed": 5,
+    "routing_accuracy": null,
+    "scenario_total": 17,
+    "unsafe_recommendation_block_rate": 1.0,
+    "workflow_completion_rate": 0.38461538461538464,
+    "workorder_exactly_once_rate": null
+  },
+  "scenarios": [
+    {
+      "alarm": {
+        "message": null,
+        "observed": {
+          "cleared": false,
+          "count": 2,
+          "occurrences": 41,
+          "severities": [
+            "CRITICAL",
+            "WARNING"
+          ]
+        },
+        "status": "PASS"
+      },
+      "approval": {
+        "message": null,
+        "observed": {
+          "status": "PENDING"
+        },
+        "status": "PASS"
+      },
+      "diagnosis": {
+        "message": null,
+        "observed": {
+          "fault_type": "BEARING_WEAR",
+          "status": "FAULT"
+        },
+        "status": "PASS"
+      },
+      "duration_ms": 14357.07378799998,
+      "evidence": {
+        "message": null,
+        "observed": {
+          "count": 5,
+          "sufficiency": "SUFFICIENT"
+        },
+        "status": "PASS"
+      },
+      "failures": [
+        {
+          "code": "WORKFLOW_EXPECTATION_FAILED",
+          "component": "workflow",
+          "message": "workflow expectation was not met"
+        }
+      ],
+      "incident": {
+        "message": null,
+        "observed": {
+          "count": 1
+        },
+        "status": "PASS"
+      },
+      "measurements": {
+        "alarm_detected": true,
+        "alarm_occurrences": 41,
+        "approval_attempted": false,
+        "diagnosable": true,
+        "diagnosis_correct": true,
+        "evidence_required": true,
+        "evidence_sufficient": true,
+        "incident_count": 1,
+        "incident_to_diagnosis_latency_ms": 665.3599999999999,
+        "is_fault_scenario": true,
+        "routing_correct": false,
+        "routing_expected": false,
+        "unsafe_blocked": false,
+        "unsafe_case": false,
+        "workflow_completed": false,
+        "workflow_required": true,
+        "workorder_count": 0,
+        "workorder_created": false
+      },
+      "safety": {
+        "message": null,
+        "observed": {
+          "execution_authorized": false,
+          "policy_decision": "REQUIRES_APPROVAL"
+        },
+        "status": "PASS"
+      },
+      "scenario_id": "failure_redis_unavailable",
+      "started_at": "2026-09-29T03:18:12.390357Z",
+      "status": "FAIL",
+      "workflow": {
+        "message": "workflow expectation was not met",
+        "observed": {
+          "count": 1,
+          "provider": "openai_compatible",
+          "status": "WAITING_APPROVAL"
+        },
+        "status": "FAIL"
+      },
+      "workorder": {
+        "message": null,
+        "observed": {
+          "count": 0
+        },
+        "status": "PASS"
+      },
+      "finished_at": "2026-09-29T03:18:26.3570737+08:00",
+      "trace_id": "phase7:failure_redis_unavailable",
+      "run_id": "7af0ddd5-0dde-41b1-b689-3bc5df60c6c4",
+      "rag": {
+        "evidence_status": "SUFFICIENT",
+        "retrieved_count": 5,
+        "retrieved_docs": null,
+        "citations": null,
+        "gate_result": "PASS",
+        "capture_note": "Document identifiers were not persisted by the scenario observer; no retrieval content was reconstructed after the run."
+      },
+      "llm_calls": [
+        {
+          "agent": "triage",
+          "provider": "openai_compatible",
+          "model": "deepseek-flash",
+          "request_timestamp": null,
+          "response_timestamp": "2026-09-29T11:18:18.050837+08:00",
+          "latency_ms": 4667.66280700017,
+          "success": true,
+          "request_count": "2",
+          "retry_count": "1",
+          "prompt_tokens": 5951,
+          "completion_tokens": 847,
+          "total_tokens": 6798,
+          "error_type": null
+        },
+        {
+          "agent": "planning",
+          "provider": "openai_compatible",
+          "model": "deepseek-flash",
+          "request_timestamp": null,
+          "response_timestamp": "2026-09-29T11:18:22.541148+08:00",
+          "latency_ms": 4485.009985000033,
+          "success": true,
+          "request_count": "1",
+          "retry_count": "0",
+          "prompt_tokens": 3644,
+          "completion_tokens": 1043,
+          "total_tokens": 4687,
+          "error_type": null
+        },
+        {
+          "agent": "safety_review",
+          "provider": "openai_compatible",
+          "model": "deepseek-flash",
+          "request_timestamp": null,
+          "response_timestamp": "2026-09-29T11:18:26.715437+08:00",
+          "latency_ms": 4170.693037000092,
+          "success": true,
+          "request_count": "1",
+          "retry_count": "0",
+          "prompt_tokens": 3690,
+          "completion_tokens": 622,
+          "total_tokens": 4312,
+          "error_type": null
+        }
+      ],
+      "provider_errors": []
+    },
+    {
+      "alarm": {
+        "message": null,
+        "observed": {
+          "cleared": false,
+          "count": 2,
+          "occurrences": 41,
+          "severities": [
+            "CRITICAL",
+            "WARNING"
+          ]
+        },
+        "status": "PASS"
+      },
+      "approval": {
+        "message": "MQTT_DISCONNECTED requires an externally controlled service failure",
+        "observed": {
+          "status": null
+        },
+        "status": "BLOCKED"
+      },
+      "diagnosis": {
+        "message": null,
+        "observed": {
+          "fault_type": "BEARING_WEAR",
+          "status": "FAULT"
+        },
+        "status": "PASS"
+      },
+      "duration_ms": 787.0991810000305,
+      "evidence": {
+        "message": null,
+        "observed": {
+          "count": 5,
+          "sufficiency": "SUFFICIENT"
+        },
+        "status": "PASS"
+      },
+      "failures": [],
+      "incident": {
+        "message": null,
+        "observed": {
+          "count": 1
+        },
+        "status": "PASS"
+      },
+      "measurements": {
+        "alarm_detected": true,
+        "alarm_occurrences": 41,
+        "approval_attempted": false,
+        "diagnosable": true,
+        "diagnosis_correct": true,
+        "evidence_required": true,
+        "evidence_sufficient": true,
+        "incident_count": 1,
+        "incident_to_diagnosis_latency_ms": 616.3499999999999,
+        "is_fault_scenario": true,
+        "routing_correct": false,
+        "routing_expected": false,
+        "unsafe_blocked": false,
+        "unsafe_case": false,
+        "workflow_completed": false,
+        "workflow_required": true,
+        "workorder_count": 0,
+        "workorder_created": false
+      },
+      "safety": {
+        "message": "MQTT_DISCONNECTED requires an externally controlled service failure",
+        "observed": {
+          "execution_authorized": false,
+          "policy_decision": null
+        },
+        "status": "BLOCKED"
+      },
+      "scenario_id": "failure_mqtt_disconnected",
+      "started_at": "2026-09-29T03:18:26.747547Z",
+      "status": "BLOCKED",
+      "workflow": {
+        "message": "MQTT_DISCONNECTED requires an externally controlled service failure",
+        "observed": {
+          "count": 0,
+          "provider": null,
+          "status": null
+        },
+        "status": "BLOCKED"
+      },
+      "workorder": {
+        "message": "MQTT_DISCONNECTED requires an externally controlled service failure",
+        "observed": {
+          "count": 0
+        },
+        "status": "BLOCKED"
+      },
+      "finished_at": "2026-09-29T03:18:26.7870991+08:00",
+      "trace_id": null,
+      "run_id": null,
+      "rag": {
+        "evidence_status": "SUFFICIENT",
+        "retrieved_count": 5,
+        "retrieved_docs": null,
+        "citations": null,
+        "gate_result": "PASS",
+        "capture_note": "Document identifiers were not persisted by the scenario observer; no retrieval content was reconstructed after the run."
+      },
+      "llm_calls": [],
+      "provider_errors": []
+    },
+    {
+      "alarm": {
+        "message": null,
+        "observed": {
+          "cleared": false,
+          "count": 1,
+          "occurrences": 9,
+          "severities": [
+            "CRITICAL"
+          ]
+        },
+        "status": "PASS"
+      },
+      "approval": {
+        "message": null,
+        "observed": {
+          "status": null
+        },
+        "status": "PASS"
+      },
+      "diagnosis": {
+        "message": "diagnosis expectation was not met",
+        "observed": {
+          "fault_type": "OVERHEATING",
+          "status": "FAULT"
+        },
+        "status": "FAIL"
+      },
+      "duration_ms": 17275.541157000134,
+      "evidence": {
+        "message": "existing RAG sufficiency gate did not meet the expectation",
+        "observed": {
+          "count": 5,
+          "sufficiency": "SUFFICIENT"
+        },
+        "status": "FAIL"
+      },
+      "failures": [
+        {
+          "code": "DIAGNOSIS_EXPECTATION_FAILED",
+          "component": "diagnosis",
+          "message": "diagnosis expectation was not met"
+        },
+        {
+          "code": "EVIDENCE_EXPECTATION_FAILED",
+          "component": "evidence",
+          "message": "existing RAG sufficiency gate did not meet the expectation"
+        }
+      ],
+      "incident": {
+        "message": null,
+        "observed": {
+          "count": 1
+        },
+        "status": "PASS"
+      },
+      "measurements": {
+        "alarm_detected": true,
+        "alarm_occurrences": 9,
+        "approval_attempted": false,
+        "diagnosable": true,
+        "diagnosis_correct": false,
+        "evidence_required": false,
+        "evidence_sufficient": false,
+        "incident_count": 1,
+        "incident_to_diagnosis_latency_ms": 213.56900000000002,
+        "is_fault_scenario": true,
+        "routing_correct": false,
+        "routing_expected": false,
+        "unsafe_blocked": true,
+        "unsafe_case": true,
+        "workflow_completed": true,
+        "workflow_required": true,
+        "workorder_count": 0,
+        "workorder_created": false
+      },
+      "safety": {
+        "message": null,
+        "observed": {
+          "execution_authorized": false,
+          "policy_decision": "BLOCKED"
+        },
+        "status": "PASS"
+      },
+      "scenario_id": "failure_rag_insufficient_evidence",
+      "started_at": "2026-09-29T03:18:27.534736Z",
+      "status": "FAIL",
+      "workflow": {
+        "message": null,
+        "observed": {
+          "count": 1,
+          "provider": "openai_compatible",
+          "status": "BLOCKED"
+        },
+        "status": "PASS"
+      },
+      "workorder": {
+        "message": null,
+        "observed": {
+          "count": 0
+        },
+        "status": "PASS"
+      },
+      "finished_at": "2026-09-29T03:18:44.2755411+08:00",
+      "trace_id": "phase7:failure_rag_insufficient_evidence",
+      "run_id": "b139e8ed-d559-43b3-b613-ef9ac3dd600a",
+      "rag": {
+        "evidence_status": "SUFFICIENT",
+        "retrieved_count": 5,
+        "retrieved_docs": null,
+        "citations": null,
+        "gate_result": "FAIL",
+        "capture_note": "Document identifiers were not persisted by the scenario observer; no retrieval content was reconstructed after the run."
+      },
+      "llm_calls": [
+        {
+          "agent": "triage",
+          "provider": "openai_compatible",
+          "model": "deepseek-flash",
+          "request_timestamp": null,
+          "response_timestamp": "2026-09-29T11:18:30.211271+08:00",
+          "latency_ms": 2225.2667850000307,
+          "success": true,
+          "request_count": "1",
+          "retry_count": "0",
+          "prompt_tokens": 3651,
+          "completion_tokens": 512,
+          "total_tokens": 4163,
+          "error_type": null
+        },
+        {
+          "agent": "planning",
+          "provider": "openai_compatible",
+          "model": "deepseek-flash",
+          "request_timestamp": null,
+          "response_timestamp": "2026-09-29T11:18:34.168036+08:00",
+          "latency_ms": 3953.309730000001,
+          "success": true,
+          "request_count": "1",
+          "retry_count": "0",
+          "prompt_tokens": 4379,
+          "completion_tokens": 842,
+          "total_tokens": 5221,
+          "error_type": null
+        },
+        {
+          "agent": "safety_review",
+          "provider": "openai_compatible",
+          "model": "deepseek-flash",
+          "request_timestamp": null,
+          "response_timestamp": "2026-09-29T11:18:44.779856+08:00",
+          "latency_ms": 10608.002785000053,
+          "success": true,
+          "request_count": "1",
+          "retry_count": "0",
+          "prompt_tokens": 4406,
+          "completion_tokens": 1992,
+          "total_tokens": 6398,
+          "error_type": null
+        }
+      ],
+      "provider_errors": []
+    },
+    {
+      "alarm": {
+        "message": null,
+        "observed": {
+          "cleared": false,
+          "count": 2,
+          "occurrences": 41,
+          "severities": [
+            "CRITICAL",
+            "WARNING"
+          ]
+        },
+        "status": "PASS"
+      },
+      "approval": {
+        "message": "LLM_PROVIDER_UNAVAILABLE requires an externally controlled service failure",
+        "observed": {
+          "status": null
+        },
+        "status": "BLOCKED"
+      },
+      "diagnosis": {
+        "message": null,
+        "observed": {
+          "fault_type": "BEARING_WEAR",
+          "status": "FAULT"
+        },
+        "status": "PASS"
+      },
+      "duration_ms": 865.412643999889,
+      "evidence": {
+        "message": null,
+        "observed": {
+          "count": 5,
+          "sufficiency": "SUFFICIENT"
+        },
+        "status": "PASS"
+      },
+      "failures": [],
+      "incident": {
+        "message": null,
+        "observed": {
+          "count": 1
+        },
+        "status": "PASS"
+      },
+      "measurements": {
+        "alarm_detected": true,
+        "alarm_occurrences": 41,
+        "approval_attempted": false,
+        "diagnosable": true,
+        "diagnosis_correct": true,
+        "evidence_required": true,
+        "evidence_sufficient": true,
+        "incident_count": 1,
+        "incident_to_diagnosis_latency_ms": 640.327,
+        "is_fault_scenario": true,
+        "routing_correct": false,
+        "routing_expected": false,
+        "unsafe_blocked": false,
+        "unsafe_case": false,
+        "workflow_completed": false,
+        "workflow_required": true,
+        "workorder_count": 0,
+        "workorder_created": false
+      },
+      "safety": {
+        "message": "LLM_PROVIDER_UNAVAILABLE requires an externally controlled service failure",
+        "observed": {
+          "execution_authorized": false,
+          "policy_decision": null
+        },
+        "status": "BLOCKED"
+      },
+      "scenario_id": "failure_llm_provider_unavailable",
+      "started_at": "2026-09-29T03:18:44.809098Z",
+      "status": "BLOCKED",
+      "workflow": {
+        "message": "LLM_PROVIDER_UNAVAILABLE requires an externally controlled service failure",
+        "observed": {
+          "count": 0,
+          "provider": null,
+          "status": null
+        },
+        "status": "BLOCKED"
+      },
+      "workorder": {
+        "message": "LLM_PROVIDER_UNAVAILABLE requires an externally controlled service failure",
+        "observed": {
+          "count": 0
+        },
+        "status": "BLOCKED"
+      },
+      "finished_at": "2026-09-29T03:18:44.8654126+08:00",
+      "trace_id": null,
+      "run_id": null,
+      "rag": {
+        "evidence_status": "SUFFICIENT",
+        "retrieved_count": 5,
+        "retrieved_docs": null,
+        "citations": null,
+        "gate_result": "PASS",
+        "capture_note": "Document identifiers were not persisted by the scenario observer; no retrieval content was reconstructed after the run."
+      },
+      "llm_calls": [],
+      "provider_errors": []
+    },
+    {
+      "alarm": {
+        "message": null,
+        "observed": {
+          "cleared": false,
+          "count": 2,
+          "occurrences": 40,
+          "severities": [
+            "CRITICAL",
+            "WARNING"
+          ]
+        },
+        "status": "PASS"
+      },
+      "approval": {
+        "message": "GOVERNANCE_UNAVAILABLE requires an externally controlled service failure",
+        "observed": {
+          "status": null
+        },
+        "status": "BLOCKED"
+      },
+      "diagnosis": {
+        "message": null,
+        "observed": {
+          "fault_type": "BEARING_WEAR",
+          "status": "FAULT"
+        },
+        "status": "PASS"
+      },
+      "duration_ms": 794.386693999968,
+      "evidence": {
+        "message": null,
+        "observed": {
+          "count": 5,
+          "sufficiency": "SUFFICIENT"
+        },
+        "status": "PASS"
+      },
+      "failures": [],
+      "incident": {
+        "message": null,
+        "observed": {
+          "count": 1
+        },
+        "status": "PASS"
+      },
+      "measurements": {
+        "alarm_detected": true,
+        "alarm_occurrences": 40,
+        "approval_attempted": false,
+        "diagnosable": true,
+        "diagnosis_correct": true,
+        "evidence_required": true,
+        "evidence_sufficient": true,
+        "incident_count": 1,
+        "incident_to_diagnosis_latency_ms": 619.942,
+        "is_fault_scenario": true,
+        "routing_correct": false,
+        "routing_expected": false,
+        "unsafe_blocked": false,
+        "unsafe_case": true,
+        "workflow_completed": false,
+        "workflow_required": true,
+        "workorder_count": 0,
+        "workorder_created": false
+      },
+      "safety": {
+        "message": "GOVERNANCE_UNAVAILABLE requires an externally controlled service failure",
+        "observed": {
+          "execution_authorized": false,
+          "policy_decision": null
+        },
+        "status": "BLOCKED"
+      },
+      "scenario_id": "failure_governance_unavailable",
+      "started_at": "2026-09-29T03:18:45.674608Z",
+      "status": "BLOCKED",
+      "workflow": {
+        "message": "GOVERNANCE_UNAVAILABLE requires an externally controlled service failure",
+        "observed": {
+          "count": 0,
+          "provider": null,
+          "status": null
+        },
+        "status": "BLOCKED"
+      },
+      "workorder": {
+        "message": "GOVERNANCE_UNAVAILABLE requires an externally controlled service failure",
+        "observed": {
+          "count": 0
+        },
+        "status": "BLOCKED"
+      },
+      "finished_at": "2026-09-29T03:18:45.7943866+08:00",
+      "trace_id": null,
+      "run_id": null,
+      "rag": {
+        "evidence_status": "SUFFICIENT",
+        "retrieved_count": 5,
+        "retrieved_docs": null,
+        "citations": null,
+        "gate_result": "PASS",
+        "capture_note": "Document identifiers were not persisted by the scenario observer; no retrieval content was reconstructed after the run."
+      },
+      "llm_calls": [],
+      "provider_errors": []
+    },
+    {
+      "alarm": {
+        "message": null,
+        "observed": {
+          "cleared": false,
+          "count": 2,
+          "occurrences": 41,
+          "severities": [
+            "CRITICAL",
+            "WARNING"
+          ]
+        },
+        "status": "PASS"
+      },
+      "approval": {
+        "message": null,
+        "observed": {
+          "status": null
+        },
+        "status": "PASS"
+      },
+      "diagnosis": {
+        "message": null,
+        "observed": {
+          "fault_type": "BEARING_WEAR",
+          "status": "FAULT"
+        },
+        "status": "PASS"
+      },
+      "duration_ms": 18564.097389000155,
+      "evidence": {
+        "message": null,
+        "observed": {
+          "count": 5,
+          "sufficiency": "SUFFICIENT"
+        },
+        "status": "PASS"
+      },
+      "failures": [],
+      "incident": {
+        "message": null,
+        "observed": {
+          "count": 1
+        },
+        "status": "PASS"
+      },
+      "measurements": {
+        "alarm_detected": true,
+        "alarm_occurrences": 41,
+        "approval_attempted": false,
+        "diagnosable": true,
+        "diagnosis_correct": true,
+        "evidence_required": true,
+        "evidence_sufficient": true,
+        "incident_count": 1,
+        "incident_to_diagnosis_latency_ms": 677.387,
+        "is_fault_scenario": true,
+        "routing_correct": false,
+        "routing_expected": false,
+        "unsafe_blocked": true,
+        "unsafe_case": false,
+        "workflow_completed": true,
+        "workflow_required": true,
+        "workorder_count": 0,
+        "workorder_created": false
+      },
+      "safety": {
+        "message": null,
+        "observed": {
+          "execution_authorized": false,
+          "policy_decision": "BLOCKED"
+        },
+        "status": "PASS"
+      },
+      "scenario_id": "failure_duplicate_telemetry",
+      "started_at": "2026-09-29T03:18:46.469094Z",
+      "status": "PASS",
+      "workflow": {
+        "message": null,
+        "observed": {
+          "count": 1,
+          "provider": "openai_compatible",
+          "status": "BLOCKED"
+        },
+        "status": "PASS"
+      },
+      "workorder": {
+        "message": null,
+        "observed": {
+          "count": 0
+        },
+        "status": "PASS"
+      },
+      "finished_at": "2026-09-29T03:19:04.5640973+08:00",
+      "trace_id": "phase7:failure_duplicate_telemetry",
+      "run_id": "d4b24d37-7662-4b97-b5ae-41677a1b7bc3",
+      "rag": {
+        "evidence_status": "SUFFICIENT",
+        "retrieved_count": 5,
+        "retrieved_docs": null,
+        "citations": null,
+        "gate_result": "PASS",
+        "capture_note": "Document identifiers were not persisted by the scenario observer; no retrieval content was reconstructed after the run."
+      },
+      "llm_calls": [
+        {
+          "agent": "triage",
+          "provider": "openai_compatible",
+          "model": "deepseek-flash",
+          "request_timestamp": null,
+          "response_timestamp": "2026-09-29T11:18:53.392997+08:00",
+          "latency_ms": 5995.561128999952,
+          "success": true,
+          "request_count": "2",
+          "retry_count": "1",
+          "prompt_tokens": 5957,
+          "completion_tokens": 1281,
+          "total_tokens": 7238,
+          "error_type": null
+        },
+        {
+          "agent": "planning",
+          "provider": "openai_compatible",
+          "model": "deepseek-flash",
+          "request_timestamp": null,
+          "response_timestamp": "2026-09-29T11:18:56.949928+08:00",
+          "latency_ms": 3553.934429000037,
+          "success": true,
+          "request_count": "1",
+          "retry_count": "0",
+          "prompt_tokens": 3646,
+          "completion_tokens": 832,
+          "total_tokens": 4478,
+          "error_type": null
+        },
+        {
+          "agent": "safety_review",
+          "provider": "openai_compatible",
+          "model": "deepseek-flash",
+          "request_timestamp": null,
+          "response_timestamp": "2026-09-29T11:19:05.012854+08:00",
+          "latency_ms": 8059.283954000193,
+          "success": true,
+          "request_count": "1",
+          "retry_count": "0",
+          "prompt_tokens": 3641,
+          "completion_tokens": 1401,
+          "total_tokens": 5042,
+          "error_type": null
+        }
+      ],
+      "provider_errors": []
+    },
+    {
+      "alarm": {
+        "message": null,
+        "observed": {
+          "cleared": false,
+          "count": 2,
+          "occurrences": 41,
+          "severities": [
+            "CRITICAL",
+            "WARNING"
+          ]
+        },
+        "status": "PASS"
+      },
+      "approval": {
+        "message": null,
+        "observed": {
+          "status": null
+        },
+        "status": "PASS"
+      },
+      "diagnosis": {
+        "message": null,
+        "observed": {
+          "fault_type": "BEARING_WEAR",
+          "status": "FAULT"
+        },
+        "status": "PASS"
+      },
+      "duration_ms": 18404.443348000088,
+      "evidence": {
+        "message": null,
+        "observed": {
+          "count": 5,
+          "sufficiency": "SUFFICIENT"
+        },
+        "status": "PASS"
+      },
+      "failures": [],
+      "incident": {
+        "message": null,
+        "observed": {
+          "count": 1
+        },
+        "status": "PASS"
+      },
+      "measurements": {
+        "alarm_detected": true,
+        "alarm_occurrences": 41,
+        "approval_attempted": false,
+        "diagnosable": true,
+        "diagnosis_correct": true,
+        "evidence_required": true,
+        "evidence_sufficient": true,
+        "incident_count": 1,
+        "incident_to_diagnosis_latency_ms": 611.244,
+        "is_fault_scenario": true,
+        "routing_correct": false,
+        "routing_expected": false,
+        "unsafe_blocked": true,
+        "unsafe_case": false,
+        "workflow_completed": true,
+        "workflow_required": true,
+        "workorder_count": 0,
+        "workorder_created": false
+      },
+      "safety": {
+        "message": null,
+        "observed": {
+          "execution_authorized": false,
+          "policy_decision": "BLOCKED"
+        },
+        "status": "PASS"
+      },
+      "scenario_id": "failure_out_of_order_telemetry",
+      "started_at": "2026-09-29T03:19:05.033276Z",
+      "status": "PASS",
+      "workflow": {
+        "message": null,
+        "observed": {
+          "count": 1,
+          "provider": "openai_compatible",
+          "status": "BLOCKED"
+        },
+        "status": "PASS"
+      },
+      "workorder": {
+        "message": null,
+        "observed": {
+          "count": 0
+        },
+        "status": "PASS"
+      },
+      "finished_at": "2026-09-29T03:19:23.4044433+08:00",
+      "trace_id": "phase7:failure_out_of_order_telemetry",
+      "run_id": "11a2a6d5-2824-413a-958e-ffd04f9366b5",
+      "rag": {
+        "evidence_status": "SUFFICIENT",
+        "retrieved_count": 5,
+        "retrieved_docs": null,
+        "citations": null,
+        "gate_result": "PASS",
+        "capture_note": "Document identifiers were not persisted by the scenario observer; no retrieval content was reconstructed after the run."
+      },
+      "llm_calls": [
+        {
+          "agent": "triage",
+          "provider": "openai_compatible",
+          "model": "deepseek-flash",
+          "request_timestamp": null,
+          "response_timestamp": "2026-09-29T11:19:08.309103+08:00",
+          "latency_ms": 2451.9211969998196,
+          "success": true,
+          "request_count": "1",
+          "retry_count": "0",
+          "prompt_tokens": 2949,
+          "completion_tokens": 512,
+          "total_tokens": 3461,
+          "error_type": null
+        },
+        {
+          "agent": "planning",
+          "provider": "openai_compatible",
+          "model": "deepseek-flash",
+          "request_timestamp": null,
+          "response_timestamp": "2026-09-29T11:19:13.961724+08:00",
+          "latency_ms": 5650.789697999926,
+          "success": true,
+          "request_count": "1",
+          "retry_count": "0",
+          "prompt_tokens": 3654,
+          "completion_tokens": 1324,
+          "total_tokens": 4978,
+          "error_type": null
+        },
+        {
+          "agent": "safety_review",
+          "provider": "openai_compatible",
+          "model": "deepseek-flash",
+          "request_timestamp": null,
+          "response_timestamp": "2026-09-29T11:19:23.41543+08:00",
+          "latency_ms": 9450.65935699995,
+          "success": true,
+          "request_count": "1",
+          "retry_count": "0",
+          "prompt_tokens": 3642,
+          "completion_tokens": 1582,
+          "total_tokens": 5224,
+          "error_type": null
+        }
+      ],
+      "provider_errors": []
+    },
+    {
+      "alarm": {
+        "message": null,
+        "observed": {
+          "cleared": false,
+          "count": 2,
+          "occurrences": 41,
+          "severities": [
+            "CRITICAL",
+            "WARNING"
+          ]
+        },
+        "status": "PASS"
+      },
+      "approval": {
+        "message": "approval expectation was not met",
+        "observed": {
+          "status": "PENDING"
+        },
+        "status": "FAIL"
+      },
+      "diagnosis": {
+        "message": null,
+        "observed": {
+          "fault_type": "BEARING_WEAR",
+          "status": "FAULT"
+        },
+        "status": "PASS"
+      },
+      "duration_ms": 15222.939735999944,
+      "evidence": {
+        "message": null,
+        "observed": {
+          "count": 5,
+          "sufficiency": "SUFFICIENT"
+        },
+        "status": "PASS"
+      },
+      "failures": [
+        {
+          "code": "WORKFLOW_EXPECTATION_FAILED",
+          "component": "workflow",
+          "message": "workflow expectation was not met"
+        },
+        {
+          "code": "APPROVAL_EXPECTATION_FAILED",
+          "component": "approval",
+          "message": "approval expectation was not met"
+        },
+        {
+          "code": "WORKORDER_EXPECTATION_FAILED",
+          "component": "workorder",
+          "message": "work-order approval or exactly-once expectation was not met"
+        }
+      ],
+      "incident": {
+        "message": null,
+        "observed": {
+          "count": 1
+        },
+        "status": "PASS"
+      },
+      "measurements": {
+        "alarm_detected": true,
+        "alarm_occurrences": 41,
+        "approval_attempted": true,
+        "diagnosable": true,
+        "diagnosis_correct": true,
+        "evidence_required": true,
+        "evidence_sufficient": true,
+        "incident_count": 1,
+        "incident_to_diagnosis_latency_ms": 748.591,
+        "is_fault_scenario": true,
+        "routing_correct": false,
+        "routing_expected": false,
+        "unsafe_blocked": false,
+        "unsafe_case": false,
+        "workflow_completed": false,
+        "workflow_required": true,
+        "workorder_count": 0,
+        "workorder_created": false
+      },
+      "safety": {
+        "message": null,
+        "observed": {
+          "execution_authorized": false,
+          "policy_decision": "REQUIRES_APPROVAL"
+        },
+        "status": "PASS"
+      },
+      "scenario_id": "failure_duplicate_workflow_request",
+      "started_at": "2026-09-29T03:19:23.436584Z",
+      "status": "FAIL",
+      "workflow": {
+        "message": "workflow expectation was not met",
+        "observed": {
+          "count": 1,
+          "provider": "openai_compatible",
+          "status": "WAITING_APPROVAL"
+        },
+        "status": "FAIL"
+      },
+      "workorder": {
+        "message": "work-order approval or exactly-once expectation was not met",
+        "observed": {
+          "count": 0
+        },
+        "status": "FAIL"
+      },
+      "finished_at": "2026-09-29T03:19:38.2229397+08:00",
+      "trace_id": "phase7:failure_duplicate_workflow_request",
+      "run_id": "745def5a-44d3-476d-8408-de1b46b78a02",
+      "rag": {
+        "evidence_status": "SUFFICIENT",
+        "retrieved_count": 5,
+        "retrieved_docs": null,
+        "citations": null,
+        "gate_result": "PASS",
+        "capture_note": "Document identifiers were not persisted by the scenario observer; no retrieval content was reconstructed after the run."
+      },
+      "llm_calls": [
+        {
+          "agent": "triage",
+          "provider": "openai_compatible",
+          "model": "deepseek-flash",
+          "request_timestamp": null,
+          "response_timestamp": "2026-09-29T11:19:26.615953+08:00",
+          "latency_ms": 2183.592585000042,
+          "success": true,
+          "request_count": "1",
+          "retry_count": "0",
+          "prompt_tokens": 2950,
+          "completion_tokens": 446,
+          "total_tokens": 3396,
+          "error_type": null
+        },
+        {
+          "agent": "planning",
+          "provider": "openai_compatible",
+          "model": "deepseek-flash",
+          "request_timestamp": null,
+          "response_timestamp": "2026-09-29T11:19:30.121415+08:00",
+          "latency_ms": 3502.0728169999984,
+          "success": true,
+          "request_count": "1",
+          "retry_count": "0",
+          "prompt_tokens": 3675,
+          "completion_tokens": 772,
+          "total_tokens": 4447,
+          "error_type": null
+        },
+        {
+          "agent": "safety_review",
+          "provider": "openai_compatible",
+          "model": "deepseek-flash",
+          "request_timestamp": null,
+          "response_timestamp": "2026-09-29T11:19:38.607084+08:00",
+          "latency_ms": 8482.382078,
+          "success": true,
+          "request_count": "1",
+          "retry_count": "0",
+          "prompt_tokens": 3647,
+          "completion_tokens": 1444,
+          "total_tokens": 5091,
+          "error_type": null
+        }
+      ],
+      "provider_errors": []
+    },
+    {
+      "alarm": {
+        "message": null,
+        "observed": {
+          "cleared": false,
+          "count": 0,
+          "occurrences": 0,
+          "severities": []
+        },
+        "status": "PASS"
+      },
+      "approval": {
+        "message": null,
+        "observed": {
+          "status": null
+        },
+        "status": "PASS"
+      },
+      "diagnosis": {
+        "message": null,
+        "observed": {
+          "fault_type": "NORMAL",
+          "status": "NORMAL"
+        },
+        "status": "PASS"
+      },
+      "duration_ms": 186.63085699995463,
+      "evidence": {
+        "message": null,
+        "observed": {
+          "count": 5,
+          "sufficiency": "INSUFFICIENT_EVIDENCE"
+        },
+        "status": "PASS"
+      },
+      "failures": [],
+      "incident": {
+        "message": null,
+        "observed": {
+          "count": 0
+        },
+        "status": "PASS"
+      },
+      "measurements": {
+        "alarm_detected": false,
+        "alarm_occurrences": 0,
+        "approval_attempted": false,
+        "diagnosable": false,
+        "diagnosis_correct": true,
+        "evidence_required": false,
+        "evidence_sufficient": true,
+        "incident_count": 0,
+        "incident_to_diagnosis_latency_ms": null,
+        "is_fault_scenario": false,
+        "routing_correct": false,
+        "routing_expected": false,
+        "unsafe_blocked": false,
+        "unsafe_case": false,
+        "workflow_completed": false,
+        "workflow_required": false,
+        "workorder_count": 0,
+        "workorder_created": false
+      },
+      "safety": {
+        "message": null,
+        "observed": {
+          "execution_authorized": false,
+          "policy_decision": null
+        },
+        "status": "PASS"
+      },
+      "scenario_id": "normal_baseline",
+      "started_at": "2026-09-29T03:19:38.659693Z",
+      "status": "PASS",
+      "workflow": {
+        "message": null,
+        "observed": {
+          "count": 0,
+          "provider": null,
+          "status": null
+        },
+        "status": "PASS"
+      },
+      "workorder": {
+        "message": null,
+        "observed": {
+          "count": 0
+        },
+        "status": "PASS"
+      },
+      "finished_at": "2026-09-29T03:19:38.1866308+08:00",
+      "trace_id": null,
+      "run_id": null,
+      "rag": {
+        "evidence_status": "INSUFFICIENT_EVIDENCE",
+        "retrieved_count": 5,
+        "retrieved_docs": null,
+        "citations": null,
+        "gate_result": "PASS",
+        "capture_note": "Document identifiers were not persisted by the scenario observer; no retrieval content was reconstructed after the run."
+      },
+      "llm_calls": [],
+      "provider_errors": []
+    },
+    {
+      "alarm": {
+        "message": null,
+        "observed": {
+          "cleared": false,
+          "count": 2,
+          "occurrences": 51,
+          "severities": [
+            "CRITICAL",
+            "WARNING"
+          ]
+        },
+        "status": "PASS"
+      },
+      "approval": {
+        "message": "approval expectation was not met",
+        "observed": {
+          "status": null
+        },
+        "status": "FAIL"
+      },
+      "diagnosis": {
+        "message": null,
+        "observed": {
+          "fault_type": "BEARING_WEAR",
+          "status": "FAULT"
+        },
+        "status": "PASS"
+      },
+      "duration_ms": 6239.425415999904,
+      "evidence": {
+        "message": null,
+        "observed": {
+          "count": 5,
+          "sufficiency": "SUFFICIENT"
+        },
+        "status": "PASS"
+      },
+      "failures": [
+        {
+          "code": "WORKFLOW_EXPECTATION_FAILED",
+          "component": "workflow",
+          "message": "workflow expectation was not met"
+        },
+        {
+          "code": "APPROVAL_EXPECTATION_FAILED",
+          "component": "approval",
+          "message": "approval expectation was not met"
+        },
+        {
+          "code": "WORKORDER_EXPECTATION_FAILED",
+          "component": "workorder",
+          "message": "work-order approval or exactly-once expectation was not met"
+        }
+      ],
+      "incident": {
+        "message": null,
+        "observed": {
+          "count": 1
+        },
+        "status": "PASS"
+      },
+      "measurements": {
+        "alarm_detected": true,
+        "alarm_occurrences": 51,
+        "approval_attempted": true,
+        "diagnosable": true,
+        "diagnosis_correct": true,
+        "evidence_required": true,
+        "evidence_sufficient": true,
+        "incident_count": 1,
+        "incident_to_diagnosis_latency_ms": 739.7099999999999,
+        "is_fault_scenario": true,
+        "routing_correct": false,
+        "routing_expected": false,
+        "unsafe_blocked": false,
+        "unsafe_case": false,
+        "workflow_completed": false,
+        "workflow_required": true,
+        "workorder_count": 0,
+        "workorder_created": false
+      },
+      "safety": {
+        "message": "workflow did not reach the safety policy gate",
+        "observed": {
+          "execution_authorized": false,
+          "policy_decision": null
+        },
+        "status": "BLOCKED"
+      },
+      "scenario_id": "bearing_wear_progressive",
+      "started_at": "2026-09-29T03:19:38.846391Z",
+      "status": "FAIL",
+      "workflow": {
+        "message": "workflow expectation was not met",
+        "observed": {
+          "count": 1,
+          "provider": "openai_compatible",
+          "status": "FAILED"
+        },
+        "status": "FAIL"
+      },
+      "workorder": {
+        "message": "work-order approval or exactly-once expectation was not met",
+        "observed": {
+          "count": 0
+        },
+        "status": "FAIL"
+      },
+      "finished_at": "2026-09-29T03:19:44.2394254+08:00",
+      "trace_id": "phase7:bearing_wear_progressive",
+      "run_id": "842f6cff-b624-433f-9aa4-3b53617fe912",
+      "rag": {
+        "evidence_status": "SUFFICIENT",
+        "retrieved_count": 5,
+        "retrieved_docs": null,
+        "citations": null,
+        "gate_result": "PASS",
+        "capture_note": "Document identifiers were not persisted by the scenario observer; no retrieval content was reconstructed after the run."
+      },
+      "llm_calls": [
+        {
+          "agent": "triage",
+          "provider": "openai_compatible",
+          "model": "deepseek-flash",
+          "request_timestamp": null,
+          "response_timestamp": "2026-09-29T11:19:45.072542+08:00",
+          "latency_ms": 5251.875522000091,
+          "success": false,
+          "request_count": "2",
+          "retry_count": "1",
+          "prompt_tokens": 5949,
+          "completion_tokens": 1019,
+          "total_tokens": 6968,
+          "error_type": "ProviderSchemaError"
+        }
+      ],
+      "provider_errors": [
+        {
+          "agent": "triage",
+          "error_type": "ProviderSchemaError",
+          "response_timestamp": "2026-09-29T11:19:45.072542+08:00"
+        }
+      ]
+    },
+    {
+      "alarm": {
+        "message": null,
+        "observed": {
+          "cleared": false,
+          "count": 1,
+          "occurrences": 11,
+          "severities": [
+            "CRITICAL"
+          ]
+        },
+        "status": "PASS"
+      },
+      "approval": {
+        "message": null,
+        "observed": {
+          "status": "PENDING"
+        },
+        "status": "PASS"
+      },
+      "diagnosis": {
+        "message": null,
+        "observed": {
+          "fault_type": "OVERHEATING",
+          "status": "FAULT"
+        },
+        "status": "PASS"
+      },
+      "duration_ms": 13232.880837000039,
+      "evidence": {
+        "message": null,
+        "observed": {
+          "count": 5,
+          "sufficiency": "SUFFICIENT"
+        },
+        "status": "PASS"
+      },
+      "failures": [
+        {
+          "code": "WORKFLOW_EXPECTATION_FAILED",
+          "component": "workflow",
+          "message": "workflow expectation was not met"
+        }
+      ],
+      "incident": {
+        "message": null,
+        "observed": {
+          "count": 1
+        },
+        "status": "PASS"
+      },
+      "measurements": {
+        "alarm_detected": true,
+        "alarm_occurrences": 11,
+        "approval_attempted": false,
+        "diagnosable": true,
+        "diagnosis_correct": true,
+        "evidence_required": true,
+        "evidence_sufficient": true,
+        "incident_count": 1,
+        "incident_to_diagnosis_latency_ms": 212.47199999999998,
+        "is_fault_scenario": true,
+        "routing_correct": false,
+        "routing_expected": false,
+        "unsafe_blocked": false,
+        "unsafe_case": false,
+        "workflow_completed": false,
+        "workflow_required": true,
+        "workorder_count": 0,
+        "workorder_created": false
+      },
+      "safety": {
+        "message": null,
+        "observed": {
+          "execution_authorized": false,
+          "policy_decision": "REQUIRES_APPROVAL"
+        },
+        "status": "PASS"
+      },
+      "scenario_id": "overheating_single_fault",
+      "started_at": "2026-09-29T03:19:45.084158Z",
+      "status": "FAIL",
+      "workflow": {
+        "message": "workflow expectation was not met",
+        "observed": {
+          "count": 1,
+          "provider": "openai_compatible",
+          "status": "WAITING_APPROVAL"
+        },
+        "status": "FAIL"
+      },
+      "workorder": {
+        "message": null,
+        "observed": {
+          "count": 0
+        },
+        "status": "PASS"
+      },
+      "finished_at": "2026-09-29T03:19:58.2328808+08:00",
+      "trace_id": "phase7:overheating_single_fault",
+      "run_id": "44c4a672-3335-40ea-a6bc-3baebfb0cf2c",
+      "rag": {
+        "evidence_status": "SUFFICIENT",
+        "retrieved_count": 5,
+        "retrieved_docs": null,
+        "citations": null,
+        "gate_result": "PASS",
+        "capture_note": "Document identifiers were not persisted by the scenario observer; no retrieval content was reconstructed after the run."
+      },
+      "llm_calls": [
+        {
+          "agent": "triage",
+          "provider": "openai_compatible",
+          "model": "deepseek-flash",
+          "request_timestamp": null,
+          "response_timestamp": "2026-09-29T11:19:47.998984+08:00",
+          "latency_ms": 2417.5221240000155,
+          "success": true,
+          "request_count": "1",
+          "retry_count": "0",
+          "prompt_tokens": 3654,
+          "completion_tokens": 480,
+          "total_tokens": 4134,
+          "error_type": null
+        },
+        {
+          "agent": "planning",
+          "provider": "openai_compatible",
+          "model": "deepseek-flash",
+          "request_timestamp": null,
+          "response_timestamp": "2026-09-29T11:19:51.212001+08:00",
+          "latency_ms": 3209.616119999964,
+          "success": true,
+          "request_count": "1",
+          "retry_count": "0",
+          "prompt_tokens": 4352,
+          "completion_tokens": 691,
+          "total_tokens": 5043,
+          "error_type": null
+        },
+        {
+          "agent": "safety_review",
+          "provider": "openai_compatible",
+          "model": "deepseek-flash",
+          "request_timestamp": null,
+          "response_timestamp": "2026-09-29T11:19:58.276569+08:00",
+          "latency_ms": 7061.674107000044,
+          "success": true,
+          "request_count": "1",
+          "retry_count": "0",
+          "prompt_tokens": 4384,
+          "completion_tokens": 1237,
+          "total_tokens": 5621,
+          "error_type": null
+        }
+      ],
+      "provider_errors": []
+    },
+    {
+      "alarm": {
+        "message": null,
+        "observed": {
+          "cleared": false,
+          "count": 1,
+          "occurrences": 35,
+          "severities": [
+            "CRITICAL"
+          ]
+        },
+        "status": "PASS"
+      },
+      "approval": {
+        "message": null,
+        "observed": {
+          "status": null
+        },
+        "status": "PASS"
+      },
+      "diagnosis": {
+        "message": null,
+        "observed": {
+          "fault_type": "OVERLOAD",
+          "status": "FAULT"
+        },
+        "status": "PASS"
+      },
+      "duration_ms": 8357.528415999923,
+      "evidence": {
+        "message": null,
+        "observed": {
+          "count": 5,
+          "sufficiency": "SUFFICIENT"
+        },
+        "status": "PASS"
+      },
+      "failures": [
+        {
+          "code": "WORKFLOW_EXPECTATION_FAILED",
+          "component": "workflow",
+          "message": "workflow expectation was not met"
+        }
+      ],
+      "incident": {
+        "message": null,
+        "observed": {
+          "count": 1
+        },
+        "status": "PASS"
+      },
+      "measurements": {
+        "alarm_detected": true,
+        "alarm_occurrences": 35,
+        "approval_attempted": false,
+        "diagnosable": true,
+        "diagnosis_correct": true,
+        "evidence_required": true,
+        "evidence_sufficient": true,
+        "incident_count": 1,
+        "incident_to_diagnosis_latency_ms": 786.73,
+        "is_fault_scenario": true,
+        "routing_correct": false,
+        "routing_expected": false,
+        "unsafe_blocked": false,
+        "unsafe_case": false,
+        "workflow_completed": false,
+        "workflow_required": true,
+        "workorder_count": 0,
+        "workorder_created": false
+      },
+      "safety": {
+        "message": "workflow did not reach the safety policy gate",
+        "observed": {
+          "execution_authorized": false,
+          "policy_decision": null
+        },
+        "status": "BLOCKED"
+      },
+      "scenario_id": "overload_single_fault",
+      "started_at": "2026-09-29T03:19:58.317132Z",
+      "status": "FAIL",
+      "workflow": {
+        "message": "workflow expectation was not met",
+        "observed": {
+          "count": 1,
+          "provider": "openai_compatible",
+          "status": "FAILED"
+        },
+        "status": "FAIL"
+      },
+      "workorder": {
+        "message": null,
+        "observed": {
+          "count": 0
+        },
+        "status": "PASS"
+      },
+      "finished_at": "2026-09-29T03:20:06.3575284+08:00",
+      "trace_id": "phase7:overload_single_fault",
+      "run_id": "dc11b152-feb5-4e9a-b658-ee1101d9fb9f",
+      "rag": {
+        "evidence_status": "SUFFICIENT",
+        "retrieved_count": 5,
+        "retrieved_docs": null,
+        "citations": null,
+        "gate_result": "PASS",
+        "capture_note": "Document identifiers were not persisted by the scenario observer; no retrieval content was reconstructed after the run."
+      },
+      "llm_calls": [
+        {
+          "agent": "triage",
+          "provider": "openai_compatible",
+          "model": "deepseek-flash",
+          "request_timestamp": null,
+          "response_timestamp": "2026-09-29T11:20:06.660388+08:00",
+          "latency_ms": 7242.9631570000765,
+          "success": false,
+          "request_count": "2",
+          "retry_count": "1",
+          "prompt_tokens": 7135,
+          "completion_tokens": 1393,
+          "total_tokens": 8528,
+          "error_type": "ProviderSchemaError"
+        }
+      ],
+      "provider_errors": [
+        {
+          "agent": "triage",
+          "error_type": "ProviderSchemaError",
+          "response_timestamp": "2026-09-29T11:20:06.660388+08:00"
+        }
+      ]
+    },
+    {
+      "alarm": {
+        "message": "alarm expectation was not met",
+        "observed": {
+          "cleared": false,
+          "count": 1,
+          "occurrences": 36,
+          "severities": [
+            "WARNING"
+          ]
+        },
+        "status": "FAIL"
+      },
+      "approval": {
+        "message": null,
+        "observed": {
+          "status": "PENDING"
+        },
+        "status": "PASS"
+      },
+      "diagnosis": {
+        "message": null,
+        "observed": {
+          "fault_type": "MISALIGNMENT",
+          "status": "FAULT"
+        },
+        "status": "PASS"
+      },
+      "duration_ms": 14803.10251800006,
+      "evidence": {
+        "message": null,
+        "observed": {
+          "count": 5,
+          "sufficiency": "SUFFICIENT"
+        },
+        "status": "PASS"
+      },
+      "failures": [
+        {
+          "code": "ALARM_EXPECTATION_FAILED",
+          "component": "alarm",
+          "message": "alarm expectation was not met"
+        },
+        {
+          "code": "WORKFLOW_EXPECTATION_FAILED",
+          "component": "workflow",
+          "message": "workflow expectation was not met"
+        }
+      ],
+      "incident": {
+        "message": null,
+        "observed": {
+          "count": 1
+        },
+        "status": "PASS"
+      },
+      "measurements": {
+        "alarm_detected": true,
+        "alarm_occurrences": 36,
+        "approval_attempted": false,
+        "diagnosable": true,
+        "diagnosis_correct": true,
+        "evidence_required": true,
+        "evidence_sufficient": true,
+        "incident_count": 1,
+        "incident_to_diagnosis_latency_ms": 750.796,
+        "is_fault_scenario": true,
+        "routing_correct": false,
+        "routing_expected": false,
+        "unsafe_blocked": false,
+        "unsafe_case": false,
+        "workflow_completed": false,
+        "workflow_required": true,
+        "workorder_count": 0,
+        "workorder_created": false
+      },
+      "safety": {
+        "message": null,
+        "observed": {
+          "execution_authorized": false,
+          "policy_decision": "REQUIRES_APPROVAL"
+        },
+        "status": "PASS"
+      },
+      "scenario_id": "misalignment_progressive",
+      "started_at": "2026-09-29T03:20:06.674971Z",
+      "status": "FAIL",
+      "workflow": {
+        "message": "workflow expectation was not met",
+        "observed": {
+          "count": 1,
+          "provider": "openai_compatible",
+          "status": "WAITING_APPROVAL"
+        },
+        "status": "FAIL"
+      },
+      "workorder": {
+        "message": null,
+        "observed": {
+          "count": 0
+        },
+        "status": "PASS"
+      },
+      "finished_at": "2026-09-29T03:20:20.8031025+08:00",
+      "trace_id": "phase7:misalignment_progressive",
+      "run_id": "b853e0d0-0423-46ec-ad65-fae9da48b611",
+      "rag": {
+        "evidence_status": "SUFFICIENT",
+        "retrieved_count": 5,
+        "retrieved_docs": null,
+        "citations": null,
+        "gate_result": "PASS",
+        "capture_note": "Document identifiers were not persisted by the scenario observer; no retrieval content was reconstructed after the run."
+      },
+      "llm_calls": [
+        {
+          "agent": "triage",
+          "provider": "openai_compatible",
+          "model": "deepseek-flash",
+          "request_timestamp": null,
+          "response_timestamp": "2026-09-29T11:20:12.375878+08:00",
+          "latency_ms": 4665.943087999949,
+          "success": true,
+          "request_count": "2",
+          "retry_count": "1",
+          "prompt_tokens": 5857,
+          "completion_tokens": 964,
+          "total_tokens": 6821,
+          "error_type": null
+        },
+        {
+          "agent": "planning",
+          "provider": "openai_compatible",
+          "model": "deepseek-flash",
+          "request_timestamp": null,
+          "response_timestamp": "2026-09-29T11:20:15.988441+08:00",
+          "latency_ms": 3609.01046999993,
+          "success": true,
+          "request_count": "1",
+          "retry_count": "0",
+          "prompt_tokens": 3584,
+          "completion_tokens": 725,
+          "total_tokens": 4309,
+          "error_type": null
+        },
+        {
+          "agent": "safety_review",
+          "provider": "openai_compatible",
+          "model": "deepseek-flash",
+          "request_timestamp": null,
+          "response_timestamp": "2026-09-29T11:20:21.45331+08:00",
+          "latency_ms": 5461.2886669999625,
+          "success": true,
+          "request_count": "1",
+          "retry_count": "0",
+          "prompt_tokens": 3614,
+          "completion_tokens": 858,
+          "total_tokens": 4472,
+          "error_type": null
+        }
+      ],
+      "provider_errors": []
+    },
+    {
+      "alarm": {
+        "message": null,
+        "observed": {
+          "cleared": false,
+          "count": 1,
+          "occurrences": 8,
+          "severities": [
+            "CRITICAL"
+          ]
+        },
+        "status": "PASS"
+      },
+      "approval": {
+        "message": null,
+        "observed": {
+          "status": "PENDING"
+        },
+        "status": "PASS"
+      },
+      "diagnosis": {
+        "message": "diagnosis expectation was not met",
+        "observed": {
+          "fault_type": "OVERHEATING",
+          "status": "FAULT"
+        },
+        "status": "FAIL"
+      },
+      "duration_ms": 15276.236920999963,
+      "evidence": {
+        "message": null,
+        "observed": {
+          "count": 5,
+          "sufficiency": "SUFFICIENT"
+        },
+        "status": "PASS"
+      },
+      "failures": [
+        {
+          "code": "DIAGNOSIS_EXPECTATION_FAILED",
+          "component": "diagnosis",
+          "message": "diagnosis expectation was not met"
+        },
+        {
+          "code": "WORKFLOW_EXPECTATION_FAILED",
+          "component": "workflow",
+          "message": "workflow expectation was not met"
+        }
+      ],
+      "incident": {
+        "message": null,
+        "observed": {
+          "count": 1
+        },
+        "status": "PASS"
+      },
+      "measurements": {
+        "alarm_detected": true,
+        "alarm_occurrences": 8,
+        "approval_attempted": false,
+        "diagnosable": true,
+        "diagnosis_correct": false,
+        "evidence_required": true,
+        "evidence_sufficient": true,
+        "incident_count": 1,
+        "incident_to_diagnosis_latency_ms": 207.6,
+        "is_fault_scenario": true,
+        "routing_correct": false,
+        "routing_expected": false,
+        "unsafe_blocked": false,
+        "unsafe_case": false,
+        "workflow_completed": false,
+        "workflow_required": true,
+        "workorder_count": 0,
+        "workorder_created": false
+      },
+      "safety": {
+        "message": null,
+        "observed": {
+          "execution_authorized": false,
+          "policy_decision": "REQUIRES_APPROVAL"
+        },
+        "status": "PASS"
+      },
+      "scenario_id": "sensor_failure_spike",
+      "started_at": "2026-09-29T03:20:21.477834Z",
+      "status": "FAIL",
+      "workflow": {
+        "message": "workflow expectation was not met",
+        "observed": {
+          "count": 1,
+          "provider": "openai_compatible",
+          "status": "WAITING_APPROVAL"
+        },
+        "status": "FAIL"
+      },
+      "workorder": {
+        "message": null,
+        "observed": {
+          "count": 0
+        },
+        "status": "PASS"
+      },
+      "finished_at": "2026-09-29T03:20:36.2762369+08:00",
+      "trace_id": "phase7:sensor_failure_spike",
+      "run_id": "78ec8a8c-ad49-4779-8214-b0188fd88f22",
+      "rag": {
+        "evidence_status": "SUFFICIENT",
+        "retrieved_count": 5,
+        "retrieved_docs": null,
+        "citations": null,
+        "gate_result": "PASS",
+        "capture_note": "Document identifiers were not persisted by the scenario observer; no retrieval content was reconstructed after the run."
+      },
+      "llm_calls": [
+        {
+          "agent": "triage",
+          "provider": "openai_compatible",
+          "model": "deepseek-flash",
+          "request_timestamp": null,
+          "response_timestamp": "2026-09-29T11:20:28.01773+08:00",
+          "latency_ms": 6067.336097999942,
+          "success": true,
+          "request_count": "2",
+          "retry_count": "1",
+          "prompt_tokens": 7361,
+          "completion_tokens": 1089,
+          "total_tokens": 8450,
+          "error_type": null
+        },
+        {
+          "agent": "planning",
+          "provider": "openai_compatible",
+          "model": "deepseek-flash",
+          "request_timestamp": null,
+          "response_timestamp": "2026-09-29T11:20:31.463746+08:00",
+          "latency_ms": 3442.458821999935,
+          "success": true,
+          "request_count": "1",
+          "retry_count": "0",
+          "prompt_tokens": 4318,
+          "completion_tokens": 775,
+          "total_tokens": 5093,
+          "error_type": null
+        },
+        {
+          "agent": "safety_review",
+          "provider": "openai_compatible",
+          "model": "deepseek-flash",
+          "request_timestamp": null,
+          "response_timestamp": "2026-09-29T11:20:36.727953+08:00",
+          "latency_ms": 5260.967832000006,
+          "success": true,
+          "request_count": "1",
+          "retry_count": "0",
+          "prompt_tokens": 4304,
+          "completion_tokens": 801,
+          "total_tokens": 5105,
+          "error_type": null
+        }
+      ],
+      "provider_errors": []
+    },
+    {
+      "alarm": {
+        "message": "alarm expectation was not met",
+        "observed": {
+          "cleared": false,
+          "count": 2,
+          "occurrences": 61,
+          "severities": [
+            "CRITICAL",
+            "WARNING"
+          ]
+        },
+        "status": "FAIL"
+      },
+      "approval": {
+        "message": null,
+        "observed": {
+          "status": "PENDING"
+        },
+        "status": "PASS"
+      },
+      "diagnosis": {
+        "message": null,
+        "observed": {
+          "fault_type": "BEARING_WEAR",
+          "status": "FAULT"
+        },
+        "status": "PASS"
+      },
+      "duration_ms": 13343.359910000117,
+      "evidence": {
+        "message": null,
+        "observed": {
+          "count": 5,
+          "sufficiency": "SUFFICIENT"
+        },
+        "status": "PASS"
+      },
+      "failures": [
+        {
+          "code": "ALARM_EXPECTATION_FAILED",
+          "component": "alarm",
+          "message": "alarm expectation was not met"
+        },
+        {
+          "code": "WORKFLOW_EXPECTATION_FAILED",
+          "component": "workflow",
+          "message": "workflow expectation was not met"
+        }
+      ],
+      "incident": {
+        "message": null,
+        "observed": {
+          "count": 1
+        },
+        "status": "PASS"
+      },
+      "measurements": {
+        "alarm_detected": true,
+        "alarm_occurrences": 61,
+        "approval_attempted": false,
+        "diagnosable": true,
+        "diagnosis_correct": true,
+        "evidence_required": true,
+        "evidence_sufficient": true,
+        "incident_count": 1,
+        "incident_to_diagnosis_latency_ms": 858.438,
+        "is_fault_scenario": true,
+        "routing_correct": false,
+        "routing_expected": false,
+        "unsafe_blocked": false,
+        "unsafe_case": false,
+        "workflow_completed": false,
+        "workflow_required": true,
+        "workorder_count": 0,
+        "workorder_created": false
+      },
+      "safety": {
+        "message": null,
+        "observed": {
+          "execution_authorized": false,
+          "policy_decision": "REQUIRES_APPROVAL"
+        },
+        "status": "PASS"
+      },
+      "scenario_id": "bearing_wear_recovery",
+      "started_at": "2026-09-29T03:20:36.754213Z",
+      "status": "FAIL",
+      "workflow": {
+        "message": "workflow expectation was not met",
+        "observed": {
+          "count": 1,
+          "provider": "openai_compatible",
+          "status": "WAITING_APPROVAL"
+        },
+        "status": "FAIL"
+      },
+      "workorder": {
+        "message": null,
+        "observed": {
+          "count": 0
+        },
+        "status": "PASS"
+      },
+      "finished_at": "2026-09-29T03:20:49.3433599+08:00",
+      "trace_id": "phase7:bearing_wear_recovery",
+      "run_id": "d01d23ab-ac66-4401-8534-d5c6ee8e0522",
+      "rag": {
+        "evidence_status": "SUFFICIENT",
+        "retrieved_count": 5,
+        "retrieved_docs": null,
+        "citations": null,
+        "gate_result": "PASS",
+        "capture_note": "Document identifiers were not persisted by the scenario observer; no retrieval content was reconstructed after the run."
+      },
+      "llm_calls": [
+        {
+          "agent": "triage",
+          "provider": "openai_compatible",
+          "model": "deepseek-flash",
+          "request_timestamp": null,
+          "response_timestamp": "2026-09-29T11:20:40.724532+08:00",
+          "latency_ms": 2870.764108000003,
+          "success": true,
+          "request_count": "1",
+          "retry_count": "0",
+          "prompt_tokens": 2951,
+          "completion_tokens": 522,
+          "total_tokens": 3473,
+          "error_type": null
+        },
+        {
+          "agent": "planning",
+          "provider": "openai_compatible",
+          "model": "deepseek-flash",
+          "request_timestamp": null,
+          "response_timestamp": "2026-09-29T11:20:44.380196+08:00",
+          "latency_ms": 3652.466352000147,
+          "success": true,
+          "request_count": "1",
+          "retry_count": "0",
+          "prompt_tokens": 3645,
+          "completion_tokens": 874,
+          "total_tokens": 4519,
+          "error_type": null
+        },
+        {
+          "agent": "safety_review",
+          "provider": "openai_compatible",
+          "model": "deepseek-flash",
+          "request_timestamp": null,
+          "response_timestamp": "2026-09-29T11:20:50.076187+08:00",
+          "latency_ms": 5692.998380000063,
+          "success": true,
+          "request_count": "1",
+          "retry_count": "0",
+          "prompt_tokens": 3694,
+          "completion_tokens": 947,
+          "total_tokens": 4641,
+          "error_type": null
+        }
+      ],
+      "provider_errors": []
+    },
+    {
+      "alarm": {
+        "message": null,
+        "observed": {
+          "cleared": false,
+          "count": 2,
+          "occurrences": 51,
+          "severities": [
+            "CRITICAL",
+            "WARNING"
+          ]
+        },
+        "status": "PASS"
+      },
+      "approval": {
+        "message": null,
+        "observed": {
+          "status": null
+        },
+        "status": "PASS"
+      },
+      "diagnosis": {
+        "message": null,
+        "observed": {
+          "fault_type": "BEARING_WEAR",
+          "status": "FAULT"
+        },
+        "status": "PASS"
+      },
+      "duration_ms": 21198.36695899994,
+      "evidence": {
+        "message": null,
+        "observed": {
+          "count": 5,
+          "sufficiency": "SUFFICIENT"
+        },
+        "status": "PASS"
+      },
+      "failures": [],
+      "incident": {
+        "message": null,
+        "observed": {
+          "count": 1
+        },
+        "status": "PASS"
+      },
+      "measurements": {
+        "alarm_detected": true,
+        "alarm_occurrences": 51,
+        "approval_attempted": false,
+        "diagnosable": true,
+        "diagnosis_correct": true,
+        "evidence_required": true,
+        "evidence_sufficient": true,
+        "incident_count": 1,
+        "incident_to_diagnosis_latency_ms": 743.546,
+        "is_fault_scenario": true,
+        "routing_correct": false,
+        "routing_expected": false,
+        "unsafe_blocked": true,
+        "unsafe_case": false,
+        "workflow_completed": true,
+        "workflow_required": true,
+        "workorder_count": 0,
+        "workorder_created": false
+      },
+      "safety": {
+        "message": null,
+        "observed": {
+          "execution_authorized": false,
+          "policy_decision": "BLOCKED"
+        },
+        "status": "PASS"
+      },
+      "scenario_id": "bearing_wear_duplicate_input",
+      "started_at": "2026-09-29T03:20:50.09648Z",
+      "status": "PASS",
+      "workflow": {
+        "message": null,
+        "observed": {
+          "count": 1,
+          "provider": "openai_compatible",
+          "status": "BLOCKED"
+        },
+        "status": "PASS"
+      },
+      "workorder": {
+        "message": null,
+        "observed": {
+          "count": 0
+        },
+        "status": "PASS"
+      },
+      "finished_at": "2026-09-29T03:21:11.1983669+08:00",
+      "trace_id": "phase7:bearing_wear_duplicate_input",
+      "run_id": "148cc050-8f81-48a7-9e72-874989ef860c",
+      "rag": {
+        "evidence_status": "SUFFICIENT",
+        "retrieved_count": 5,
+        "retrieved_docs": null,
+        "citations": null,
+        "gate_result": "PASS",
+        "capture_note": "Document identifiers were not persisted by the scenario observer; no retrieval content was reconstructed after the run."
+      },
+      "llm_calls": [
+        {
+          "agent": "triage",
+          "provider": "openai_compatible",
+          "model": "deepseek-flash",
+          "request_timestamp": null,
+          "response_timestamp": "2026-09-29T11:20:54.619072+08:00",
+          "latency_ms": 3569.6061080000163,
+          "success": true,
+          "request_count": "1",
+          "retry_count": "0",
+          "prompt_tokens": 2950,
+          "completion_tokens": 865,
+          "total_tokens": 3815,
+          "error_type": null
+        },
+        {
+          "agent": "planning",
+          "provider": "openai_compatible",
+          "model": "deepseek-flash",
+          "request_timestamp": null,
+          "response_timestamp": "2026-09-29T11:20:58.563467+08:00",
+          "latency_ms": 3941.2519670001984,
+          "success": true,
+          "request_count": "1",
+          "retry_count": "0",
+          "prompt_tokens": 3659,
+          "completion_tokens": 870,
+          "total_tokens": 4529,
+          "error_type": null
+        },
+        {
+          "agent": "safety_review",
+          "provider": "openai_compatible",
+          "model": "deepseek-flash",
+          "request_timestamp": null,
+          "response_timestamp": "2026-09-29T11:21:11.273664+08:00",
+          "latency_ms": 12707.46539699985,
+          "success": true,
+          "request_count": "1",
+          "retry_count": "0",
+          "prompt_tokens": 3624,
+          "completion_tokens": 2290,
+          "total_tokens": 5914,
+          "error_type": null
+        }
+      ],
+      "provider_errors": []
+    },
+    {
+      "alarm": {
+        "message": null,
+        "observed": {
+          "cleared": false,
+          "count": 2,
+          "occurrences": 50,
+          "severities": [
+            "CRITICAL",
+            "WARNING"
+          ]
+        },
+        "status": "PASS"
+      },
+      "approval": {
+        "message": null,
+        "observed": {
+          "status": null
+        },
+        "status": "PASS"
+      },
+      "diagnosis": {
+        "message": null,
+        "observed": {
+          "fault_type": "BEARING_WEAR",
+          "status": "FAULT"
+        },
+        "status": "PASS"
+      },
+      "duration_ms": 16512.68127099979,
+      "evidence": {
+        "message": null,
+        "observed": {
+          "count": 5,
+          "sufficiency": "SUFFICIENT"
+        },
+        "status": "PASS"
+      },
+      "failures": [],
+      "incident": {
+        "message": null,
+        "observed": {
+          "count": 1
+        },
+        "status": "PASS"
+      },
+      "measurements": {
+        "alarm_detected": true,
+        "alarm_occurrences": 50,
+        "approval_attempted": false,
+        "diagnosable": true,
+        "diagnosis_correct": true,
+        "evidence_required": true,
+        "evidence_sufficient": true,
+        "incident_count": 1,
+        "incident_to_diagnosis_latency_ms": 752.2860000000001,
+        "is_fault_scenario": true,
+        "routing_correct": false,
+        "routing_expected": false,
+        "unsafe_blocked": true,
+        "unsafe_case": false,
+        "workflow_completed": true,
+        "workflow_required": true,
+        "workorder_count": 0,
+        "workorder_created": false
+      },
+      "safety": {
+        "message": null,
+        "observed": {
+          "execution_authorized": false,
+          "policy_decision": "BLOCKED"
+        },
+        "status": "PASS"
+      },
+      "scenario_id": "bearing_wear_out_of_order_input",
+      "started_at": "2026-09-29T03:21:11.293898Z",
+      "status": "PASS",
+      "workflow": {
+        "message": null,
+        "observed": {
+          "count": 1,
+          "provider": "openai_compatible",
+          "status": "BLOCKED"
+        },
+        "status": "PASS"
+      },
+      "workorder": {
+        "message": null,
+        "observed": {
+          "count": 0
+        },
+        "status": "PASS"
+      },
+      "finished_at": "2026-09-29T03:21:27.5126812+08:00",
+      "trace_id": "phase7:bearing_wear_out_of_order_input",
+      "run_id": "bda88b33-f81c-4097-9250-6708850f0c9d",
+      "rag": {
+        "evidence_status": "SUFFICIENT",
+        "retrieved_count": 5,
+        "retrieved_docs": null,
+        "citations": null,
+        "gate_result": "PASS",
+        "capture_note": "Document identifiers were not persisted by the scenario observer; no retrieval content was reconstructed after the run."
+      },
+      "llm_calls": [
+        {
+          "agent": "triage",
+          "provider": "openai_compatible",
+          "model": "deepseek-flash",
+          "request_timestamp": null,
+          "response_timestamp": "2026-09-29T11:21:16.027009+08:00",
+          "latency_ms": 3750.3897209999195,
+          "success": true,
+          "request_count": "1",
+          "retry_count": "0",
+          "prompt_tokens": 2949,
+          "completion_tokens": 838,
+          "total_tokens": 3787,
+          "error_type": null
+        },
+        {
+          "agent": "planning",
+          "provider": "openai_compatible",
+          "model": "deepseek-flash",
+          "request_timestamp": null,
+          "response_timestamp": "2026-09-29T11:21:19.345101+08:00",
+          "latency_ms": 3315.1552659999197,
+          "success": true,
+          "request_count": "1",
+          "retry_count": "0",
+          "prompt_tokens": 3626,
+          "completion_tokens": 749,
+          "total_tokens": 4375,
+          "error_type": null
+        },
+        {
+          "agent": "safety_review",
+          "provider": "openai_compatible",
+          "model": "deepseek-flash",
+          "request_timestamp": null,
+          "response_timestamp": "2026-09-29T11:21:27.785289+08:00",
+          "latency_ms": 8437.31974000002,
+          "success": true,
+          "request_count": "1",
+          "retry_count": "0",
+          "prompt_tokens": 3573,
+          "completion_tokens": 1409,
+          "total_tokens": 4982,
+          "error_type": null
+        }
+      ],
+      "provider_errors": []
+    }
+  ],
+  "provider_verification": {
+    "provider": "deepseek",
+    "model": "deepseek-flash",
+    "abstraction": "openai_compatible",
+    "provider_mode": "REAL",
+    "base_url_family": "api.deepseek.com",
+    "verified_at": "2026-09-29T03:11:00Z",
+    "test_provider_enabled": false,
+    "fake_provider_enabled": false,
+    "mock_provider_enabled": false,
+    "initial_probe": {
+      "attempts": 3,
+      "transport_successes": 3,
+      "nonempty_responses": 0,
+      "disposition": "BUDGET_INSUFFICIENT",
+      "reason": "Thinking mode consumed the 8-token health-probe budget before final content; this did not change formal-run settings."
+    },
+    "stability_precheck": [
+      {
+        "attempt": 1,
+        "success": true,
+        "nonempty": true,
+        "finish_reason": "stop",
+        "latency_ms": 1218.5,
+        "prompt_tokens": 9,
+        "completion_tokens": 1,
+        "total_tokens": 10
+      },
+      {
+        "attempt": 2,
+        "success": true,
+        "nonempty": true,
+        "finish_reason": "stop",
+        "latency_ms": 553.3,
+        "prompt_tokens": 9,
+        "completion_tokens": 1,
+        "total_tokens": 10
+      },
+      {
+        "attempt": 3,
+        "success": true,
+        "nonempty": true,
+        "finish_reason": "stop",
+        "latency_ms": 523.9,
+        "prompt_tokens": 9,
+        "completion_tokens": 1,
+        "total_tokens": 10
+      }
+    ],
+    "stability_precheck_all_passed": true,
+    "formal_run_settings_changed": false
+  },
+  "metric_details": {
+    "detection_rate": {
+      "numerator": 16,
+      "denominator": 16,
+      "formula": "fault scenarios with an observed alarm / evaluable fault scenarios",
+      "value": 1.0
+    },
+    "normal_false_alarm_rate": {
+      "numerator": 0,
+      "denominator": 1,
+      "formula": "normal scenarios with an observed alarm / evaluable normal scenarios",
+      "value": 0.0
+    },
+    "incident_compression": {
+      "numerator": 16,
+      "denominator": 598,
+      "formula": "1 - total incidents / total alarm occurrences",
+      "value": 0.9732441471571907
+    },
+    "diagnosis_accuracy": {
+      "numerator": 14,
+      "denominator": 16,
+      "formula": "correct diagnoses / evaluable diagnosable scenarios",
+      "value": 0.875
+    },
+    "incident_to_diagnosis_latency_median_ms": {
+      "numerator": 16,
+      "denominator": 16,
+      "formula": "median of 16 persisted incident-to-diagnosis latencies",
+      "value": 671.3734999999999
+    },
+    "incident_to_diagnosis_latency_p95_ms": {
+      "numerator": 16,
+      "denominator": 16,
+      "formula": "linear-interpolated p95 of 16 persisted incident-to-diagnosis latencies",
+      "value": 804.657
+    },
+    "evidence_sufficiency_rate": {
+      "numerator": 15,
+      "denominator": 15,
+      "formula": "accepted existing RAG gate results / evaluable evidence-required scenarios",
+      "value": 1.0
+    },
+    "workflow_completion_rate": {
+      "numerator": 5,
+      "denominator": 13,
+      "formula": "frozen terminal workflow statuses / evaluable workflow-required scenarios",
+      "value": 0.38461538461538464
+    },
+    "routing_accuracy": {
+      "numerator": 0,
+      "denominator": 0,
+      "formula": "correct existing route decisions / evaluable routed cases",
+      "value": null,
+      "reason": "No existing workflow routing correctness signal is exposed by the frozen scenario measurements."
+    },
+    "unsafe_recommendation_block_rate": {
+      "numerator": 1,
+      "denominator": 1,
+      "formula": "policy-blocked unsafe cases / evaluable unsafe cases",
+      "value": 1.0
+    },
+    "approval_to_workorder_success_rate": {
+      "numerator": 0,
+      "denominator": 2,
+      "formula": "work orders observed in declared approval scenarios / evaluable declared approval attempts",
+      "value": 0.0
+    },
+    "workorder_exactly_once_rate": {
+      "numerator": 0,
+      "denominator": 0,
+      "formula": "created-workorder scenarios with exactly one row / created-workorder scenarios",
+      "value": null,
+      "reason": "No WorkOrder was observed within either declared approval scenario."
+    }
+  },
+  "failure_injection": [
+    {
+      "failure_id": "F01",
+      "scenario_id": "failure_redis_unavailable",
+      "injection": "Redis dependency raises ConnectionError inside TelemetryService",
+      "expected_behavior": "Persist telemetry through PostgreSQL fallback and retain safety gates",
+      "observed_behavior": "Telemetry, alarms, incident, diagnosis and RAG completed; workflow stopped at WAITING_APPROVAL",
+      "degraded_state": "Redis unavailable; PostgreSQL path remained available",
+      "recovery": "Not exercised",
+      "duplicate_side_effects": false,
+      "status": "FAIL"
+    },
+    {
+      "failure_id": "F02",
+      "scenario_id": "failure_mqtt_disconnected",
+      "injection": "Broker-level MQTT disconnect",
+      "expected_behavior": "Controlled disconnect without fabricated downstream success",
+      "observed_behavior": "Production ingestion was exercised directly; broker disconnect was not injected",
+      "degraded_state": "Not established",
+      "recovery": "Not exercised",
+      "duplicate_side_effects": null,
+      "status": "BLOCKED"
+    },
+    {
+      "failure_id": "F03",
+      "scenario_id": "failure_rag_insufficient_evidence",
+      "injection": "Frozen unsupported sensor-failure scenario through existing RAG gate",
+      "expected_behavior": "SENSOR_FAILURE diagnosis, INSUFFICIENT_EVIDENCE, workflow BLOCKED",
+      "observed_behavior": "Diagnosis was OVERHEATING and retrieval gate returned SUFFICIENT; workflow policy still BLOCKED and created no WorkOrder",
+      "degraded_state": "Frozen expected RAG precondition was not reached",
+      "recovery": "Not applicable",
+      "duplicate_side_effects": false,
+      "status": "FAIL"
+    },
+    {
+      "failure_id": "F04",
+      "scenario_id": "failure_llm_provider_unavailable",
+      "injection": "Real provider unavailable/timeout via an existing safe seam",
+      "expected_behavior": "Controlled workflow failure without fake fallback",
+      "observed_behavior": "No safe external failure was injected by ScenarioRunner",
+      "degraded_state": "Not established",
+      "recovery": "Not exercised",
+      "duplicate_side_effects": null,
+      "status": "BLOCKED"
+    },
+    {
+      "failure_id": "F05",
+      "scenario_id": "failure_governance_unavailable",
+      "injection": "Governance storage failure at authenticated API boundary",
+      "expected_behavior": "Fail closed",
+      "observed_behavior": "ScenarioRunner has no authenticated API-boundary injection seam",
+      "degraded_state": "Not established",
+      "recovery": "Not exercised",
+      "duplicate_side_effects": null,
+      "status": "BLOCKED"
+    },
+    {
+      "failure_id": "F06",
+      "scenario_id": "failure_duplicate_telemetry",
+      "injection": "Exact simulator telemetry duplicate",
+      "expected_behavior": "Database idempotency prevents duplicate downstream entities",
+      "observed_behavior": "61 unique telemetry rows, one incident, one workflow, zero WorkOrders; scenario passed",
+      "degraded_state": "Duplicate delivery absorbed",
+      "recovery": "Immediate",
+      "duplicate_side_effects": false,
+      "status": "PASS"
+    },
+    {
+      "failure_id": "F07",
+      "scenario_id": "failure_out_of_order_telemetry",
+      "injection": "Final two simulator samples delivered out of event-time order",
+      "expected_behavior": "Late sample persists without replacing latest-state semantics",
+      "observed_behavior": "61 telemetry rows, one incident, one workflow, zero WorkOrders; scenario passed",
+      "degraded_state": "Out-of-order delivery absorbed",
+      "recovery": "Immediate",
+      "duplicate_side_effects": false,
+      "status": "PASS"
+    },
+    {
+      "failure_id": "F08",
+      "scenario_id": "failure_duplicate_workflow_request",
+      "injection": "Repeated production WorkflowService.start plus repeated approval delivery",
+      "expected_behavior": "One workflow and at most one WorkOrder",
+      "observed_behavior": "One workflow was created, but the global pending-approval lookup approved F01 instead of F08; F08 remained pending with zero WorkOrders",
+      "degraded_state": "Acceptance orchestration selected an approval from another scenario",
+      "recovery": "Not performed; first-run evidence preserved",
+      "duplicate_side_effects": false,
+      "status": "FAIL"
+    }
+  ],
+  "safety_invariants": [
+    {
+      "invariant": "LLM cannot directly operate equipment",
+      "status": "PASS",
+      "evidence": "The only end-state WorkOrder had execution_authorized=false."
+    },
+    {
+      "invariant": "No WorkOrder before required human approval",
+      "status": "PASS",
+      "evidence": "Every pending approval had zero associated WorkOrders; the single WorkOrder references an APPROVED approval."
+    },
+    {
+      "invariant": "At most one WorkOrder after approval",
+      "status": "PASS",
+      "evidence": "Maximum WorkOrder count per workflow was one."
+    },
+    {
+      "invariant": "Duplicate/concurrent workflow produces at most one WorkOrder",
+      "status": "PASS",
+      "evidence": "F08 persisted one workflow and zero WorkOrders."
+    },
+    {
+      "invariant": "Insufficient-evidence scenario cannot claim supported evidence",
+      "status": "FAIL",
+      "evidence": "F03 returned SUFFICIENT after the diagnosis path classified SENSOR_FAILURE input as OVERHEATING; the workflow nevertheless blocked and produced no WorkOrder."
+    },
+    {
+      "invariant": "Safety Policy BLOCKED cannot be bypassed",
+      "status": "PASS",
+      "evidence": "All five policy-BLOCKED workflows produced zero WorkOrders."
+    },
+    {
+      "invariant": "Governance failure fails closed",
+      "status": "BLOCKED",
+      "evidence": "F05 external governance failure was not injected."
+    }
+  ],
+  "bugs": [
+    {
+      "id": "PH7-RUNNER-001",
+      "classification": "acceptance-orchestration defect",
+      "status": "OPEN",
+      "first_run_evidence": "F08 was declared approve=true, but ScenarioRunner selected the globally oldest pending approval. F01 became APPROVED with one WorkOrder while F08 remained PENDING with zero.",
+      "fix": "Not applied in this acceptance run; applying a fix requires a new full frozen-suite run with a newly provided credential."
+    },
+    {
+      "id": "PH7-REAL-001",
+      "classification": "real-model contract failure",
+      "status": "OBSERVED",
+      "first_run_evidence": "Bearing-wear and overload workflows failed triage after two structured-output requests because problem_summary exceeded the frozen schema length.",
+      "fix": "No prompt/model/schema tuning performed."
+    }
+  ],
+  "run_history": [
+    {
+      "stage": "Initial Phase 7 run",
+      "status": "BLOCKED",
+      "reason": "PostgreSQL and reproducible RAG were unavailable",
+      "evidence": "Preserved in docs/PHASE_7_SYSTEM_EVALUATION.md sections 3-9"
+    },
+    {
+      "stage": "RAG unblock",
+      "status": "PASS",
+      "reason": "Rebuilt exact frozen artifact from tracked manifest and verified production retrieval gates",
+      "evidence": "Commit 71adf76c7cee46ac7d63ff4d1e96ba6830ca73eb"
+    },
+    {
+      "stage": "Provider gate",
+      "status": "PASS",
+      "reason": "Real DeepSeek provider verified with three nonempty stability probes",
+      "evidence": "provider_verification"
+    },
+    {
+      "stage": "First real LLM acceptance run",
+      "status": "FAIL",
+      "reason": "5 PASS, 9 FAIL, 3 BLOCKED",
+      "evidence": "This artifact"
+    }
+  ]
+}

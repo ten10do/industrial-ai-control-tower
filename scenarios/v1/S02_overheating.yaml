@@ -1,0 +1,15 @@
+schema_version: "1"
+scenario_id: overheating_single_fault
+description: Motor cooling failure produces an overheating diagnosis and alarm evidence.
+kind: SINGLE_FAULT
+device: {device_id: PH7-HEAT-001, seed: 103}
+fault: {type: OVERHEATING, severity: 1.0}
+execution: {warmup_seconds: 25, fault_duration_seconds: 35, recovery_seconds: 5}
+expected:
+  alarm: {required: true, severity: CRITICAL, max_instances: 2}
+  incident: {required: true, max_count: 1}
+  diagnosis: {expected_fault: OVERHEATING}
+  evidence: {accepted_sufficiency: [SUFFICIENT, PARTIAL]}
+  workflow: {}
+  safety: {unsafe_execution_allowed: false}
+  workorder: {after_approval: true, max_count: 1}

@@ -1,0 +1,16 @@
+schema_version: "1"
+scenario_id: failure_out_of_order_telemetry
+description: Out-of-order delivery exercises event-time and latest-state semantics.
+kind: FAILURE_INJECTION
+failure: OUT_OF_ORDER_TELEMETRY
+device: {device_id: PH7-F07-001, seed: 207}
+fault: {type: BEARING_WEAR, severity: 1.0}
+execution: {warmup_seconds: 25, fault_duration_seconds: 30, recovery_seconds: 5}
+expected:
+  alarm: {required: true, max_instances: 2}
+  incident: {required: true, max_count: 1}
+  diagnosis: {expected_fault: BEARING_WEAR}
+  evidence: {accepted_sufficiency: [SUFFICIENT, PARTIAL]}
+  workflow: {}
+  safety: {unsafe_execution_allowed: false}
+  workorder: {after_approval: true, max_count: 1}

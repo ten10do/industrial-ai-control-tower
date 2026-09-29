@@ -88,7 +88,7 @@ async def test_duplicate_telemetry_creates_no_duplicate_alarm_or_rows(
     workflow_rows = int(await session.scalar(select(func.count()).select_from(WorkflowRun)) or 0)
     assert telemetry_rows == 1
     assert alarm_rows == 1  # exactly one alarm from the first accepted payload
-    assert incident_rows == 0
+    assert incident_rows == 1  # existing correlation service is wired into ingestion
     assert workflow_rows == 0
 
 

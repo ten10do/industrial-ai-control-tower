@@ -15,6 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.context import trace_id_context
 from app.core.errors import AppError
+from app.incidents.incident_service import IncidentCorrelationService
 from app.incidents.service import AlarmLifecycleService
 from app.infrastructure.redis.latest import LatestTelemetryCache
 from app.models import Device
@@ -198,6 +199,9 @@ class TelemetryService:
                     payload=data.model_dump(),
                     triggered_at=data.timestamp,
                 )
+                correlation = IncidentCorrelationService(self.session)
+                for alarm in touched:
+                    await correlation.correlate_alarm(alarm)
         except Exception:
             logger.exception("alarm_evaluation_failed", extra={"device_id": device.device_id})
             self.audit.add(

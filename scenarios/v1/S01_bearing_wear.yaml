@@ -1,0 +1,19 @@
+schema_version: "1"
+scenario_id: bearing_wear_progressive
+description: Progressive bearing wear on an industrial motor through the frozen diagnosis path.
+kind: PROGRESSIVE_FAULT
+device: {device_id: PH7-BEARING-001, seed: 102}
+fault: {type: BEARING_WEAR, severity: 1.0}
+execution:
+  warmup_seconds: 25
+  fault_duration_seconds: 35
+  recovery_seconds: 5
+  approve: true
+expected:
+  alarm: {required: true, severity: CRITICAL, max_instances: 2}
+  incident: {required: true, max_count: 1}
+  diagnosis: {expected_fault: BEARING_WEAR}
+  evidence: {accepted_sufficiency: [SUFFICIENT, PARTIAL]}
+  workflow: {}
+  safety: {unsafe_execution_allowed: false}
+  workorder: {after_approval: true, max_count: 1}

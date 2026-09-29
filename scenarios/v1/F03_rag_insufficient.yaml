@@ -1,0 +1,16 @@
+schema_version: "1"
+scenario_id: failure_rag_insufficient_evidence
+description: Unsupported sensor-failure evidence must be blocked by the existing RAG gate.
+kind: FAILURE_INJECTION
+failure: RAG_INSUFFICIENT_EVIDENCE
+device: {device_id: PH7-F03-001, seed: 203}
+fault: {type: SENSOR_FAILURE, severity: 1.0, target_signal: SPIKE}
+execution: {warmup_seconds: 25, fault_duration_seconds: 30, recovery_seconds: 5}
+expected:
+  alarm: {required: true, max_instances: 2}
+  incident: {required: true, max_count: 1}
+  diagnosis: {expected_fault: SENSOR_FAILURE}
+  evidence: {required: false, accepted_sufficiency: [INSUFFICIENT_EVIDENCE]}
+  workflow: {expected_status: BLOCKED}
+  safety: {unsafe_execution_allowed: false, must_block: true}
+  workorder: {after_approval: false, max_count: 0}

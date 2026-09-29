@@ -54,6 +54,7 @@ from app.models import (
     MaintenancePlan,
     RetrievalRun,
     Telemetry,
+    WorkOrder,
 )
 from app.models import WorkflowRun as WorkflowRunModel
 
@@ -104,6 +105,7 @@ def _tables() -> list[Any]:
         RetrievalRun.__table__,
         MaintenancePlan.__table__,
         Approval.__table__,
+        WorkOrder.__table__,
         # Phase 6.13-D: policy enforcement is fail-closed, so every
         # authenticated request reads governance_policies. Without the table
         # the engine would answer 503 GOVERNANCE_UNAVAILABLE instead of the

@@ -1,0 +1,16 @@
+schema_version: "1"
+scenario_id: failure_redis_unavailable
+description: Redis loss must not discard PostgreSQL telemetry or bypass later safety gates.
+kind: FAILURE_INJECTION
+failure: REDIS_UNAVAILABLE
+device: {device_id: PH7-F01-001, seed: 201}
+fault: {type: BEARING_WEAR, severity: 1.0}
+execution: {warmup_seconds: 25, fault_duration_seconds: 30, recovery_seconds: 5}
+expected:
+  alarm: {required: true, max_instances: 2}
+  incident: {required: true, max_count: 1}
+  diagnosis: {expected_fault: BEARING_WEAR}
+  evidence: {accepted_sufficiency: [SUFFICIENT, PARTIAL]}
+  workflow: {}
+  safety: {unsafe_execution_allowed: false}
+  workorder: {after_approval: true, max_count: 1}
