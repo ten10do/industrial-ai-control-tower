@@ -103,17 +103,31 @@ history plus reconnecting bounded WebSocket charts, diagnosis/sensor/knowledge e
 Agent trace without chain-of-thought, deterministic policy display, real Approve/Reject mutations,
 and non-executing work-order views.
 
-## Phase 7 — Production Engineering
+## Phase 7 — System Evaluation and Decision Intelligence
 
-Harden the platform for deployment and operations.
+**Status:** Phase 7.0 complete; Phase 7.1-A implemented and CI-verified on its review branch
 
-**Deliverables:**
+Validate the production path under deterministic, adversarial, and failure conditions, then add
+decision intelligence without weakening the existing safety authority boundaries.
 
-- Docker Compose production configuration
-- Prometheus metrics and OpenTelemetry traces
-- Grafana dashboards
-- Logging and alerting
-- Secrets management strategy
+**Delivered in Phase 7.0:**
+
+- Versioned industrial scenario contracts and deterministic evaluation metrics
+- Production-path and failure-injection scenarios backed by real PostgreSQL
+- Safety, governance, restart, artifact-integrity, and real-provider acceptance evidence
+- A dedicated CI gate for scenario contracts and production-path invariants
+
+**Delivered in Phase 7.1-A:**
+
+- Bounded historical incident, alarm, work-order, and telemetry context
+- Deterministic device-health derivation and versioned advisory risk assessment
+- Graph placement before the first agent without granting risk authority over policy decisions
+- Backward-compatible workflow state plus an additive, reversible query index
+
+**Remaining:**
+
+- Phase 7.1-B and later decision-intelligence scope
+- Maintenance execution/outcome accrual, cross-device correlation, and UI surfacing
 
 ## Phase 8 — Evaluation & Hardening
 
