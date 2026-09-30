@@ -25,6 +25,7 @@ from app.workflow.contracts import (
 )
 from app.workflow.policy import POLICY_VERSION, decide
 from app.workflow.provider import PROMPT_VERSIONS, AgentModelProvider
+from app.workflow.risk import assess_risk
 
 AgentAudit = Callable[
     [
@@ -55,6 +56,8 @@ def _invocation(state: WorkflowState) -> AgentInvocation:
         knowledge_context=state.knowledge_context,
         triage_result=state.triage_result,
         maintenance_plan=state.maintenance_plan,
+        decision_context=state.decision_context,
+        risk_assessment=state.risk_assessment,
     )
 
 
@@ -141,13 +144,33 @@ def build_graph(
         state = _state(raw)
         return {"updated_at": state.updated_at.isoformat()}
 
-    def route_precondition(raw: WorkflowState) -> Literal["precondition_block", "triage"]:
+    def route_precondition(
+        raw: WorkflowState,
+    ) -> Literal["precondition_block", "risk_assessment"]:
         state = _state(raw)
         if state.knowledge_context.sufficiency == "INSUFFICIENT_EVIDENCE":
             return "precondition_block"
         if state.diagnosis.status != "FAULT":
             return "precondition_block"
-        return "triage"
+        return "risk_assessment"
+
+    def risk_assessment_node(raw: WorkflowState) -> dict[str, Any]:
+        """Compute deterministic risk between the gate and the agents.
+
+        This node performs no model call and no I/O. It is a pure function over
+        the context the service already assembled, so it cannot fail on a slow
+        or unavailable provider and cannot introduce nondeterminism into routing.
+        The result is advisory: it is recorded on the state and rendered to the
+        agents as trusted context, but ``policy.decide`` still owns blocking,
+        approval, and auto-pass.
+        """
+
+        state = _state(raw)
+        assessment = assess_risk(context=state.decision_context, diagnosis=state.diagnosis)
+        return {
+            "risk_assessment": assessment.model_dump(mode="json"),
+            "updated_at": _now().isoformat(),
+        }
 
     def precondition_block(raw: WorkflowState) -> dict[str, Any]:
         state = _state(raw)
@@ -272,6 +295,7 @@ def build_graph(
     # signatures under mypy even though they are supported at runtime.
     builder: Any = StateGraph(WorkflowState)
     builder.add_node("precondition_gate", precondition_gate)
+    builder.add_node("risk_assessment", risk_assessment_node)
     builder.add_node(
         "triage", triage_node, retry_policy=transient_retry, timeout=node_timeout_seconds
     )
@@ -291,6 +315,7 @@ def build_graph(
     builder.add_edge(START, "precondition_gate")
     builder.add_conditional_edges("precondition_gate", route_precondition)
     builder.add_edge("precondition_block", END)
+    builder.add_edge("risk_assessment", "triage")
     builder.add_edge("triage", "planning")
     builder.add_edge("planning", "safety")
     builder.add_edge("safety", "policy")

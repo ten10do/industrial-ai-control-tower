@@ -4,8 +4,9 @@ An end-to-end Industrial AI engineering prototype for predictive maintenance, co
 fault diagnosis, evidence-grounded RAG, multi-agent decision support, and human-in-the-loop
 approval.
 
-> Phase 6 PASS. The system supports maintenance decisions and creates draft work orders; it does
-> not autonomously operate equipment or claim that physical maintenance has been completed.
+> Phase 7.0 PASS. Phase 7.1-A is implemented and CI-verified on the current review branch. The
+> system supports maintenance decisions and creates draft work orders; it does not autonomously
+> operate equipment or claim that physical maintenance has been completed.
 
 ## Overview
 
@@ -44,8 +45,8 @@ Industrial protocol adapters:
 
 ## Architecture
 
-This is the implemented Phase 1–6 path. The full component and trust-boundary model is documented
-in [System Architecture](docs/architecture/SYSTEM_ARCHITECTURE.md).
+This is the implemented operational path through Phase 7.1-A. The full component and
+trust-boundary model is documented in [System Architecture](docs/architecture/SYSTEM_ARCHITECTURE.md).
 
 ```mermaid
 flowchart LR
@@ -118,6 +119,7 @@ flowchart LR
 - Typed Triage, Planning, and Safety Review agents orchestrated by LangGraph
 - Provider abstraction with strict structured outputs and bounded schema retries
 - PostgreSQL checkpoints for restart and approval-resume behavior
+- Bounded historical decision context and a deterministic, advisory risk assessment
 - Deterministic `safety-policy-v1` remains authoritative over routing and approval
 - Human approval, rejection, stale-plan protection, and exactly-one work-order semantics
 
@@ -262,9 +264,11 @@ industrial-ai-control-tower/
 
 ## Verification
 
-The Phase 6 release gate covered backend, ML, simulator, knowledge, agent, and frontend regressions;
-Docker rebuild and empty-database migration; real-provider approve/reject/restart flows; static
-analysis; dependency audits; and secret scanning. The final Phase 6 commit is `f41ffd3`.
+The Phase 7.0 gate covers deterministic and real-provider scenarios, safety invariants, failure
+injection, artifact integrity, and production-path integration. Phase 7.1-A adds CI-verified
+decision context and deterministic risk assessment without changing the authority of the safety
+policy, approval flow, or work-order boundary. Repository CI also covers backend, frontend, ML,
+simulator, live PostgreSQL migrations and security suites, deployment checks, and documentation.
 
 Representative local checks:
 
@@ -283,7 +287,8 @@ cd ../frontend && npm test && npm run lint && npm run build
 - Risky plans require an accountable human decision.
 - Work orders represent planned work, not completed physical maintenance.
 - Device configuration changes affect telemetry acquisition only, and no PLC, Modbus, or OPC UA write path exists.
-- Phase 6 is complete; Phase 7 has not started.
+- Phase 7.0 is complete. Phase 7.1-A is implemented and verified on its review branch; later
+  Phase 7.1 work remains out of scope.
 
 ## License
 
