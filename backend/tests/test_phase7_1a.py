@@ -293,7 +293,7 @@ def test_risk_without_context_still_produces_bounded_assessment() -> None:
 
 
 def test_pre_7_1_workflow_state_validates_without_new_fields() -> None:
-    legacy = {
+    legacy: dict[str, Any] = {
         "workflow_run_id": str(uuid4()),
         "trace_id": "t",
         "device_id": "MOTOR-001",

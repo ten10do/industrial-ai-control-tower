@@ -246,9 +246,7 @@ class DecisionContextBuilder:
             return None
         from app.repositories.telemetry import TelemetryRepository
 
-        samples = await TelemetryRepository(self.session).recent_window(
-            device_id, TELEMETRY_WINDOW
-        )
+        samples = await TelemetryRepository(self.session).recent_window(device_id, TELEMETRY_WINDOW)
         if len(samples) < MINIMUM_WINDOW_SAMPLES:
             return DeviceHealthSnapshot(
                 device_id=device_id,

@@ -5,17 +5,20 @@ prove: the current incident is excluded by primary key, ordering is total and
 stable across equal timestamps, limits actually bound the result, and the
 telemetry window is read in the documented order. Those are database
 behaviours, so these tests use the same opt-in PostgreSQL harness the incident
-suite uses.
+suite uses and live in that suite so the harness conftest applies directly,
+without a cross-package re-export that would leak ``pytest_asyncio`` into every
+pytest invocation under ``tests/``.
 
 Invocation::
 
     export ALARM_TEST_DATABASE_URL="postgresql+asyncpg://postgres:<pw>@localhost:5432/phase71a_test"
-    pytest tests/test_phase7_1a_context.py -q
+    pytest tests/incidents/test_phase7_1a_context.py -q
 """
 
 from __future__ import annotations
 
-from datetime import timedelta
+from datetime import datetime, timedelta
+from typing import Any
 from uuid import UUID
 
 import pytest
@@ -39,7 +42,7 @@ async def _incident(
     device_id: str,
     *,
     title: str = "incident",
-    created_at=None,
+    created_at: datetime | None = None,
     status: str = "CLOSED",
     severity: str = "MAJOR",
 ) -> Incident:
@@ -62,7 +65,7 @@ async def _diagnosis(
     device_id: str,
     incident_id: UUID,
     *,
-    created_at=None,
+    created_at: datetime | None = None,
     fault_type: str = "BEARING_WEAR",
 ) -> Diagnosis:
     row = Diagnosis(
@@ -81,15 +84,20 @@ async def _diagnosis(
     return row
 
 
-async def _telemetry(session: AsyncSession, device_id: str, *, base, count: int, **kwargs) -> None:
+async def _telemetry(
+    session: AsyncSession,
+    device_id: str,
+    *,
+    base: datetime,
+    count: int,
+    **kwargs: Any,
+) -> None:
     from app.repositories.telemetry import TelemetryRepository
     from app.schemas.telemetry import TelemetryIn
 
     repo = TelemetryRepository(session)
     for index in range(count):
-        payload = telemetry_payload(
-            device_id, timestamp=base + timedelta(seconds=index), **kwargs
-        )
+        payload = telemetry_payload(device_id, timestamp=base + timedelta(seconds=index), **kwargs)
         await repo.insert_once(TelemetryIn.model_validate(payload))
 
 

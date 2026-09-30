@@ -21,13 +21,23 @@ One additive index is created and nothing is altered or dropped.
     device through a bitmap scan and then sorts, which is linear in the device's
     incident count.
 
-    Measured against 50,000 incidents across 500 devices on PostgreSQL 16: the
-    query dropped from 0.250 ms and 108 shared buffers to 0.064 ms and 14 shared
-    buffers, a roughly 3.9x execution improvement with 7.7x fewer buffers, and
-    the plan changed from a bitmap-heap-scan-plus-sort to an incremental sort
-    over an ordered index scan. Because that is a measured, reproducible
-    improvement on a hot read path and the index is purely additive, the index is
-    taken here rather than deferred.
+    The index is declared ascending on purpose, with no PostgreSQL-specific
+    ``DESC`` op class. PostgreSQL satisfies ``ORDER BY created_at DESC`` with a
+    backward index scan over an ascending index, so the descending variant buys
+    nothing here while costing a metadata/migration asymmetry: the ORM
+    ``Index("ix_incidents_device_created", "device_id", "created_at")`` has no
+    way to express the op class, and ``alembic check`` reports the divergence as
+    an add/remove pair on every run. Ascending keeps live schema, migration, and
+    metadata byte-identical.
+
+    Re-measured on PostgreSQL 16.2 against 50,000 incidents across 500 devices:
+    the query is a backward index scan feeding an incremental sort, reading 14
+    shared buffers, against 102 shared buffers and a bitmap-heap-scan-plus-top-N
+    sort with the index absent. The buffer counts and the plan shape are the
+    reproducible evidence; absolute timing tracks cache state, and the ordering
+    is served by the index either way. Because the improvement is measured, the
+    plan shape is stable, and the index is purely additive, it is taken here
+    rather than deferred.
 
 The index is not unique and enforces no invariant. It changes no query result,
 only the plan that produces it. ``downgrade`` drops exactly this index and
@@ -52,7 +62,6 @@ def upgrade() -> None:
         "incidents",
         ["device_id", "created_at"],
         unique=False,
-        postgresql_ops={"created_at": "DESC"},
     )
 
 

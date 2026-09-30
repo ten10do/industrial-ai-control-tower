@@ -144,8 +144,11 @@ class Incident(TimestampMixin, Base):
         Index("ix_incidents_device_status", "device_id", "status"),
         # Phase 7.1-A. Backs the bounded historical-incident query, which filters
         # one device, excludes the current incident, and orders by
-        # (created_at DESC, id DESC). Measured on 50k incidents / 500 devices:
-        # 0.250 ms -> 0.064 ms and 108 -> 14 shared buffers. Additive and
+        # (created_at DESC, id DESC). Kept ascending on purpose: PostgreSQL
+        # serves that ORDER BY with a backward index scan, so no DESC op class is
+        # declared and this metadata stays identical to migration 20260929_13.
+        # Re-measured on PostgreSQL 16.2 with 50k incidents / 500 devices:
+        # 14 shared buffers with the index, 102 without. Additive and
         # non-unique; it changes no result, only the plan.
         Index("ix_incidents_device_created", "device_id", "created_at"),
     )

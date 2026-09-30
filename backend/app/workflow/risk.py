@@ -97,9 +97,7 @@ def _severity_weight(severity: str | None) -> float:
     return _SEVERITY_WEIGHT.get(severity.upper(), _SEVERITY_DEFAULT)
 
 
-def assess_risk(
-    *, context: DecisionContext | None, diagnosis: DiagnosisSnapshot
-) -> RiskAssessment:
+def assess_risk(*, context: DecisionContext | None, diagnosis: DiagnosisSnapshot) -> RiskAssessment:
     """Return the deterministic risk assessment for one situation.
 
     ``context`` is optional so a pre-7.1 or context-degraded run still produces
